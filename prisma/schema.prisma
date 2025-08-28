@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model DicCategoria {
+  cod    String @id
+  nombre String
+}
+
+model DicTipo {
+  cod    String @id
+  nombre String
+}
+
+model DicClasif {
+  cod    String @id
+  nombre String
+}
+
+model Maestro {
+  sku           String @id
+  descripcion   String
+  categoria_cod String
+  tipo_cod      String
+  clasif_cod    String
+}
+
+model Campania {
+  id                     Int      @id @default(autoincrement())
+  nombre                 String
+  inicia                 DateTime
+  termina                DateTime
+  categoria_objetivo_cod String?
+  tipo_objetivo_cod      String?
+  clasif_objetivo_cod    String?
+  activa                 Boolean  @default(false)
+  escaneos               Escaneo[]
+  snapshot               CampaniaMaestro[]
+
+  @@index([activa])
+}
+
+model CampaniaMaestro {
+  campaniaId    Int
+  sku           String
+  descripcion   String
+  categoria_cod String
+  tipo_cod      String
+  clasif_cod    String
+  campania      Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  @@id([campaniaId, sku])
+  @@index([sku])
+}
+
+model Escaneo {
+  id                  Int      @id @default(autoincrement())
+  ts                  DateTime @default(now())
+  campaniaId          Int
+  sucursal            String
+  email               String
+  sku                 String
+  estado              String
+  categoria_sug_cod   String?
+  tipo_sug_cod        String?
+  clasif_sug_cod      String?
+  asum_categoria_cod  String?
+  asum_tipo_cod       String?
+  asum_clasif_cod     String?
+
+  campania            Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  @@index([sku])
+  @@index([campaniaId])
+}
+
+model Actualizacion {
+  id                 Int       @id @default(autoincrement())
+  ts                 DateTime  @default(now())
+  campaniaId         Int
+  sku                String
+  old_categoria_cod  String?
+  old_tipo_cod       String?
+  old_clasif_cod     String?
+  new_categoria_cod  String
+  new_tipo_cod       String
+  new_clasif_cod     String
+  estado             String    // 'pendiente' | 'aplicada' | 'rechazada'
+  decidedBy          String?   // email del admin
+  decidedAt          DateTime?
+  notas              String?
+
+  @@index([campaniaId, sku])
+}
