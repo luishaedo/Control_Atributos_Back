@@ -541,6 +541,62 @@ admin.get('/export/actualizaciones.csv', async (req, res) => {
   res.send(csv)
 })
 
+admin.get('/export/txt/:campo', async (req, res) => {
+  const campaniaId = Number(req.query.campaniaId)
+  const campo = String(req.params.campo || '').toLowerCase() // "categoria" | "tipo" | "clasif"
+  const estadoParam = String(req.query.estado || 'aceptadas').toLowerCase() // "aplicada" | "aceptadas"
+
+  if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+  if (!['categoria', 'tipo', 'clasif'].includes(campo)) {
+    return res.status(400).json({ error: 'campo inválido (use: categoria | tipo | clasif)' })
+  }
+
+  const estados = estadoParam === 'aplicada' ? ['aplicada'] : ['pendiente', 'aplicada']
+
+  // Traemos decisiones aceptadas y las ordenamos de más nueva a más vieja
+  const acts = await prisma.actualizacion.findMany({
+    where: { campaniaId, estado: { in: estados } },
+    orderBy: [{ decidedAt: 'desc' }, { ts: 'desc' }]
+  })
+
+  // Snapshot por SKU para comparar si cambió el valor
+  const snaps = await prisma.campaniaMaestro.findMany({ where: { campaniaId } })
+  const snapBySku = new Map(snaps.map(s => [s.sku, s]))
+
+  // Mapeo de campos
+  const NEW = { categoria: 'new_categoria_cod', tipo: 'new_tipo_cod', clasif: 'new_clasif_cod' }[campo]
+  const OLD = { categoria: 'old_categoria_cod', tipo: 'old_tipo_cod', clasif: 'old_clasif_cod' }[campo]
+  const SNAP = { categoria: 'categoria_cod', tipo: 'tipo_cod', clasif: 'clasif_cod' }[campo]
+
+  // Para cada SKU, quedarnos con la ÚLTIMA decisión para ese campo
+  const ultimaPorSku = new Map() // sku -> { newCode, oldCodeFromDecision?, snapCode? }
+  for (const a of acts) {
+    if (ultimaPorSku.has(a.sku)) continue
+    const newCode = a[NEW]
+    if (!newCode) continue
+    ultimaPorSku.set(a.sku, {
+      newCode,
+      oldFromDecision: a[OLD] || null,
+      snapCode: snapBySku.get(a.sku)?.[SNAP] || null
+    })
+  }
+
+  // Construir contenido TXT
+  const lines = []
+  for (const [sku, info] of ultimaPorSku.entries()) {
+    const before = info.snapCode ?? info.oldFromDecision // preferir snapshot; si no hay, usar old de la decisión
+    // Si no cambió, no exportamos
+    if (before && String(before) === String(info.newCode)) continue
+    lines.push(`${sku}\t${info.newCode}`)
+  }
+
+  const body = '\ufeff' + lines.join('\n') + (lines.length ? '\n' : '')
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="${campo}_campania_${campaniaId}_${estadoParam}.txt"`)
+  res.send(body)
+})
+
 // --- ACTUALIZACIONES: aplicar en lote (peligroso)
 admin.post('/actualizaciones/aplicar', async (req, res) => {
   const { ids = [], decidedBy = '' } = req.body || {}
