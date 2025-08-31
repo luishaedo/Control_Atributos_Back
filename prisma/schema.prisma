@@ -94,6 +94,14 @@ model Actualizacion {
   decidedBy          String?   // email del admin
   decidedAt          DateTime?
   notas              String?
-
+  archivada          Boolean   @default(false)
+  archivadaBy        String?
+  archivadaAt        DateTime?
+   appliedAt               DateTime?
+  exported_categoria_at   DateTime?
+  exported_tipo_at        DateTime?
+  exported_clasif_at      DateTime?
   @@index([campaniaId, sku])
+  
 }
+

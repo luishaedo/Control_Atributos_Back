@@ -1,4 +1,3 @@
-// src/server.unico.js
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
@@ -6,10 +5,7 @@ import { PrismaClient } from '@prisma/client'
 import { cleanSku, pad2, cumpleObjetivos } from './utils/sku.js'
 
 /**
- * NOTA:
- * - Este archivo unifica: rutas públicas + rutas admin (token).
- * - En producción, lo ideal es NO exponer import/crear campaña en público.
- *   Aquí se dejan ambos por compatibilidad. Podés comentar los públicos si querés.
+ * API unificada (público + admin)
  */
 
 const prisma = new PrismaClient()
@@ -17,9 +13,9 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '20mb' }))
 
-//---------------------------
-// Utils
-//---------------------------
+// ---------------------------
+// Utils / helpers
+// ---------------------------
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || ''
 function requireAdmin(req, res, next) {
   if (!ADMIN_TOKEN) return res.status(500).json({ error: 'ADMIN_TOKEN no configurado en .env' })
@@ -39,7 +35,6 @@ function toCSV(rows) {
   return '\ufeff' + body // BOM UTF-8 para Excel
 }
 
-// Reutilizables (importadores)
 async function upsertDiccionarios({ categorias = [], tipos = [], clasif = [] }) {
   for (const c of categorias) {
     await prisma.dicCategoria.upsert({ where: { cod: c.cod }, create: c, update: { nombre: c.nombre } })
@@ -121,9 +116,9 @@ async function crearCampaniaConSnapshot(payload = {}) {
   return camp
 }
 
-//---------------------------
+// ---------------------------
 // Rutas públicas
-//---------------------------
+// ---------------------------
 app.get('/api/health', (_, res) => res.json({ ok: true }))
 
 // Diccionarios
@@ -136,7 +131,7 @@ app.get('/api/diccionarios', async (_req, res) => {
   res.json({ categorias, tipos, clasif })
 })
 
-// (PÚBLICA) Import diccionarios — dejar por compatibilidad (podés cerrar en prod)
+// (PÚBLICA) Import diccionarios (podés cerrar en prod)
 app.post('/api/diccionarios/import', async (req, res) => {
   const counts = await upsertDiccionarios(req.body || {})
   res.json({ ok: true, counts })
@@ -156,7 +151,7 @@ app.post('/api/campanias/:id/activar', async (req, res) => {
   res.json(activa)
 })
 
-// (PÚBLICA) Crear campaña + snapshot — dejar por compatibilidad (podés cerrar en prod)
+// (PÚBLICA) Crear campaña + snapshot (podés cerrar en prod)
 app.post('/api/campanias', async (req, res) => {
   try {
     const camp = await crearCampaniaConSnapshot(req.body || {})
@@ -175,7 +170,7 @@ app.get('/api/maestro/:sku', async (req, res) => {
   res.json(item)
 })
 
-// (PÚBLICA) Import maestro — dejar por compatibilidad (podés cerrar en prod)
+// (PÚBLICA) Import maestro (podés cerrar en prod)
 app.post('/api/maestro/import', async (req, res) => {
   const { items = [] } = req.body || {}
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items vacío' })
@@ -194,24 +189,24 @@ app.post('/api/escaneos', async (req, res) => {
     const camp = await prisma.campania.findUnique({ where: { id: Number(campaniaId) } })
     if (!camp || !camp.activa) return res.status(400).json({ error: 'Campaña inexistente o no activa' })
 
-    const maestro = await prisma.campaniaMaestro.findUnique({
+    const snap = await prisma.campaniaMaestro.findUnique({
       where: { campaniaId_sku: { campaniaId: camp.id, sku } }
     })
 
     let estado = 'OK'
-    if (!maestro) {
+    if (!snap) {
       estado = 'NO_MAESTRO'
       if (!sugeridos?.categoria_cod || !sugeridos?.tipo_cod || !sugeridos?.clasif_cod) {
         return res.status(400).json({ error: 'Se requieren categoría/tipo/clasif sugeridos cuando no está en Maestro' })
       }
-    } else if (!cumpleObjetivos(camp, maestro)) {
+    } else if (!cumpleObjetivos(camp, snap)) {
       estado = 'REVISAR'
     }
 
     const asumidos = {
-      categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos?.categoria_cod) : (maestro?.categoria_cod || ''),
-      tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos?.tipo_cod) : (maestro?.tipo_cod || ''),
-      clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos?.clasif_cod) : (maestro?.clasif_cod || ''),
+      categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos?.categoria_cod) : (snap?.categoria_cod || ''),
+      tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos?.tipo_cod) : (snap?.tipo_cod || ''),
+      clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos?.clasif_cod) : (snap?.clasif_cod || ''),
     }
 
     await prisma.escaneo.create({
@@ -226,11 +221,11 @@ app.post('/api/escaneos', async (req, res) => {
       }
     })
 
-    const maestroOut = maestro ? {
-      descripcion: maestro.descripcion,
-      categoria_cod: maestro.categoria_cod,
-      tipo_cod: maestro.tipo_cod,
-      clasif_cod: maestro.clasif_cod,
+    const maestroOut = snap ? {
+      descripcion: snap.descripcion,
+      categoria_cod: snap.categoria_cod,
+      tipo_cod: snap.tipo_cod,
+      clasif_cod: snap.clasif_cod,
     } : null
 
     res.json({ estado, maestro: maestroOut, asumidos })
@@ -240,9 +235,9 @@ app.post('/api/escaneos', async (req, res) => {
   }
 })
 
-//---------------------------
+// ---------------------------
 // Rutas ADMIN (token)
-//---------------------------
+// ---------------------------
 const admin = express.Router()
 admin.use(requireAdmin)
 
@@ -271,7 +266,7 @@ admin.post('/campanias', async (req, res) => {
   }
 })
 
-// Auditoría
+// Auditoría — discrepancias vs snapshot y entre sucursales
 admin.get('/discrepancias', async (req, res) => {
   const campaniaId = Number(req.query.campaniaId)
   if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
@@ -321,7 +316,7 @@ admin.get('/discrepancias-sucursales', async (req, res) => {
   res.json({ items })
 })
 
-// Exports CSV (admin)
+// Exports CSV varios
 admin.get('/export/maestro.csv', async (_req, res) => {
   const list = await prisma.maestro.findMany({ orderBy: { sku: 'asc' } })
   const rows = [['sku','descripcion','categoria_cod','tipo_cod','clasif_cod']]
@@ -378,6 +373,8 @@ admin.get('/export/discrepancias.csv', async (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="discrepancias.csv"')
   res.send(csv)
 })
+
+// Revisiones: lista agrupada por SKU/propuesta con consenso
 admin.get('/revisiones', async (req, res) => {
   const campaniaId = Number(req.query.campaniaId)
   if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
@@ -386,15 +383,12 @@ admin.get('/revisiones', async (req, res) => {
   const filtroConsenso = req.query.consenso // 'true' | 'false' | undefined
   const soloConDiferencias = (req.query.soloConDiferencias ?? 'true') === 'true'
 
-  // escaneos de la campaña
   const escaneos = await prisma.escaneo.findMany({ where: { campaniaId } })
-  // snapshot maestro de campaña
   const snapBySku = new Map(
     (await prisma.campaniaMaestro.findMany({ where: { campaniaId } }))
       .map(m => [m.sku, m])
   )
 
-  // decisiones ya tomadas
   const decisiones = await prisma.actualizacion.findMany({
     where: { campaniaId },
     orderBy: { ts: 'desc' }
@@ -402,15 +396,14 @@ admin.get('/revisiones', async (req, res) => {
   const decKey = d => `${d.sku}|${d.new_categoria_cod}|${d.new_tipo_cod}|${d.new_clasif_cod}`
   const mapDec = new Map(decisiones.map(d => [decKey(d), d]))
 
-  // agrupar por SKU y por propuesta (asumidos)
   const porSku = new Map()
   for (const e of escaneos) {
     if (buscarSku && !String(e.sku).toUpperCase().includes(buscarSku)) continue
 
     const snap = snapBySku.get(e.sku) || null
     const dif = !snap || (e.asum_categoria_cod !== (snap?.categoria_cod || null)
-        || e.asum_tipo_cod !== (snap?.tipo_cod || null)
-        || e.asum_clasif_cod !== (snap?.clasif_cod || null))
+      || e.asum_tipo_cod !== (snap?.tipo_cod || null)
+      || e.asum_clasif_cod !== (snap?.clasif_cod || null))
 
     if (soloConDiferencias && !dif) continue
 
@@ -419,7 +412,7 @@ admin.get('/revisiones', async (req, res) => {
       maestro: snap ? {
         categoria_cod: snap.categoria_cod, tipo_cod: snap.tipo_cod, clasif_cod: snap.clasif_cod
       } : null,
-      propuestas: new Map() // key "cat|tipo|clasif" -> { categoria_cod, tipo_cod, clasif_cod, count, usuarios:Set, sucursales:Set }
+      propuestas: new Map()
     }
 
     const cat = e.asum_categoria_cod || ''
@@ -436,7 +429,6 @@ admin.get('/revisiones', async (req, res) => {
     porSku.set(e.sku, grp)
   }
 
-  // armar salida + consenso
   const items = []
   for (const grp of porSku.values()) {
     const propuestasArr = Array.from(grp.propuestas.values())
@@ -449,11 +441,11 @@ admin.get('/revisiones', async (req, res) => {
         sucursales: Array.from(p.sucursales),
         decision: mapDec.get(`${grp.sku}|${p.categoria_cod}|${p.tipo_cod}|${p.clasif_cod}`) || null
       }))
-      .sort((a,b) => b.count - a.count)
+      .sort((a, b) => b.count - a.count)
 
-    const total = propuestasArr.reduce((s,p)=>s+p.count,0)
+    const total = propuestasArr.reduce((s, p) => s + p.count, 0)
     const top = propuestasArr[0]
-    const consenso = top ? (top.count/Math.max(1,total)) : 0
+    const consenso = top ? (top.count / Math.max(1, total)) : 0
     const hayConsenso = top ? (top.count >= 2 && top.count > (propuestasArr[1]?.count || 0)) : false
 
     if (filtroConsenso === 'true' && !hayConsenso) continue
@@ -461,7 +453,7 @@ admin.get('/revisiones', async (req, res) => {
 
     items.push({
       sku: grp.sku,
-      maestro: grp.maestro,    // snapshot
+      maestro: grp.maestro,
       propuestas: propuestasArr,
       totalVotos: total,
       consensoPct: Number(consenso.toFixed(2)),
@@ -472,53 +464,100 @@ admin.get('/revisiones', async (req, res) => {
   res.json({ items })
 })
 
-// --- REVISIÓN: decidir (aceptar/rechazar)
+// Revisiones: decidir (aceptar / rechazar)
 admin.post('/revisiones/decidir', async (req, res) => {
-  const { campaniaId, sku, propuesta, decision, decidedBy, aplicarAhora = false, notas = '' } = req.body || {}
-  if (!campaniaId || !sku || !propuesta || !decision) return res.status(400).json({ error: 'Faltan campos' })
-  if (!['aceptar','rechazar'].includes(decision)) return res.status(400).json({ error: 'decision inválida' })
+  try {
+    const { campaniaId, sku, decision, propuesta, decidedBy = 'admin@local', aplicarAhora = false } = req.body
+    if (!campaniaId || !sku) return res.status(400).json({ error: 'campaniaId y sku requeridos' })
 
-  const snap = await prisma.campaniaMaestro.findUnique({ where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } } })
-  const oldCat = snap?.categoria_cod || null
-  const oldTip = snap?.tipo_cod || null
-  const oldCla = snap?.clasif_cod || null
-
-  const newCat = pad2(propuesta.categoria_cod || '')
-  const newTip = pad2(propuesta.tipo_cod || '')
-  const newCla = pad2(propuesta.clasif_cod || '')
-
-  const estado = decision === 'aceptar' ? (aplicarAhora ? 'aplicada' : 'pendiente') : 'rechazada'
-
-  const act = await prisma.actualizacion.create({
-    data: {
-      campaniaId: Number(campaniaId), sku,
-      old_categoria_cod: oldCat, old_tipo_cod: oldTip, old_clasif_cod: oldCla,
-      new_categoria_cod: newCat, new_tipo_cod: newTip, new_clasif_cod: newCla,
-      estado, decidedBy: decidedBy || null, decidedAt: new Date(), notas
-    }
-  })
-
-  if (decision === 'aceptar' && aplicarAhora) {
-    await prisma.maestro.upsert({
-      where: { sku },
-      create: { sku, descripcion: snap?.descripcion || '', categoria_cod: newCat, tipo_cod: newTip, clasif_cod: newCla },
-      update: { categoria_cod: newCat, tipo_cod: newTip, clasif_cod: newCla }
+    const snap = await prisma.campaniaMaestro.findUnique({
+      where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } }
     })
+
+    if (decision === 'aceptar') {
+      // Evitar múltiples 'pendiente' por el mismo SKU en la campaña: archiva otras
+      await prisma.actualizacion.updateMany({
+        where: { campaniaId: Number(campaniaId), sku, estado: 'pendiente', archivada: false },
+        data: { archivada: true, archivadaAt: new Date(), archivadaBy: decidedBy || 'admin' }
+      })
+
+      const nueva = await prisma.actualizacion.create({
+        data: {
+          campaniaId: Number(campaniaId),
+          sku,
+          old_categoria_cod: snap?.categoria_cod ?? null,
+          old_tipo_cod:      snap?.tipo_cod ?? null,
+          old_clasif_cod:    snap?.clasif_cod ?? null,
+          new_categoria_cod: pad2(propuesta?.categoria_cod || ''),
+          new_tipo_cod:      pad2(propuesta?.tipo_cod || ''),
+          new_clasif_cod:    pad2(propuesta?.clasif_cod || ''),
+          estado: aplicarAhora ? 'aplicada' : 'pendiente',
+          decidedBy,
+          decidedAt: new Date(),
+          ...(aplicarAhora ? { appliedAt: new Date() } : {})
+        }
+      })
+
+      return res.json({ ok: true, actualizacion: nueva })
+    }
+
+    if (decision === 'rechazar') {
+      const rej = await prisma.actualizacion.create({
+        data: {
+          campaniaId: Number(campaniaId),
+          sku,
+          old_categoria_cod: snap?.categoria_cod ?? null,
+          old_tipo_cod:      snap?.tipo_cod ?? null,
+          old_clasif_cod:    snap?.clasif_cod ?? null,
+          new_categoria_cod: pad2(propuesta?.categoria_cod || ''),
+          new_tipo_cod:      pad2(propuesta?.tipo_cod || ''),
+          new_clasif_cod:    pad2(propuesta?.clasif_cod || ''),
+          estado: 'rechazada',
+          decidedBy,
+          decidedAt: new Date()
+        }
+      })
+      return res.json({ ok: true, actualizacion: rej })
+    }
+
+    return res.status(400).json({ error: 'decision inválida' })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error al decidir revisión' })
   }
-
-  res.json({ ok: true, actualizacion: act })
 })
 
-// --- ACTUALIZACIONES: listar y exportar
+// Cola de actualizaciones (listar)
 admin.get('/actualizaciones', async (req, res) => {
-  const campaniaId = Number(req.query.campaniaId)
-  const estado = (req.query.estado || '').trim() // pendiente/aplicada/rechazada
-  const where = campaniaId ? { campaniaId } : {}
-  const list = await prisma.actualizacion.findMany({ where, orderBy: { ts: 'desc' } })
-  const items = estado ? list.filter(a => a.estado === estado) : list
-  res.json({ items })
+  try {
+    const campaniaId = Number(req.query.campaniaId)
+    if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+
+    const estado = String(req.query.estado || '').toLowerCase() // opcional: pendiente/aplicada/rechazada
+    const arch = String(req.query.archivada ?? 'false').toLowerCase() // default: sólo activas
+
+    const where = { campaniaId }
+
+    if (['pendiente', 'aplicada', 'rechazada'].includes(estado)) {
+      where.estado = estado
+    }
+    if (arch === 'false') where.archivada = false
+    else if (arch === 'true') where.archivada = true
+    // 'todas' => sin filtro de archivada
+
+    const items = await prisma.actualizacion.findMany({
+      where,
+      orderBy: [{ ts: 'desc' }]
+    })
+
+    res.json({ items })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Error listando actualizaciones' })
+  }
 })
 
+// Export CSV de pendientes
 admin.get('/export/actualizaciones.csv', async (req, res) => {
   const campaniaId = Number(req.query.campaniaId)
   if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
@@ -541,63 +580,67 @@ admin.get('/export/actualizaciones.csv', async (req, res) => {
   res.send(csv)
 })
 
+// Export TXT por campo (única versión)
 admin.get('/export/txt/:campo', async (req, res) => {
-  const campaniaId = Number(req.query.campaniaId)
-  const campo = String(req.params.campo || '').toLowerCase() // "categoria" | "tipo" | "clasif"
-  const estadoParam = String(req.query.estado || 'aceptadas').toLowerCase() // "aplicada" | "aceptadas"
+  try {
+    const campaniaId = Number(req.query.campaniaId)
+    const campo = String(req.params.campo || '').toLowerCase() // categoria | tipo | clasif
+    const estadoParam = String(req.query.estado || 'aceptadas').toLowerCase() // aplicada | aceptadas
+    const incluirArchivadas = String(req.query.incluirArchivadas || 'false').toLowerCase() === 'true'
 
-  if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
-  if (!['categoria', 'tipo', 'clasif'].includes(campo)) {
-    return res.status(400).json({ error: 'campo inválido (use: categoria | tipo | clasif)' })
-  }
+    if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+    if (!['categoria', 'tipo', 'clasif'].includes(campo)) {
+      return res.status(400).json({ error: 'campo inválido (use: categoria | tipo | clasif)' })
+    }
 
-  const estados = estadoParam === 'aplicada' ? ['aplicada'] : ['pendiente', 'aplicada']
+    const estados = estadoParam === 'aplicada' ? ['aplicada'] : ['pendiente', 'aplicada']
 
-  // Traemos decisiones aceptadas y las ordenamos de más nueva a más vieja
-  const acts = await prisma.actualizacion.findMany({
-    where: { campaniaId, estado: { in: estados } },
-    orderBy: [{ decidedAt: 'desc' }, { ts: 'desc' }]
-  })
-
-  // Snapshot por SKU para comparar si cambió el valor
-  const snaps = await prisma.campaniaMaestro.findMany({ where: { campaniaId } })
-  const snapBySku = new Map(snaps.map(s => [s.sku, s]))
-
-  // Mapeo de campos
-  const NEW = { categoria: 'new_categoria_cod', tipo: 'new_tipo_cod', clasif: 'new_clasif_cod' }[campo]
-  const OLD = { categoria: 'old_categoria_cod', tipo: 'old_tipo_cod', clasif: 'old_clasif_cod' }[campo]
-  const SNAP = { categoria: 'categoria_cod', tipo: 'tipo_cod', clasif: 'clasif_cod' }[campo]
-
-  // Para cada SKU, quedarnos con la ÚLTIMA decisión para ese campo
-  const ultimaPorSku = new Map() // sku -> { newCode, oldCodeFromDecision?, snapCode? }
-  for (const a of acts) {
-    if (ultimaPorSku.has(a.sku)) continue
-    const newCode = a[NEW]
-    if (!newCode) continue
-    ultimaPorSku.set(a.sku, {
-      newCode,
-      oldFromDecision: a[OLD] || null,
-      snapCode: snapBySku.get(a.sku)?.[SNAP] || null
+    const acts = await prisma.actualizacion.findMany({
+      where: {
+        campaniaId,
+        estado: { in: estados },
+        ...(incluirArchivadas ? {} : { archivada: false })
+      },
+      orderBy: [{ decidedAt: 'desc' }, { ts: 'desc' }]
     })
+
+    const snaps = await prisma.campaniaMaestro.findMany({ where: { campaniaId } })
+    const snapBySku = new Map(snaps.map(s => [s.sku, s]))
+
+    const NEW  = { categoria: 'new_categoria_cod', tipo: 'new_tipo_cod', clasif: 'new_clasif_cod' }[campo]
+    const OLD  = { categoria: 'old_categoria_cod', tipo: 'old_tipo_cod', clasif: 'old_clasif_cod' }[campo]
+    const SNAP = { categoria: 'categoria_cod',    tipo: 'tipo_cod',    clasif: 'clasif_cod' }[campo]
+
+    const ultimaPorSku = new Map()
+    for (const a of acts) {
+      if (ultimaPorSku.has(a.sku)) continue
+      const newCode = a[NEW]
+      if (!newCode) continue
+      ultimaPorSku.set(a.sku, {
+        newCode,
+        oldFromDecision: a[OLD] || null,
+        snapCode: snapBySku.get(a.sku)?.[SNAP] || null
+      })
+    }
+
+    const lines = []
+    for (const [sku, info] of ultimaPorSku.entries()) {
+      const before = info.snapCode ?? info.oldFromDecision
+      if (before && String(before) === String(info.newCode)) continue
+      lines.push(`${sku}\t${info.newCode}`)
+    }
+
+    const body = '\ufeff' + lines.join('\n') + (lines.length ? '\n' : '')
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${campo}_campania_${campaniaId}_${estadoParam}.txt"`)
+    res.send(body)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Error generando TXT' })
   }
-
-  // Construir contenido TXT
-  const lines = []
-  for (const [sku, info] of ultimaPorSku.entries()) {
-    const before = info.snapCode ?? info.oldFromDecision // preferir snapshot; si no hay, usar old de la decisión
-    // Si no cambió, no exportamos
-    if (before && String(before) === String(info.newCode)) continue
-    lines.push(`${sku}\t${info.newCode}`)
-  }
-
-  const body = '\ufeff' + lines.join('\n') + (lines.length ? '\n' : '')
-
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-  res.setHeader('Content-Disposition', `attachment; filename="${campo}_campania_${campaniaId}_${estadoParam}.txt"`)
-  res.send(body)
 })
 
-// --- ACTUALIZACIONES: aplicar en lote (peligroso)
+// Aplicar en lote
 admin.post('/actualizaciones/aplicar', async (req, res) => {
   const { ids = [], decidedBy = '' } = req.body || {}
   if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids vacío' })
@@ -607,24 +650,40 @@ admin.post('/actualizaciones/aplicar', async (req, res) => {
     await prisma.maestro.upsert({
       where: { sku: a.sku },
       create: {
-        sku: a.sku, descripcion: '', // opcional: recuperar de snapshot
+        sku: a.sku, descripcion: '',
         categoria_cod: a.new_categoria_cod, tipo_cod: a.new_tipo_cod, clasif_cod: a.new_clasif_cod
       },
       update: { categoria_cod: a.new_categoria_cod, tipo_cod: a.new_tipo_cod, clasif_cod: a.new_clasif_cod }
     })
     await prisma.actualizacion.update({
       where: { id: a.id },
-      data: { estado: 'aplicada', decidedBy: decidedBy || a.decidedBy, decidedAt: new Date() }
+      data: { estado: 'aplicada', decidedBy: decidedBy || a.decidedBy, decidedAt: new Date(), appliedAt: new Date() }
     })
   }
   res.json({ ok: true, aplicadas: acts.length })
 })
 
+// Archivar / desarchivar actualizaciones (fix)
+admin.post('/actualizaciones/archivar', async (req, res) => {
+  const { ids = [], archivada = true, archivadaBy = '' } = req.body || {}
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids vacío' })
+
+  const data = archivada
+    ? { archivada: true, archivadaBy: archivadaBy || null, archivadaAt: new Date() }
+    : { archivada: false, archivadaBy: null, archivadaAt: null }
+
+  const r = await prisma.actualizacion.updateMany({
+    where: { id: { in: ids } },
+    data
+  })
+  res.json({ ok: true, updated: r.count })
+})
+
 // Montar router admin
 app.use('/api/admin', admin)
 
-//---------------------------
+// ---------------------------
 // Boot
-//---------------------------
+// ---------------------------
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => console.log(`API unificada en http://localhost:${PORT}`))
