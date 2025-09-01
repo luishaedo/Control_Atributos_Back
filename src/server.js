@@ -4,10 +4,6 @@ import cors from 'cors'
 import { PrismaClient } from '@prisma/client'
 import { cleanSku, pad2, cumpleObjetivos } from './utils/sku.js'
 
-/**
- * API unificada (público + admin)
- */
-
 const prisma = new PrismaClient()
 const app = express()
 app.use(cors())
@@ -587,6 +583,7 @@ admin.get('/export/txt/:campo', async (req, res) => {
     const campo = String(req.params.campo || '').toLowerCase() // categoria | tipo | clasif
     const estadoParam = String(req.query.estado || 'aceptadas').toLowerCase() // aplicada | aceptadas
     const incluirArchivadas = String(req.query.incluirArchivadas || 'false').toLowerCase() === 'true'
+    const archivar = String(req.query.archivar || 'false').toLowerCase() === 'true'
 
     if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
     if (!['categoria', 'tipo', 'clasif'].includes(campo)) {
@@ -612,7 +609,9 @@ admin.get('/export/txt/:campo', async (req, res) => {
     const SNAP = { categoria: 'categoria_cod',    tipo: 'tipo_cod',    clasif: 'clasif_cod' }[campo]
 
     const ultimaPorSku = new Map()
-    for (const a of acts) {
+    const idUsadoPorSku = new Map()
+
+   for (const a of acts) {
       if (ultimaPorSku.has(a.sku)) continue
       const newCode = a[NEW]
       if (!newCode) continue
@@ -621,13 +620,21 @@ admin.get('/export/txt/:campo', async (req, res) => {
         oldFromDecision: a[OLD] || null,
         snapCode: snapBySku.get(a.sku)?.[SNAP] || null
       })
+      idUsadoPorSku.set(a.sku, a.id) 
     }
 
-    const lines = []
+     const lines = []
     for (const [sku, info] of ultimaPorSku.entries()) {
       const before = info.snapCode ?? info.oldFromDecision
       if (before && String(before) === String(info.newCode)) continue
       lines.push(`${sku}\t${info.newCode}`)
+    }
+
+    if (archivar && idUsadoPorSku.size) {
+      await prisma.actualizacion.updateMany({
+        where: { id: { in: Array.from(idUsadoPorSku.values()) } },
+        data: { archivada: true, archivadaAt: new Date(), archivadaBy: 'export' }
+      })
     }
 
     const body = '\ufeff' + lines.join('\n') + (lines.length ? '\n' : '')
