@@ -4,6 +4,7 @@ import cors from 'cors'
 import { PrismaClient } from '@prisma/client'
 import { cleanSku, pad2, cumpleObjetivos } from './utils/sku.js'
 
+
 const prisma = new PrismaClient()
 const app = express()
 app.use(cors())
@@ -209,11 +210,11 @@ app.post('/api/escaneos', async (req, res) => {
       data: {
         campaniaId: camp.id, sucursal, email, sku, estado,
         categoria_sug_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
-        tipo_sug_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
-        clasif_sug_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
+        tipo_sug_cod:      sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
+        clasif_sug_cod:    sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
         asum_categoria_cod: asumidos.categoria_cod || null,
-        asum_tipo_cod: asumidos.tipo_cod || null,
-        asum_clasif_cod: asumidos.clasif_cod || null,
+        asum_tipo_cod:      asumidos.tipo_cod || null,
+        asum_clasif_cod:    asumidos.clasif_cod || null,
       }
     })
 
@@ -271,7 +272,11 @@ admin.get('/discrepancias', async (req, res) => {
   const items = []
   for (const e of escaneos) {
     const m = await prisma.campaniaMaestro.findUnique({ where: { campaniaId_sku: { campaniaId, sku: e.sku } } })
-    const diff = !m || (e.asum_categoria_cod !== (m?.categoria_cod || null) || e.asum_tipo_cod !== (m?.tipo_cod || null) || e.asum_clasif_cod !== (m?.clasif_cod || null))
+    const diff = !m || (
+      e.asum_categoria_cod !== (m?.categoria_cod || null) ||
+      e.asum_tipo_cod      !== (m?.tipo_cod || null) ||
+      e.asum_clasif_cod    !== (m?.clasif_cod || null)
+    )
     if (diff) {
       items.push({
         sku: e.sku, sucursal: e.sucursal, email: e.email, estado: e.estado,
@@ -299,7 +304,7 @@ admin.get('/discrepancias-sucursales', async (req, res) => {
   for (const [sku, list] of bySku.entries()) {
     const setCat = new Set(list.map(x => x.asum_categoria_cod).filter(Boolean))
     const setTipo = new Set(list.map(x => x.asum_tipo_cod).filter(Boolean))
-    const setCla = new Set(list.map(x => x.asum_clasif_cod).filter(Boolean))
+    const setCla  = new Set(list.map(x => x.asum_clasif_cod).filter(Boolean))
     if (setCat.size > 1 || setTipo.size > 1 || setCla.size > 1) {
       items.push({
         sku,
@@ -312,7 +317,7 @@ admin.get('/discrepancias-sucursales', async (req, res) => {
   res.json({ items })
 })
 
-// Exports CSV varios
+// Exports CSV (admin)
 admin.get('/export/maestro.csv', async (_req, res) => {
   const list = await prisma.maestro.findMany({ orderBy: { sku: 'asc' } })
   const rows = [['sku','descripcion','categoria_cod','tipo_cod','clasif_cod']]
@@ -356,7 +361,11 @@ admin.get('/export/discrepancias.csv', async (req, res) => {
   const rows = [['sku','sucursal','email','estado','cat_maestro','tipo_maestro','clasif_maestro','cat_asumido','tipo_asumido','clasif_asumido','ts']]
   for (const e of escaneos) {
     const m = await prisma.campaniaMaestro.findUnique({ where: { campaniaId_sku: { campaniaId, sku: e.sku } } })
-    const diff = !m || (e.asum_categoria_cod !== (m?.categoria_cod || null) || e.asum_tipo_cod !== (m?.tipo_cod || null) || e.asum_clasif_cod !== (m?.clasif_cod || null))
+    const diff = !m || (
+      e.asum_categoria_cod !== (m?.categoria_cod || null) ||
+      e.asum_tipo_cod      !== (m?.tipo_cod || null) ||
+      e.asum_clasif_cod    !== (m?.clasif_cod || null)
+    )
     if (!diff) continue
     rows.push([
       e.sku, e.sucursal, e.email, e.estado,
@@ -397,10 +406,11 @@ admin.get('/revisiones', async (req, res) => {
     if (buscarSku && !String(e.sku).toUpperCase().includes(buscarSku)) continue
 
     const snap = snapBySku.get(e.sku) || null
-    const dif = !snap || (e.asum_categoria_cod !== (snap?.categoria_cod || null)
-      || e.asum_tipo_cod !== (snap?.tipo_cod || null)
-      || e.asum_clasif_cod !== (snap?.clasif_cod || null))
-
+    const dif = !snap || (
+      e.asum_categoria_cod !== (snap?.categoria_cod || null) ||
+      e.asum_tipo_cod      !== (snap?.tipo_cod || null) ||
+      e.asum_clasif_cod    !== (snap?.clasif_cod || null)
+    )
     if (soloConDiferencias && !dif) continue
 
     const grp = porSku.get(e.sku) || {
@@ -463,7 +473,7 @@ admin.get('/revisiones', async (req, res) => {
 // Revisiones: decidir (aceptar / rechazar)
 admin.post('/revisiones/decidir', async (req, res) => {
   try {
-    const { campaniaId, sku, decision, propuesta, decidedBy = 'admin@local', aplicarAhora = false } = req.body
+    const { campaniaId, sku, decision, propuesta, decidedBy = 'admin@local', aplicarAhora = false, notas = '' } = req.body
     if (!campaniaId || !sku) return res.status(400).json({ error: 'campaniaId y sku requeridos' })
 
     const snap = await prisma.campaniaMaestro.findUnique({
@@ -471,7 +481,7 @@ admin.post('/revisiones/decidir', async (req, res) => {
     })
 
     if (decision === 'aceptar') {
-      // Evitar múltiples 'pendiente' por el mismo SKU en la campaña: archiva otras
+      // Evitar múltiples 'pendiente' en la cola por el mismo SKU
       await prisma.actualizacion.updateMany({
         where: { campaniaId: Number(campaniaId), sku, estado: 'pendiente', archivada: false },
         data: { archivada: true, archivadaAt: new Date(), archivadaBy: decidedBy || 'admin' }
@@ -490,9 +500,27 @@ admin.post('/revisiones/decidir', async (req, res) => {
           estado: aplicarAhora ? 'aplicada' : 'pendiente',
           decidedBy,
           decidedAt: new Date(),
-          ...(aplicarAhora ? { appliedAt: new Date() } : {})
+          appliedAt: aplicarAhora ? new Date() : null,
+          notas
         }
       })
+
+      if (aplicarAhora) {
+        await prisma.maestro.upsert({
+          where: { sku },
+          create: {
+            sku, descripcion: snap?.descripcion || '',
+            categoria_cod: nueva.new_categoria_cod,
+            tipo_cod:      nueva.new_tipo_cod,
+            clasif_cod:    nueva.new_clasif_cod
+          },
+          update: {
+            categoria_cod: nueva.new_categoria_cod,
+            tipo_cod:      nueva.new_tipo_cod,
+            clasif_cod:    nueva.new_clasif_cod
+          }
+        })
+      }
 
       return res.json({ ok: true, actualizacion: nueva })
     }
@@ -510,7 +538,8 @@ admin.post('/revisiones/decidir', async (req, res) => {
           new_clasif_cod:    pad2(propuesta?.clasif_cod || ''),
           estado: 'rechazada',
           decidedBy,
-          decidedAt: new Date()
+          decidedAt: new Date(),
+          notas
         }
       })
       return res.json({ ok: true, actualizacion: rej })
@@ -523,20 +552,21 @@ admin.post('/revisiones/decidir', async (req, res) => {
   }
 })
 
-// Cola de actualizaciones (listar)
+// Cola de actualizaciones (listar) con filtros de estado/archivada
 admin.get('/actualizaciones', async (req, res) => {
   try {
     const campaniaId = Number(req.query.campaniaId)
     if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
 
-    const estado = String(req.query.estado || '').toLowerCase() // opcional: pendiente/aplicada/rechazada
-    const arch = String(req.query.archivada ?? 'false').toLowerCase() // default: sólo activas
+    const estado = String(req.query.estado || '').toLowerCase() // opcional
+    const arch = String(req.query.archivada ?? 'false').toLowerCase() // default: solo activas
 
     const where = { campaniaId }
 
     if (['pendiente', 'aplicada', 'rechazada'].includes(estado)) {
       where.estado = estado
     }
+
     if (arch === 'false') where.archivada = false
     else if (arch === 'true') where.archivada = true
     // 'todas' => sin filtro de archivada
@@ -558,7 +588,7 @@ admin.get('/export/actualizaciones.csv', async (req, res) => {
   const campaniaId = Number(req.query.campaniaId)
   if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
   const list = await prisma.actualizacion.findMany({
-    where: { campaniaId, estado: 'pendiente' },
+    where: { campaniaId, estado: 'pendiente', archivada: false },
     orderBy: { ts: 'asc' }
   })
   const rows = [['sku','old_categoria','old_tipo','old_clasif','new_categoria','new_tipo','new_clasif','estado','decidido_por','decidido_en','notas']]
@@ -576,14 +606,13 @@ admin.get('/export/actualizaciones.csv', async (req, res) => {
   res.send(csv)
 })
 
-// Export TXT por campo (única versión)
+// Export TXT por campo (aceptadas/aplicada) con incluirArchivadas
 admin.get('/export/txt/:campo', async (req, res) => {
   try {
     const campaniaId = Number(req.query.campaniaId)
     const campo = String(req.params.campo || '').toLowerCase() // categoria | tipo | clasif
     const estadoParam = String(req.query.estado || 'aceptadas').toLowerCase() // aplicada | aceptadas
     const incluirArchivadas = String(req.query.incluirArchivadas || 'false').toLowerCase() === 'true'
-    const archivar = String(req.query.archivar || 'false').toLowerCase() === 'true'
 
     if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
     if (!['categoria', 'tipo', 'clasif'].includes(campo)) {
@@ -609,9 +638,7 @@ admin.get('/export/txt/:campo', async (req, res) => {
     const SNAP = { categoria: 'categoria_cod',    tipo: 'tipo_cod',    clasif: 'clasif_cod' }[campo]
 
     const ultimaPorSku = new Map()
-    const idUsadoPorSku = new Map()
-
-   for (const a of acts) {
+    for (const a of acts) {
       if (ultimaPorSku.has(a.sku)) continue
       const newCode = a[NEW]
       if (!newCode) continue
@@ -620,21 +647,13 @@ admin.get('/export/txt/:campo', async (req, res) => {
         oldFromDecision: a[OLD] || null,
         snapCode: snapBySku.get(a.sku)?.[SNAP] || null
       })
-      idUsadoPorSku.set(a.sku, a.id) 
     }
 
-     const lines = []
+    const lines = []
     for (const [sku, info] of ultimaPorSku.entries()) {
       const before = info.snapCode ?? info.oldFromDecision
-      if (before && String(before) === String(info.newCode)) continue
+      if (before && String(before) === String(info.newCode)) continue // omitir si no cambió
       lines.push(`${sku}\t${info.newCode}`)
-    }
-
-    if (archivar && idUsadoPorSku.size) {
-      await prisma.actualizacion.updateMany({
-        where: { id: { in: Array.from(idUsadoPorSku.values()) } },
-        data: { archivada: true, archivadaAt: new Date(), archivadaBy: 'export' }
-      })
     }
 
     const body = '\ufeff' + lines.join('\n') + (lines.length ? '\n' : '')
@@ -670,20 +689,103 @@ admin.post('/actualizaciones/aplicar', async (req, res) => {
   res.json({ ok: true, aplicadas: acts.length })
 })
 
-// Archivar / desarchivar actualizaciones (fix)
+// Archivar / desarchivar (para historial y “undo” liviano)
 admin.post('/actualizaciones/archivar', async (req, res) => {
-  const { ids = [], archivada = true, archivadaBy = '' } = req.body || {}
-  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids vacío' })
+  try {
+    const { ids = [], archivada = true, archivadaBy = '' } = req.body || {}
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids vacío' })
 
-  const data = archivada
-    ? { archivada: true, archivadaBy: archivadaBy || null, archivadaAt: new Date() }
-    : { archivada: false, archivadaBy: null, archivadaAt: null }
+    const data = archivada
+      ? { archivada: true, archivadaBy: archivadaBy || null, archivadaAt: new Date() }
+      : { archivada: false, archivadaBy: null, archivadaAt: null }
 
-  const r = await prisma.actualizacion.updateMany({
-    where: { id: { in: ids } },
-    data
-  })
-  res.json({ ok: true, updated: r.count })
+    const r = await prisma.actualizacion.updateMany({
+      where: { id: { in: ids } },
+      data
+    })
+    res.json({ ok: true, updated: r.count })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error al archivar/desarchivar' })
+  }
+})
+
+// Deshacer una decisión NO aplicada (borra el registro)
+admin.post('/actualizaciones/undo', async (req, res) => {
+  try {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id requerido' })
+    const a = await prisma.actualizacion.findUnique({ where: { id } })
+    if (!a) return res.status(404).json({ error: 'Actualización no encontrada' })
+    if (a.estado === 'aplicada') {
+      return res.status(400).json({ error: 'No se puede deshacer una aplicada (use revertir)' })
+    }
+    await prisma.actualizacion.delete({ where: { id } })
+    res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error al deshacer' })
+  }
+})
+
+// Revertir una ACTUALIZACIÓN aplicada (vuelve Maestro a old_* y registra el cambio)
+admin.post('/actualizaciones/revertir', async (req, res) => {
+  try {
+    const { id, decidedBy = 'admin@local' } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id requerido' })
+    const a = await prisma.actualizacion.findUnique({ where: { id } })
+    if (!a) return res.status(404).json({ error: 'Actualización no encontrada' })
+    if (a.estado !== 'aplicada') {
+      return res.status(400).json({ error: 'Solo se pueden revertir las aplicadas' })
+    }
+
+    // Volver Maestro a los old_*
+    await prisma.maestro.upsert({
+      where: { sku: a.sku },
+      create: {
+        sku: a.sku,
+        descripcion: '',
+        categoria_cod: a.old_categoria_cod || null,
+        tipo_cod:      a.old_tipo_cod || null,
+        clasif_cod:    a.old_clasif_cod || null,
+      },
+      update: {
+        categoria_cod: a.old_categoria_cod || null,
+        tipo_cod:      a.old_tipo_cod || null,
+        clasif_cod:    a.old_clasif_cod || null,
+      }
+    })
+
+    // Marcar la original como archivada
+    await prisma.actualizacion.update({
+      where: { id: a.id },
+      data: { archivada: true, archivadaAt: new Date(), archivadaBy: decidedBy }
+    })
+
+    // Registrar la reversión
+    const rev = await prisma.actualizacion.create({
+      data: {
+        campaniaId: a.campaniaId,
+        sku: a.sku,
+        old_categoria_cod: a.new_categoria_cod || null,
+        old_tipo_cod:      a.new_tipo_cod || null,
+        old_clasif_cod:    a.new_clasif_cod || null,
+        new_categoria_cod: a.old_categoria_cod || null,
+        new_tipo_cod:      a.old_tipo_cod || null,
+        new_clasif_cod:    a.old_clasif_cod || null,
+        estado: 'aplicada',
+        decidedBy,
+        decidedAt: new Date(),
+        appliedAt: new Date(),
+        notas: 'revertida'
+      }
+    })
+
+    res.json({ ok: true, revertida: rev.id })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error al revertir' })
+  }
 })
 
 // Montar router admin

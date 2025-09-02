@@ -94,6 +94,7 @@ model Actualizacion {
   decidedBy          String?   // email del admin
   decidedAt          DateTime?
   notas              String?
+<<<<<<< HEAD
   archivada          Boolean   @default(false)
   archivadaBy        String?
   archivadaAt        DateTime?
@@ -101,6 +102,16 @@ model Actualizacion {
   exported_categoria_at   DateTime?
   exported_tipo_at        DateTime?
   exported_clasif_at      DateTime?
+=======
+
+  appliedAt         DateTime?     // cuándo se aplicó en Maestro
+  archivada         Boolean   @default(false)
+  archivadaBy       String?
+  archivadaAt       DateTime?
+
+  campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+>>>>>>> 54b822f (actualizaciones 2-9)
   @@index([campaniaId, sku])
   
 }
