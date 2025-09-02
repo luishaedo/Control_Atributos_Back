@@ -39,8 +39,12 @@ model Campania {
   tipo_objetivo_cod      String?
   clasif_objetivo_cod    String?
   activa                 Boolean  @default(false)
-  escaneos               Escaneo[]
-  snapshot               CampaniaMaestro[]
+
+  // relaciones existentes
+  escaneos Escaneo[]
+  snapshot CampaniaMaestro[]
+
+  actualizaciones Actualizacion[]
 
   @@index([activa])
 }
@@ -52,67 +56,65 @@ model CampaniaMaestro {
   categoria_cod String
   tipo_cod      String
   clasif_cod    String
-  campania      Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
   @@id([campaniaId, sku])
   @@index([sku])
 }
 
 model Escaneo {
-  id                  Int      @id @default(autoincrement())
-  ts                  DateTime @default(now())
-  campaniaId          Int
-  sucursal            String
-  email               String
-  sku                 String
-  estado              String
-  categoria_sug_cod   String?
-  tipo_sug_cod        String?
-  clasif_sug_cod      String?
-  asum_categoria_cod  String?
-  asum_tipo_cod       String?
-  asum_clasif_cod     String?
+  id                 Int      @id @default(autoincrement())
+  ts                 DateTime @default(now())
+  campaniaId         Int
+  sucursal           String
+  email              String
+  sku                String
+  estado             String
+  categoria_sug_cod  String?
+  tipo_sug_cod       String?
+  clasif_sug_cod     String?
+  asum_categoria_cod String?
+  asum_tipo_cod      String?
+  asum_clasif_cod    String?
 
-  campania            Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+  campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
   @@index([sku])
   @@index([campaniaId])
 }
 
 model Actualizacion {
-  id                 Int       @id @default(autoincrement())
-  ts                 DateTime  @default(now())
-  campaniaId         Int
-  sku                String
-  old_categoria_cod  String?
-  old_tipo_cod       String?
-  old_clasif_cod     String?
-  new_categoria_cod  String
-  new_tipo_cod       String
-  new_clasif_cod     String
-  estado             String    // 'pendiente' | 'aplicada' | 'rechazada'
-  decidedBy          String?   // email del admin
-  decidedAt          DateTime?
-  notas              String?
-<<<<<<< HEAD
-  archivada          Boolean   @default(false)
-  archivadaBy        String?
-  archivadaAt        DateTime?
-   appliedAt               DateTime?
-  exported_categoria_at   DateTime?
-  exported_tipo_at        DateTime?
-  exported_clasif_at      DateTime?
-=======
+  id         Int      @id @default(autoincrement())
+  ts         DateTime @default(now())
+  campaniaId Int
+  sku        String
 
-  appliedAt         DateTime?     // cuándo se aplicó en Maestro
-  archivada         Boolean   @default(false)
-  archivadaBy       String?
-  archivadaAt       DateTime?
+  old_categoria_cod String?
+  old_tipo_cod      String?
+  old_clasif_cod    String?
+
+  new_categoria_cod String
+  new_tipo_cod      String
+  new_clasif_cod    String
+
+  estado    String // 'pendiente' | 'aplicada' | 'rechazada'
+  decidedBy String? // email del admin
+  decidedAt DateTime?
+  notas     String?
+
+  // archivado / aplicado (usados por el server)
+  archivada   Boolean   @default(false)
+  archivadaBy String?
+  archivadaAt DateTime?
+  appliedAt   DateTime?
+
+  // marcas de export, si las usás
+  exported_categoria_at DateTime?
+  exported_tipo_at      DateTime?
+  exported_clasif_at    DateTime?
 
   campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
->>>>>>> 54b822f (actualizaciones 2-9)
   @@index([campaniaId, sku])
-  
 }
-
