@@ -5,6 +5,30 @@ import { toCSV } from '../utils/csv.js'
 export function MaestroController(prisma) {
   const svc = MaestroService(prisma)
   return {
+    listar: async (req, res) => {
+      const q = String(req.query.q || '').trim().toUpperCase()
+      const page = Math.max(1, parseInt(req.query.page || '1', 10))
+      const pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize || '50', 10)))
+      
+      const where = q ? {
+        OR: [
+          { sku: { contains: q } },
+          { descripcion: { contains: q } },
+        ]
+      } : {}
+
+       const [items, total] = await Promise.all([
+    prisma.maestro.findMany({
+      where,
+      orderBy: { sku: 'asc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    }),
+    prisma.maestro.count({ where })
+  ])
+  res.json({ page, pageSize, total, items })
+},
+
     getUno: async (req, res) => {
       const sku = cleanSku(req.params.sku || '')
       if (!sku) return res.status(400).json({ error: 'SKU inválido' })

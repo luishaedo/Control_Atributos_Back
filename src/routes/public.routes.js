@@ -12,6 +12,7 @@ export default function publicRouter(prisma) {
   const esc = EscaneosController(prisma)
 
   r.get('/diccionarios', dic.listar)
+  r.get('/maestro', mae.listar)
   r.post('/diccionarios/import', dic.importar)
 
   r.get('/campanias', camp.listar)
