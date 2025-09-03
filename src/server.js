@@ -256,59 +256,293 @@ admin.post('/campanias', async (req, res) => {
   }
 })
 
-// Auditoría
+// ===================== AUDITORÍA: Discrepancias vs Maestro (RICA) =====================
 admin.get('/discrepancias', async (req, res) => {
-  const campaniaId = Number(req.query.campaniaId)
-  if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+  try {
+    const campaniaId = Number(req.query.campaniaId)
+    if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
 
-  const escaneos = await prisma.escaneo.findMany({ where: { campaniaId }, orderBy: { ts: 'desc' } })
-  const items = []
-  for (const e of escaneos) {
-    const m = await prisma.campaniaMaestro.findUnique({ where: { campaniaId_sku: { campaniaId, sku: e.sku } } })
-    const diff = !m || (
-      e.asum_categoria_cod !== (m?.categoria_cod || null) ||
-      e.asum_tipo_cod !== (m?.tipo_cod || null) ||
-      e.asum_clasif_cod !== (m?.clasif_cod || null)
-    )
-    if (diff) {
+    const buscarSku = (req.query.sku || '').trim().toUpperCase()
+    const minVotos = Number(req.query.minVotos || 1) // filtro opc.
+    // si querés un “sólo conflicto con Maestro” del lado del server, podés leer ?soloConflicto=true
+
+    // fetch en bloque
+    const [escaneos, snaps] = await Promise.all([
+      prisma.escaneo.findMany({ where: { campaniaId }, orderBy: { ts: 'desc' } }),
+      prisma.campaniaMaestro.findMany({ where: { campaniaId } }),
+    ])
+    const snapBySku = new Map(snaps.map(s => [s.sku, s]))
+
+    const firma = (c,t,cl) => `${c||''}|${t||''}|${cl||''}`
+
+    // agrupamos por SKU
+    const porSku = new Map()
+    for (const e of escaneos) {
+      if (buscarSku && !String(e.sku).toUpperCase().includes(buscarSku)) continue
+      const grp = porSku.get(e.sku) || {
+        sku: e.sku,
+        maestro: snapBySku.get(e.sku) ? {
+          categoria_cod: snapBySku.get(e.sku).categoria_cod,
+          tipo_cod:      snapBySku.get(e.sku).tipo_cod,
+          clasif_cod:    snapBySku.get(e.sku).clasif_cod,
+        } : null,
+        total: 0,
+        ultimoTs: null,
+        propuestas: new Map(),         // firma -> {cat,tipo,clasif,count,usuarios:Set,sucursales:Set}
+        porSucursal: new Map(),        // sucursal -> Map(firma -> {count, ultimoTs, usuarios:Set})
+        sucursalesSet: new Set(),
+      }
+
+      const cat = e.asum_categoria_cod || ''
+      const tip = e.asum_tipo_cod || ''
+      const cla = e.asum_clasif_cod || ''
+      const key = firma(cat, tip, cla)
+
+      // propuestas globales
+      const p = grp.propuestas.get(key) || { categoria_cod: cat, tipo_cod: tip, clasif_cod: cla, count: 0, usuarios: new Set(), sucursales: new Set() }
+      p.count += 1
+      if (e.email) p.usuarios.add(e.email)
+      if (e.sucursal) p.sucursales.add(e.sucursal)
+      grp.propuestas.set(key, p)
+
+      // por sucursal (tracking de “quién dijo qué”)
+      if (e.sucursal) {
+        const mapSuc = grp.porSucursal.get(e.sucursal) || new Map()
+        const ps = mapSuc.get(key) || { count: 0, ultimoTs: null, usuarios: new Set() }
+        ps.count += 1
+        ps.ultimoTs = !ps.ultimoTs || e.ts > ps.ultimoTs ? e.ts : ps.ultimoTs
+        if (e.email) ps.usuarios.add(e.email)
+        mapSuc.set(key, ps)
+        grp.porSucursal.set(e.sucursal, mapSuc)
+        grp.sucursalesSet.add(e.sucursal)
+      }
+
+      grp.total += 1
+      grp.ultimoTs = !grp.ultimoTs || e.ts > grp.ultimoTs ? e.ts : grp.ultimoTs
+      porSku.set(e.sku, grp)
+    }
+
+    // armamos salida
+    const items = []
+    for (const grp of porSku.values()) {
+      // propuestas ordenadas por count
+      const propuestasArr = Array.from(grp.propuestas.values())
+        .sort((a,b) => b.count - a.count)
+        .map(p => ({
+          categoria_cod: p.categoria_cod,
+          tipo_cod:      p.tipo_cod,
+          clasif_cod:    p.clasif_cod,
+          count:         p.count,
+          pct:           Number((p.count / Math.max(1, grp.total)).toFixed(2)),
+          usuarios:      Array.from(p.usuarios),
+          sucursales:    Array.from(p.sucursales),
+        }))
+
+      if ((propuestasArr[0]?.count || 0) < minVotos) continue
+
+      // top propuesta
+      const top = propuestasArr[0] || null
+
+      // Por sucursal: la “mayoritaria” de esa sucursal
+      const porSucursal = []
+      for (const [suc, mapFirmas] of grp.porSucursal.entries()) {
+        const arr = Array.from(mapFirmas.entries())
+          .map(([k, v]) => {
+            const [c,t,cl] = k.split('|')
+            return {
+              firma: k,
+              categoria_cod: c, tipo_cod: t, clasif_cod: cl,
+              count: v.count,
+              ultimoTs: v.ultimoTs,
+              usuarios: Array.from(v.usuarios)
+            }
+          })
+          .sort((a,b)=> b.count - a.count)
+        const mayoritaria = arr[0]
+        porSucursal.push({
+          sucursal: suc,
+          count: mayoritaria?.count || 0,
+          ultimoTs: mayoritaria?.ultimoTs || null,
+          usuarios: mayoritaria?.usuarios || [],
+          categoria_cod: mayoritaria?.categoria_cod || '',
+          tipo_cod: mayoritaria?.tipo_cod || '',
+          clasif_cod: mayoritaria?.clasif_cod || '',
+          // si querés mostrar también “otras” reportadas por esa sucursal:
+          variantes: arr.slice(1)
+        })
+      }
+
       items.push({
-        sku: e.sku, sucursal: e.sucursal, email: e.email, estado: e.estado,
-        maestro: m ? { categoria_cod: m.categoria_cod, tipo_cod: m.tipo_cod, clasif_cod: m.clasif_cod } : null,
-        asumidos: { categoria_cod: e.asum_categoria_cod, tipo_cod: e.asum_tipo_cod, clasif_cod: e.asum_clasif_cod },
-        ts: e.ts
+        sku: grp.sku,
+        maestro: grp.maestro,                 // {categoria_cod,tipo_cod,clasif_cod} o null
+        totalEscaneos: grp.total,
+        sucursales: Array.from(grp.sucursalesSet),
+        ultimoTs: grp.ultimoTs,
+        topPropuesta: top,                    // {cat,tipo,clasif,count,pct,...}
+        propuestas: propuestasArr,            // ranking completo
+        porSucursal,                          // quién dijo qué
       })
     }
+
+    res.json({ items })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error en auditoría de discrepancias' })
   }
-  res.json({ items })
 })
 
+
+// ===================== AUDITORÍA: Entre sucursales (clustering por SKU) =====================
 admin.get('/discrepancias-sucursales', async (req, res) => {
-  const campaniaId = Number(req.query.campaniaId)
-  if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+  try {
+    const campaniaId = Number(req.query.campaniaId)
+    if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
 
-  const escaneos = await prisma.escaneo.findMany({ where: { campaniaId } })
-  const bySku = new Map()
-  for (const e of escaneos) {
-    const list = bySku.get(e.sku) || []
-    list.push(e)
-    bySku.set(e.sku, list)
-  }
-  const items = []
-  for (const [sku, list] of bySku.entries()) {
-    const setCat = new Set(list.map(x => x.asum_categoria_cod).filter(Boolean))
-    const setTipo = new Set(list.map(x => x.asum_tipo_cod).filter(Boolean))
-    const setCla = new Set(list.map(x => x.asum_clasif_cod).filter(Boolean))
-    if (setCat.size > 1 || setTipo.size > 1 || setCla.size > 1) {
+    const buscarSku = (req.query.sku || '').trim().toUpperCase()
+    const minSucursales = Number(req.query.minSucursales || 2)
+
+    const escaneos = await prisma.escaneo.findMany({ where: { campaniaId } })
+
+    const firma = (c,t,cl) => `${c||''}|${t||''}|${cl||''}`
+
+    // agrupación por SKU y sucursal (contar “firmas”)
+    const porSku = new Map()
+    for (const e of escaneos) {
+      if (buscarSku && !String(e.sku).toUpperCase().includes(buscarSku)) continue
+      const grp = porSku.get(e.sku) || {
+        sku: e.sku,
+        porSucursal: new Map(), // suc -> Map(firma -> {count,ultimoTs,usuarios:Set})
+        firmasSet: new Set(),
+      }
+      const k = firma(e.asum_categoria_cod, e.asum_tipo_cod, e.asum_clasif_cod)
+      grp.firmasSet.add(k)
+
+      if (e.sucursal) {
+        const mapSuc = grp.porSucursal.get(e.sucursal) || new Map()
+        const v = mapSuc.get(k) || { count: 0, ultimoTs: null, usuarios: new Set() }
+        v.count += 1
+        v.ultimoTs = !v.ultimoTs || e.ts > v.ultimoTs ? e.ts : v.ultimoTs
+        if (e.email) v.usuarios.add(e.email)
+        mapSuc.set(k, v)
+        grp.porSucursal.set(e.sucursal, mapSuc)
+      }
+      porSku.set(e.sku, grp)
+    }
+
+    const items = []
+    for (const grp of porSku.values()) {
+      if (grp.porSucursal.size < minSucursales) continue
+
+      // para cada sucursal, mayoritaria
+      const detalle = []
+      for (const [suc, map] of grp.porSucursal.entries()) {
+        const arr = Array.from(map.entries())
+          .map(([k,v]) => {
+            const [c,t,cl] = k.split('|')
+            return {
+              sucursal: suc,
+              firma: k,
+              categoria_cod: c, tipo_cod: t, clasif_cod: cl,
+              count: v.count,
+              ultimoTs: v.ultimoTs,
+              usuarios: Array.from(v.usuarios),
+            }
+          })
+          .sort((a,b)=> b.count - a.count)
+
+        const mayoritaria = arr[0]
+        detalle.push({
+          sucursal: mayoritaria.sucursal,
+          categoria_cod: mayoritaria.categoria_cod,
+          tipo_cod: mayoritaria.tipo_cod,
+          clasif_cod: mayoritaria.clasif_cod,
+          count: mayoritaria.count,
+          ultimoTs: mayoritaria.ultimoTs,
+          usuarios: mayoritaria.usuarios,
+          variantes: arr.slice(1) // otras reportadas por la misma sucursal
+        })
+      }
+
+      // ¿hay conflicto real? (más de una firma mayoritaria diferente entre sucursales)
+      const firmasMayor = new Set(detalle.map(d => `${d.categoria_cod}|${d.tipo_cod}|${d.clasif_cod}`))
+      const conflicto = firmasMayor.size > 1
+
       items.push({
-        sku,
-        categorias: Array.from(setCat),
-        tipos: Array.from(setTipo),
-        clasif: Array.from(setCla)
+        sku: grp.sku,
+        conflicto,
+        sucursales: detalle,         
+        firmasDistintas: firmasMayor.size
       })
     }
+
+    res.json({ items })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error en auditoría entre sucursales' })
   }
-  res.json({ items })
 })
+
+
+// ===================== CSV entre sucursales (opcional) =====================
+admin.get('/export/discrepancias-sucursales.csv', async (req, res) => {
+  try {
+    const campaniaId = Number(req.query.campaniaId)
+    if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+
+    // reutilizamos el handler anterior “internamente”
+    const url = new URL(req.url, 'http://x/')
+    url.searchParams.set('minSucursales', url.searchParams.get('minSucursales') || '2')
+    req.query = Object.fromEntries(url.searchParams.entries())
+
+    const { items } = await (async () => {
+      const escaneos = await prisma.escaneo.findMany({ where: { campaniaId } })
+      const firma = (c,t,cl) => `${c||''}|${t||''}|${cl||''}`
+      const porSku = new Map()
+      for (const e of escaneos) {
+        const grp = porSku.get(e.sku) || { porSucursal: new Map() }
+        const k = firma(e.asum_categoria_cod, e.asum_tipo_cod, e.asum_clasif_cod)
+        const map = grp.porSucursal.get(e.sucursal || '—') || new Map()
+        const v = map.get(k) || { count: 0, ultimoTs: null }
+        v.count += 1
+        v.ultimoTs = !v.ultimoTs || e.ts > v.ultimoTs ? e.ts : v.ultimoTs
+        map.set(k, v)
+        grp.porSucursal.set(e.sucursal || '—', map)
+        porSku.set(e.sku, grp)
+      }
+      const items = []
+      for (const [sku, grp] of porSku.entries()) {
+        const detalle = []
+        for (const [suc, map] of grp.porSucursal.entries()) {
+          const arr = Array.from(map.entries()).map(([k,v])=>{
+            const [c,t,cl]=k.split('|'); return { sucursal:suc, c,t,cl, count:v.count, ultimo:v.ultimoTs }
+          }).sort((a,b)=>b.count-a.count)
+          const top = arr[0]
+          detalle.push({ sucursal: suc, c: top?.c||'', t: top?.t||'', cl: top?.cl||'', count: top?.count||0, ultimo: top?.ultimo||null })
+        }
+        const firmas = new Set(detalle.map(d => `${d.c}|${d.t}|${d.cl}`))
+        if (firmas.size > 1) {
+          items.push({ sku, detalle })
+        }
+      }
+      return { items }
+    })()
+
+    const rows = [['sku','sucursal','categoria','tipo','clasif','count','ultimo']]
+    for (const it of items) {
+      for (const d of it.sucursales || it.detalle) {
+        rows.push([it.sku, d.sucursal, d.categoria_cod||d.c, d.tipo_cod||d.t, d.clasif_cod||d.cl, d.count, d.ultimoTs ? new Date(d.ultimoTs).toISOString() : ''])
+      }
+    }
+    const csv = toCSV(rows)
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="discrepancias_sucursales.csv"')
+    res.send(csv)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error exportando CSV de sucursales' })
+  }
+})
+
 
 // Exports CSV Diccionarios/Maestro
 admin.get('/export/maestro.csv', async (_req, res) => {
@@ -527,27 +761,25 @@ admin.get('/actualizaciones', async (req, res) => {
     const campaniaId = Number(req.query.campaniaId)
     if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
 
-    const estado = String(req.query.estado || '').toLowerCase() // pendiente/aplicada/rechazada
-    const arch = String(req.query.archivada ?? 'false').toLowerCase() // false|true|todas
+    const estado = (req.query.estado || '').trim() // '', 'pendiente', 'aplicada', 'rechazada'
+    const arch = (req.query.archivada || '').trim() // '', 'true', 'false', 'todas'
 
     const where = { campaniaId }
-    if (['pendiente', 'aplicada', 'rechazada'].includes(estado)) where.estado = estado
-    if (arch === 'false') where.archivada = false
-    else if (arch === 'true') where.archivada = true
-    // 'todas' -> sin filtro
+    if (estado) where.estado = estado
+    if (arch === 'true') where.archivada = true
+    else if (arch === 'false' || arch === '') where.archivada = false
+    // 'todas' => no filtra
 
     const items = await prisma.actualizacion.findMany({
       where,
-      orderBy: [{ ts: 'desc' }]
+      orderBy: { ts: 'desc' }
     })
-
     res.json({ items })
-  } catch (err) {
-    console.error(err)
+  } catch (e) {
+    console.error(e)
     res.status(500).json({ error: 'Error listando actualizaciones' })
   }
 })
-
 // Export CSV de pendientes
 admin.get('/export/actualizaciones.csv', async (req, res) => {
   const campaniaId = Number(req.query.campaniaId)
@@ -658,20 +890,17 @@ admin.post('/actualizaciones/aplicar', async (req, res) => {
 // Archivar / desarchivar
 admin.post('/actualizaciones/archivar', async (req, res) => {
   try {
-    const { ids = [], archivada = true, archivadaBy = '' } = req.body || {}
-    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids vacío' })
-
-    const data = archivada
-      ? { archivada: true, archivadaBy: archivadaBy || null, archivadaAt: new Date() }
-      : { archivada: false, archivadaBy: null, archivadaAt: null }
-
-    const r = await prisma.actualizacion.updateMany({
+    const { ids = [], archivada = true, archivadaBy = 'api' } = req.body || {}
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ error: 'ids vacío' })
+    }
+    await prisma.actualizacion.updateMany({
       where: { id: { in: ids } },
-      data
+      data: { archivada, archivadaBy, archivadaAt: new Date() }
     })
-    res.json({ ok: true, updated: r.count })
-  } catch (err) {
-    console.error(err)
+    res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
     res.status(500).json({ error: 'Error al archivar/desarchivar' })
   }
 })
@@ -691,31 +920,47 @@ admin.post('/actualizaciones/undo', async (req, res) => {
 
 // Revertir una aplicada (crea “pendiente” inversa)
 admin.post('/actualizaciones/revertir', async (req, res) => {
-  const { id, decidedBy = 'admin@local' } = req.body || {}
-  if (!id) return res.status(400).json({ error: 'id requerido' })
+  try {
+    const { id, decidedBy = 'admin@local' } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id requerido' })
 
-  const act = await prisma.actualizacion.findUnique({ where: { id } })
-  if (!act) return res.status(404).json({ error: 'Actualización no encontrada' })
-  if (act.estado !== 'aplicada') {
-    return res.status(400).json({ error: 'Sólo se pueden revertir las aplicadas' })
-  }
-
-  const revert = await prisma.actualizacion.create({
-    data: {
-      campaniaId: act.campaniaId,
-      sku: act.sku,
-      old_categoria_cod: act.new_categoria_cod,
-      old_tipo_cod:      act.new_tipo_cod,
-      old_clasif_cod:    act.new_clasif_cod,
-      new_categoria_cod: act.old_categoria_cod,
-      new_tipo_cod:      act.old_tipo_cod,
-      new_clasif_cod:    act.old_clasif_cod,
-      estado: 'pendiente',
-      decidedBy,
-      decidedAt: new Date()
+    const act = await prisma.actualizacion.findUnique({ where: { id } })
+    if (!act) return res.status(404).json({ error: 'Actualización no encontrada' })
+    if (act.estado !== 'aplicada') {
+      return res.status(400).json({ error: 'Sólo se pueden revertir las aplicadas' })
     }
-  })
-  res.json({ ok: true, actualizacion: revert })
+
+    // Construimos la “propuesta” de reversión: sin nulls en new_*
+    const new_categoria_cod = pad2(act.old_categoria_cod ?? act.new_categoria_cod)
+    const new_tipo_cod      = pad2(act.old_tipo_cod      ?? act.new_tipo_cod)
+    const new_clasif_cod    = pad2(act.old_clasif_cod    ?? act.new_clasif_cod)
+
+    // Guardamos desde dónde estamos volviendo (los valores actualmente aplicados)
+    const old_categoria_cod = act.new_categoria_cod
+    const old_tipo_cod      = act.new_tipo_cod
+    const old_clasif_cod    = act.new_clasif_cod
+
+    const revert = await prisma.actualizacion.create({
+      data: {
+        campaniaId: act.campaniaId,
+        sku: act.sku,
+        old_categoria_cod,
+        old_tipo_cod,
+        old_clasif_cod,
+        new_categoria_cod,
+        new_tipo_cod,
+        new_clasif_cod,
+        estado: 'pendiente',
+        decidedBy,
+        decidedAt: new Date()
+      }
+    })
+
+    res.json({ ok: true, actualizacion: revert })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Error al revertir' })
+  }
 })
 
 app.use('/api/admin', admin)
