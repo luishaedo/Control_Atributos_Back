@@ -2,6 +2,7 @@ import { MaestroService } from '../services/maestro.service.js'
 import { cleanSku } from '../utils/sku.js'
 import { toCSV } from '../utils/csv.js'
 
+
 export function MaestroController(prisma) {
   const svc = MaestroService(prisma)
   return {
@@ -42,10 +43,11 @@ export function MaestroController(prisma) {
       const count = await svc.upsertMaestro(items)
       res.json({ ok: true, count })
     },
-    exportCSV: async (_req, res) => {
+     exportCSV: async (_req, res) => {
       const list = await prisma.maestro.findMany({ orderBy: { sku: 'asc' } })
       const rows = [['sku','descripcion','categoria_cod','tipo_cod','clasif_cod']]
       for (const m of list) rows.push([m.sku, m.descripcion, m.categoria_cod, m.tipo_cod, m.clasif_cod])
+      const { toCSV } = await import('../utils/csv.js')
       const csv = toCSV(rows)
       res.setHeader('Content-Type', 'text/csv; charset=utf-8')
       res.setHeader('Content-Disposition', 'attachment; filename="maestro.csv"')

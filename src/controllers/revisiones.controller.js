@@ -104,22 +104,23 @@ export function RevisionesController(prisma) {
       }
     },
 
-    listarActualizaciones: async (req, res) => {
-      try {
-        const campaniaId = Number(req.query.campaniaId)
-        if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
-        const estado = (req.query.estado || '').trim()
-        const arch = (req.query.archivada || '').trim()
-        const where = { campaniaId }
-        if (estado) where.estado = estado
-        if (arch === 'true') where.archivada = true
-        else if (arch === 'false' || arch === '') where.archivada = false
-        const items = await prisma.actualizacion.findMany({ where, orderBy: { ts: 'desc' } })
-        res.json({ items })
-      } catch (e) {
-        console.error(e)
-        res.status(500).json({ error: 'Error listando actualizaciones' })
+     listarActualizaciones: async (req, res) => {
+      const campaniaId = Number(req.query.campaniaId)
+      if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+      const where = { campaniaId }
+      if (req.query.estado) where.estado = req.query.estado
+      if (req.query.archivada && req.query.archivada !== 'todas') {
+        where.archivada = req.query.archivada === 'true'
       }
+      const items = await prisma.actualizacion.findMany({ where, orderBy: { ts: 'desc' } })
+      res.json({ items })
+    },
+
+    aplicar: async (req, res) => {
+      const { ids = [], decidedBy = 'admin' } = req.body || {}
+      if (!ids.length) return res.json({ ok: true, count: 0 })
+      await prisma.actualizacion.updateMany({ where: { id: { in: ids }, estado: 'pendiente' }, data: { estado: 'aplicada', decidedBy, appliedAt: new Date() } })
+      res.json({ ok: true, count: ids.length })
     },
 
     aplicarLote: async (req, res) => {
@@ -138,50 +139,171 @@ export function RevisionesController(prisma) {
     },
 
     archivar: async (req, res) => {
-      try {
-        const { ids = [], archivada = true, archivadaBy = 'api' } = req.body || {}
-        if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids vacío' })
-        await prisma.actualizacion.updateMany({ where: { id: { in: ids } }, data: { archivada, archivadaBy, archivadaAt: new Date() } })
-        res.json({ ok: true })
-      } catch (e) {
-        console.error(e)
-        res.status(500).json({ error: 'Error al archivar/desarchivar' })
-      }
+      const { ids = [], archivada = true, archivadaBy = 'admin' } = req.body || {}
+      if (!ids.length) return res.json({ ok: true, count: 0 })
+      await prisma.actualizacion.updateMany({ where: { id: { in: ids } }, data: { archivada, archivadaBy, archivadaAt: new Date() } })
+      res.json({ ok: true, count: ids.length })
     },
 
-    undo: async (req, res) => {
+     undo: async (req, res) => {
       const { id } = req.body || {}
       if (!id) return res.status(400).json({ error: 'id requerido' })
-      const act = await prisma.actualizacion.findUnique({ where: { id } })
-      if (!act) return res.status(404).json({ error: 'Actualización no encontrada' })
-      if (act.estado === 'aplicada') return res.status(400).json({ error: 'No se puede deshacer una actualización aplicada (use revertir)' })
-      await prisma.actualizacion.delete({ where: { id } })
+      await prisma.actualizacion.update({ where: { id }, data: { estado: 'pendiente', appliedAt: null } })
       res.json({ ok: true })
     },
 
     revertir: async (req, res) => {
-      try {
-        const { id, decidedBy = 'admin@local' } = req.body || {}
-        if (!id) return res.status(400).json({ error: 'id requerido' })
-        const act = await prisma.actualizacion.findUnique({ where: { id } })
-        if (!act) return res.status(404).json({ error: 'Actualización no encontrada' })
-        if (act.estado !== 'aplicada') return res.status(400).json({ error: 'Sólo se pueden revertir las aplicadas' })
+  try {
+    const idParam = req.params?.id;
+    const idBody = req.body?.id;
+    const id = Number(idParam ?? idBody);
+    const decidedBy = req.body?.decidedBy || 'admin@local';
+    if (!id) return res.status(400).json({ error: 'id requerido' });
 
-        const new_categoria_cod = pad2(act.old_categoria_cod ?? act.new_categoria_cod)
-        const new_tipo_cod      = pad2(act.old_tipo_cod      ?? act.new_tipo_cod)
-        const new_clasif_cod    = pad2(act.old_clasif_cod    ?? act.new_clasif_cod)
-        const old_categoria_cod = act.new_categoria_cod
-        const old_tipo_cod      = act.new_tipo_cod
-        const old_clasif_cod    = act.new_clasif_cod
+    const act = await prisma.actualizacion.findUnique({ where: { id } });
+    if (!act) return res.status(404).json({ error: 'Actualización no encontrada' });
+    if (act.estado !== 'aplicada') return res.status(400).json({ error: 'Sólo se pueden revertir las aplicadas' });
 
-        const revert = await prisma.actualizacion.create({
-          data: { campaniaId: act.campaniaId, sku: act.sku, old_categoria_cod, old_tipo_cod, old_clasif_cod, new_categoria_cod, new_tipo_cod, new_clasif_cod, estado: 'pendiente', decidedBy, decidedAt: new Date() }
-        })
-        res.json({ ok: true, actualizacion: revert })
-      } catch (e) {
-        console.error(e)
-        res.status(500).json({ error: 'Error al revertir' })
+    const new_categoria_cod = pad2(act.old_categoria_cod ?? act.new_categoria_cod);
+    const new_tipo_cod      = pad2(act.old_tipo_cod      ?? act.new_tipo_cod);
+    const new_clasif_cod    = pad2(act.old_clasif_cod    ?? act.new_clasif_cod);
+    const old_categoria_cod = act.new_categoria_cod;
+    const old_tipo_cod      = act.new_tipo_cod;
+    const old_clasif_cod    = act.new_clasif_cod;
+
+    const revert = await prisma.actualizacion.create({
+      data: {
+        campaniaId: act.campaniaId, sku: act.sku,
+        old_categoria_cod, old_tipo_cod, old_clasif_cod,
+        new_categoria_cod, new_tipo_cod, new_clasif_cod,
+        estado: 'pendiente', decidedBy, decidedAt: new Date()
       }
+    });
+    res.json({ ok: true, actualizacion: revert });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Error al revertir' });
+  }
+},
+
+     // Discrepancias vs Maestro (resumen utilizado por Admin/Auditoría)
+    discrepancias: async (req, res) => {
+      const minVotos = Math.max(1, Number(req.query.minVotos || 1))
+      const campaniaId = Number(req.query.campaniaId)
+      if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+      const data = await prisma.escaneo.findMany({ where: { campaniaId }, orderBy: { ts: 'desc' } })
+      const snaps = await prisma.campaniaMaestro.findMany({ where: { campaniaId } })
+      const snapBySku = new Map(snaps.map(s => [s.sku, s]))
+
+      const porSku = new Map()
+      for (const e of data) {
+        const g = porSku.get(e.sku) || { sku: e.sku, maestro: null, propuestas: new Map(), total: 0, updatedAt: null, sucursales: new Set() }
+        const snap = snapBySku.get(e.sku) || null
+        g.maestro = snap ? { categoria_cod: snap.categoria_cod, tipo_cod: snap.tipo_cod, clasif_cod: snap.clasif_cod } : null
+        const key = `${e.asum_categoria_cod||''}|${e.asum_tipo_cod||''}|${e.asum_clasif_cod||''}`
+        const p = g.propuestas.get(key) || { categoria_cod:e.asum_categoria_cod||'', tipo_cod:e.asum_tipo_cod||'', clasif_cod:e.asum_clasif_cod||'', count:0 }
+        p.count += 1
+        g.propuestas.set(key, p)
+        if (e.sucursal) g.sucursales.add(e.sucursal)
+        g.total += 1
+        g.updatedAt = !g.updatedAt || e.ts > g.updatedAt ? e.ts : g.updatedAt
+        porSku.set(e.sku, g)
+      }
+
+      const items = Array.from(porSku.values()).map(g => {
+        const arr = Array.from(g.propuestas.values()).filter(p => p.count >= minVotos).sort((a,b)=>b.count-a.count)
+         if (arr.length === 0) return null
+       return {
+    sku: g.sku, maestro: g.maestro,
+    topPropuesta: arr[0] || null,
+    totalVotos: g.total,
+    consensoVotos: arr[0]?.count || 0,
+    sucursales: Array.from(g.sucursales),
+    updatedAt: g.updatedAt
+  }
+      }).filter(Boolean)
+
+      res.json({ items })
     },
+
+    // Entre sucursales (si todavía no lo tenés, devolvé estructura mínima)
+    discrepanciasSuc: async (req, res) => {
+      const campaniaId = Number(req.query.campaniaId)
+      const minSuc = Math.max(1, Number(req.query.minSucursales || 1))
+
+      if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+      const esc = await prisma.escaneo.findMany({ where: { campaniaId } })
+      const bySku = new Map()
+      for (const e of esc) {
+        const key = `${e.asum_categoria_cod||''}|${e.asum_tipo_cod||''}|${e.asum_clasif_cod||''}`
+        const grp = bySku.get(e.sku) || { sku: e.sku, firmas: new Map() }
+        const f = grp.firmas.get(key) || { categoria_cod:e.asum_categoria_cod||'', tipo_cod:e.asum_tipo_cod||'', clasif_cod:e.asum_clasif_cod||'', sucursales: new Set() }
+        if (e.sucursal) f.sucursales.add(e.sucursal)
+        grp.firmas.set(key, f)
+        bySku.set(e.sku, grp)
+      }
+      const items = []
+      for (const { sku, firmas } of bySku.values()) {
+        const arr = Array.from(firmas.values())
+  .map(f => ({ ...f, sucursales: Array.from(f.sucursales)}))
+  .filter(f => f.sucursales.length >= minSuc)
+  .sort((a,b)=> b.sucursales.length - a.sucursales.length)
+if (arr.length === 0) continue
+        items.push({ sku, conflicto: arr.length>1, mayoritaria: arr[0]||null, variantes: arr.slice(1) })
+      }
+      res.json({ items })
+    },
+
+    exportActualizacionesCSV: async (req, res) => {
+  const campaniaId = Number(req.query.campaniaId)
+  if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
+  const rows = [['id','sku','estado','old_categoria_cod','new_categoria_cod','old_tipo_cod','new_tipo_cod','old_clasif_cod','new_clasif_cod','decidedBy','ts']]
+  const acts = await prisma.actualizacion.findMany({ where: { campaniaId }, orderBy: { ts: 'desc' } })
+  for (const a of acts) rows.push([a.id,a.sku,a.estado,a.old_categoria_cod,a.new_categoria_cod,a.old_tipo_cod,a.new_tipo_cod,a.old_clasif_cod,a.new_clasif_cod,a.decidedBy,a.ts?.toISOString?.()||''])
+  const { toCSV } = await import('../utils/csv.js')
+  const csv = toCSV(rows)
+  res.setHeader('Content-Type','text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition','attachment; filename="actualizaciones.csv"')
+  res.send(csv)
+},
+exportDiscrepanciasCSV: async (req, res) => {
+  const campaniaId = Number(req.query.campaniaId);
+  if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' });
+
+  // Reutilizamos la lógica de "discrepancias"
+  const escs = await prisma.escaneo.findMany({ where: { campaniaId }, orderBy: { ts: 'desc' } });
+  const snaps = await prisma.campaniaMaestro.findMany({ where: { campaniaId } });
+  const snapBySku = new Map(snaps.map(s => [s.sku, s]));
+
+  const porSku = new Map();
+  for (const e of escs) {
+    const g = porSku.get(e.sku) || { sku: e.sku, maestro: snapBySku.get(e.sku) || null, propuestas: new Map() };
+    const key = `${e.asum_categoria_cod||''}|${e.asum_tipo_cod||''}|${e.asum_clasif_cod||''}`;
+    const p = g.propuestas.get(key) || { categoria_cod:e.asum_categoria_cod||'', tipo_cod:e.asum_tipo_cod||'', clasif_cod:e.asum_clasif_cod||'', count:0 };
+    p.count += 1;
+    g.propuestas.set(key, p);
+    porSku.set(e.sku, g);
+  }
+
+  const rows = [['sku','maestro_cat','maestro_tipo','maestro_clasif','top_cat','top_tipo','top_clasif','votos_top','total_votos']];
+  for (const { sku, maestro, propuestas } of porSku.values()) {
+    const arr = Array.from(propuestas.values()).sort((a,b)=>b.count-a.count);
+    const top = arr[0] || { categoria_cod:'', tipo_cod:'', clasif_cod:'', count:0 };
+    const tot = arr.reduce((s,p)=>s+p.count,0);
+    rows.push([
+      sku,
+      maestro?.categoria_cod||'', maestro?.tipo_cod||'', maestro?.clasif_cod||'',
+      top.categoria_cod, top.tipo_cod, top.clasif_cod,
+      top.count, tot
+    ]);
+  }
+
+  const { toCSV } = await import('../utils/csv.js');
+  const csv = toCSV(rows);
+  res.setHeader('Content-Type','text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition','attachment; filename="discrepancias.csv"');
+  res.send(csv);
+},
+
   }
 }
