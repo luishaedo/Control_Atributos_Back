@@ -7,6 +7,7 @@ import { AdminImportController } from '../controllers/admin.import.controller.js
 import { RevisionesController } from '../controllers/revisiones.controller.js'
 import { DiccionariosController } from '../controllers/diccionarios.controller.js'
 import { MaestroController } from '../controllers/maestro.controller.js'
+import { ExportController } from '../controllers/export.controller.js'
 
 export default function adminRouter(prisma) {
   const r = Router()
@@ -15,6 +16,7 @@ export default function adminRouter(prisma) {
   const rev = RevisionesController(prisma)
   const dic = DiccionariosController(prisma)
   const mae = MaestroController(prisma)
+  const exp = ExportController(prisma)
 
   // Salud
   r.get('/ping', admin.ping) // activar auth en prod: r.get('/ping', authAdmin(), admin.ping)
@@ -39,7 +41,7 @@ export default function adminRouter(prisma) {
   r.get('/export/categorias.csv', /*authAdmin(),*/ admin.exportCategorias)
   r.get('/export/tipos.csv',      /*authAdmin(),*/ admin.exportTipos)
   r.get('/export/clasif.csv',     /*authAdmin(),*/ admin.exportClasif)
-  r.get('/export/maestro.csv',    /*authAdmin(),*/ mae.exportCSV) // <— agregar método abajo
+  //r.get('/export/maestro.csv',    /*authAdmin(),*/ mae.exportCSV) // <— agregar método abajo
 
   // Revisiones (tarjetas)
   r.get('/revisiones',            /*authAdmin(),*/ rev.listar)
@@ -60,7 +62,11 @@ r.get('/revisiones/discrepancias-sucursales', /*authAdmin(),*/ rev.discrepancias
   r.post('/actualizaciones/archivar',      /*authAdmin(),*/ rev.archivar)                 // <— agregar
   r.post('/actualizaciones/undo',          /*authAdmin(),*/ rev.undo)                     // <— agregar
   r.post('/actualizaciones/:id/revertir',  /*authAdmin(),*/ rev.revertir)                 // <— agregar
-  r.get('/export/actualizaciones.csv',     /*authAdmin(),*/ rev.exportActualizacionesCSV) // <— opcional
-
+  r.get('/export/actualizaciones.csv',     /*authAdmin(),*/ rev.exportActualizacionesCSV)
+ 
+ //export TXT para actualizaciones masivas (maestro -> propuesta)
+  r.get('/export/txt/categoria', /*authAdmin(),*/ exp.exportTxtCategoria)
+  r.get('/export/txt/tipo',      /*authAdmin(),*/ exp.exportTxtTipo)
+  r.get('/export/txt/clasif',    /*authAdmin(),*/ exp.exportTxtClasif)
   return r
 }
