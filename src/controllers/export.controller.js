@@ -1,6 +1,6 @@
 export function ExportController(prisma) {
   async function common(campo, req, res) {
-    const campaniaId = Number(req.query.campaniaId || 0);
+    let campaniaId = Number(req.query.campaniaId || 0);
     if (!campaniaId) {
       const activa = await prisma.campania.findFirst({
         where: { activa: true },

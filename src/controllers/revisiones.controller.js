@@ -3,7 +3,7 @@ import { pad2 } from "../utils/sku.js";
 export function RevisionesController(prisma) {
   return {
     listar: async (req, res) => {
-      const campaniaId = Number(req.query.campaniaId || 0);
+      let campaniaId = Number(req.query.campaniaId || 0);
       
       if (!campaniaId) {
         const activa = await prisma.campania.findFirst({
