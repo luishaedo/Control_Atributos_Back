@@ -1,6 +1,47 @@
 import { pad2 } from "../utils/sku.js";
 
 export function RevisionesController(prisma) {
+  const applyUpdates = async ({ ids = [], decidedBy = "" } = {}) => {
+    if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
+    const acts = await prisma.actualizacion.findMany({
+      where: { id: { in: ids }, estado: "pendiente" },
+    });
+    if (acts.length === 0) return { count: 0 };
+
+    await prisma.$transaction(async (tx) => {
+      for (const a of acts) {
+        const existing = await tx.maestro.findUnique({
+          where: { sku: a.sku },
+          select: { sku: true },
+        });
+        if (!existing) {
+          const err = new Error(`Maestro no encontrado para SKU ${a.sku}`);
+          err.status = 400;
+          throw err;
+        }
+
+        await tx.maestro.update({
+          where: { sku: a.sku },
+          data: {
+            categoria_cod: a.new_categoria_cod,
+            tipo_cod: a.new_tipo_cod,
+            clasif_cod: a.new_clasif_cod,
+          },
+        });
+        await tx.actualizacion.update({
+          where: { id: a.id },
+          data: {
+            estado: "aplicada",
+            decidedBy: decidedBy || a.decidedBy,
+            appliedAt: new Date(),
+          },
+        });
+      }
+    });
+
+    return { count: acts.length };
+  };
+
   return {
     listar: async (req, res) => {
       let campaniaId = Number(req.query.campaniaId || 0);
@@ -217,49 +258,25 @@ export function RevisionesController(prisma) {
     },
 
     aplicar: async (req, res) => {
-      const { ids = [], decidedBy = "admin" } = req.body || {};
-      if (!ids.length) return res.json({ ok: true, count: 0 });
-      await prisma.actualizacion.updateMany({
-        where: { id: { in: ids }, estado: "pendiente" },
-        data: { estado: "aplicada", decidedBy, appliedAt: new Date() },
-      });
-      res.json({ ok: true, count: ids.length });
+      try {
+        const { ids = [], decidedBy = "admin" } = req.body || {};
+        const { count } = await applyUpdates({ ids, decidedBy });
+        res.json({ ok: true, count });
+      } catch (e) {
+        res.status(e.status || 500).json({ error: e.message || "Error" });
+      }
     },
 
     aplicarLote: async (req, res) => {
       const { ids = [], decidedBy = "" } = req.body || {};
       if (!Array.isArray(ids) || !ids.length)
         return res.status(400).json({ error: "ids vacío" });
-      const acts = await prisma.actualizacion.findMany({
-        where: { id: { in: ids } },
-      });
-      for (const a of acts) {
-        await prisma.maestro.upsert({
-          where: { sku: a.sku },
-          create: {
-            sku: a.sku,
-            descripcion: "",
-            categoria_cod: a.new_categoria_cod,
-            tipo_cod: a.new_tipo_cod,
-            clasif_cod: a.new_clasif_cod,
-          },
-          update: {
-            categoria_cod: a.new_categoria_cod,
-            tipo_cod: a.new_tipo_cod,
-            clasif_cod: a.new_clasif_cod,
-          },
-        });
-        await prisma.actualizacion.update({
-          where: { id: a.id },
-          data: {
-            estado: "aplicada",
-            decidedBy: decidedBy || a.decidedBy,
-            decidedAt: new Date(),
-            appliedAt: new Date(),
-          },
-        });
+      try {
+        const { count } = await applyUpdates({ ids, decidedBy });
+        res.json({ ok: true, aplicadas: count });
+      } catch (e) {
+        res.status(e.status || 500).json({ error: e.message || "Error" });
       }
-      res.json({ ok: true, aplicadas: acts.length });
     },
 
     archivar: async (req, res) => {
