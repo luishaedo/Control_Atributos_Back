@@ -11,9 +11,23 @@ const pad2 = (v='') => {
   return s.padStart(2, '0').slice(-2)
 }
 
+function decodeCSV(buffer) {
+  const utf8Text = buffer.toString('utf8')
+  const hasReplacement = utf8Text.includes('\uFFFD')
+  if (!hasReplacement) {
+    if (utf8Text.startsWith('\uFEFF')) {
+      return { text: utf8Text.slice(1), encoding: 'utf8-sig' }
+    }
+    return { text: utf8Text, encoding: 'utf8' }
+  }
+
+  const latin1Text = buffer.toString('latin1')
+  return { text: latin1Text, encoding: 'latin1' }
+}
+
 // Detecta delimitador por la 1ra línea
-function sniffDelimiter(buf) {
-  const head = buf.subarray(0, 2000).toString('utf8')
+function sniffDelimiter(text) {
+  const head = text.slice(0, 2000)
   const firstLine = (head.split(/\r?\n/)[0] || '')
   const counts = {
     ';': (firstLine.match(/;/g) || []).length,
@@ -26,8 +40,9 @@ function sniffDelimiter(buf) {
 }
 
 function parseWithAutoDelimiter(buffer) {
-  const delimiter = sniffDelimiter(buffer)
-  return parse(buffer, {
+  const { text, encoding } = decodeCSV(buffer)
+  const delimiter = sniffDelimiter(text)
+  const rows = parse(text, {
     bom: true,
     columns: true,
     skip_empty_lines: true,
@@ -35,6 +50,7 @@ function parseWithAutoDelimiter(buffer) {
     relax_column_count: true,
     delimiter
   })
+  return { rows, delimiter, encoding }
 }
 
 // Normaliza claves de encabezado para soportar variantes y espacios
@@ -50,18 +66,26 @@ function val(obj, keys=[]) {
 }
 
 export function parseDicCSV(buffer) {
-  const rows = parseWithAutoDelimiter(buffer)
+  const { rows, delimiter, encoding } = parseWithAutoDelimiter(buffer)
+  const headerKeys = Object.keys(rows[0] || {})
   return rows.map((r,i) => {
     const codigo = val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO '])
     const desc   = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION','Descripción ','Descripcion ','descripcion ','DESCRIPCION '])
     const cod = pad2(codigo)
-    if (!cod) throw new Error(`Fila ${i+2}: diccionario sin "Código"`)
+    if (!cod) {
+      throw new Error(
+        `Fila ${i+2}: diccionario sin "Código". ` +
+        `Encabezados fila 1: ${headerKeys.join(', ')}. ` +
+        `Encoding: ${encoding}. ` +
+        `Delimiter: "${delimiter}"`
+      )
+    }
     return { cod, nombre: norm(desc || '') }
   })
 }
 
 export function parseMaestroCSV(buffer) {
-  const rows = parseWithAutoDelimiter(buffer)
+  const { rows } = parseWithAutoDelimiter(buffer)
   return rows.map((r,i) => {
     const sku  = norm(val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO ']) || '')
     if (!sku) throw new Error(`Fila ${i+2}: maestro sin "Código" (SKU)`)
