@@ -23,6 +23,7 @@ export function MaestroService(prisma) {
 
     async upsertMaestro(items = []) {
       let count = 0
+      const skipped = []
       for (const it of items) {
         if (!it?.sku) continue
         const sku = cleanSku(it.sku)
@@ -36,34 +37,23 @@ export function MaestroService(prisma) {
         if (tipoCod !== null) updateData.tipo_cod = pad2(tipoCod)
         if (clasifCod !== null) updateData.clasif_cod = pad2(clasifCod)
         if (Object.keys(updateData).length === 0) {
-          const existing = await prisma.maestro.findUnique({ where: { sku } })
-          if (!existing) {
-            await prisma.maestro.create({
-              data: {
-                sku,
-                descripcion: '',
-                categoria_cod: '',
-                tipo_cod: '',
-                clasif_cod: '',
-              }
-            })
-          }
-        } else {
-          await prisma.maestro.upsert({
-            where: { sku },
-            create: {
-              sku,
-              descripcion: descripcion ?? '',
-              categoria_cod: categoriaCod !== null ? pad2(categoriaCod) : '',
-              tipo_cod: tipoCod !== null ? pad2(tipoCod) : '',
-              clasif_cod: clasifCod !== null ? pad2(clasifCod) : '',
-            },
-            update: updateData
-          })
+          skipped.push({ sku, reason: 'empty_payload' })
+          continue
         }
+        await prisma.maestro.upsert({
+          where: { sku },
+          create: {
+            sku,
+            descripcion: descripcion ?? '',
+            categoria_cod: categoriaCod !== null ? pad2(categoriaCod) : '',
+            tipo_cod: tipoCod !== null ? pad2(tipoCod) : '',
+            clasif_cod: clasifCod !== null ? pad2(clasifCod) : '',
+          },
+          update: updateData
+        })
         count++
       }
-      return count
+      return { count, skipped }
     },
   }
 }

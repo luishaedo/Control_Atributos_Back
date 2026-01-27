@@ -40,8 +40,15 @@ export function MaestroController(prisma) {
     importar: async (req, res) => {
       const { items = [] } = req.body || {}
       if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items vacío' })
-      const count = await svc.upsertMaestro(items)
-      res.json({ ok: true, count })
+      const { count, skipped } = await svc.upsertMaestro(items)
+      const skippedMessage = skipped.length ? 'Artículos omitidos por datos vacíos' : null
+      res.json({
+        ok: true,
+        count,
+        skippedCount: skipped.length,
+        skippedMessage,
+        skipped
+      })
     },
      exportCSV: async (_req, res) => {
       const list = await prisma.maestro.findMany({ orderBy: { sku: 'asc' } })

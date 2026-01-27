@@ -620,12 +620,9 @@ export function RevisionesController(prisma) {
         [
           "sku",
           "conflicto",
-          "sucursal",
-          "categoria_cod",
-          "tipo_cod",
-          "clasif_cod",
-          "sucursales_count",
+          "mayoritaria",
           "variantes_count",
+          "sucursales_count",
         ],
       ];
 
@@ -637,20 +634,25 @@ export function RevisionesController(prisma) {
         if (arr.length === 0) continue;
         const conflicto = arr.length > 1 ? "true" : "false";
         const variantesCount = Math.max(0, arr.length - 1);
+        const mayoritaria = arr[0];
+        const sucursalesSet = new Set();
         for (const row of arr) {
-          for (const sucursal of row.sucursales) {
-            rows.push([
-              sku,
-              conflicto,
-              sucursal,
-              row.categoria_cod,
-              row.tipo_cod,
-              row.clasif_cod,
-              row.sucursales.length,
-              variantesCount,
-            ]);
-          }
+          for (const sucursal of row.sucursales) sucursalesSet.add(sucursal);
         }
+        const mayoritariaLabel = [
+          mayoritaria.categoria_cod,
+          mayoritaria.tipo_cod,
+          mayoritaria.clasif_cod,
+        ]
+          .filter((v) => v !== undefined && v !== null)
+          .join("|");
+        rows.push([
+          sku,
+          conflicto,
+          mayoritariaLabel,
+          variantesCount,
+          sucursalesSet.size,
+        ]);
       }
 
       const { toCSV } = await import("../utils/csv.js");
