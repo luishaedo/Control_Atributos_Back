@@ -590,5 +590,79 @@ export function RevisionesController(prisma) {
       );
       res.send(csv);
     },
+
+    exportDiscrepanciasSucCSV: async (req, res) => {
+      const campaniaId = Number(req.query.campaniaId);
+      const minSuc = Math.max(1, Number(req.query.minSucursales || 1));
+
+      if (!campaniaId)
+        return res.status(400).json({ error: "campaniaId requerido" });
+
+      const esc = await prisma.escaneo.findMany({ where: { campaniaId } });
+      const bySku = new Map();
+      for (const e of esc) {
+        const key = `${e.asum_categoria_cod || ""}|${e.asum_tipo_cod || ""}|${
+          e.asum_clasif_cod || ""
+        }`;
+        const grp = bySku.get(e.sku) || { sku: e.sku, firmas: new Map() };
+        const f = grp.firmas.get(key) || {
+          categoria_cod: e.asum_categoria_cod || "",
+          tipo_cod: e.asum_tipo_cod || "",
+          clasif_cod: e.asum_clasif_cod || "",
+          sucursales: new Set(),
+        };
+        if (e.sucursal) f.sucursales.add(e.sucursal);
+        grp.firmas.set(key, f);
+        bySku.set(e.sku, grp);
+      }
+
+      const rows = [
+        [
+          "sku",
+          "conflicto",
+          "mayoritaria",
+          "variantes_count",
+          "sucursales_count",
+        ],
+      ];
+
+      for (const { sku, firmas } of bySku.values()) {
+        const arr = Array.from(firmas.values())
+          .map((f) => ({ ...f, sucursales: Array.from(f.sucursales) }))
+          .filter((f) => f.sucursales.length >= minSuc)
+          .sort((a, b) => b.sucursales.length - a.sucursales.length);
+        if (arr.length === 0) continue;
+        const conflicto = arr.length > 1 ? "true" : "false";
+        const variantesCount = Math.max(0, arr.length - 1);
+        const mayoritaria = arr[0];
+        const sucursalesSet = new Set();
+        for (const row of arr) {
+          for (const sucursal of row.sucursales) sucursalesSet.add(sucursal);
+        }
+        const mayoritariaLabel = [
+          mayoritaria.categoria_cod,
+          mayoritaria.tipo_cod,
+          mayoritaria.clasif_cod,
+        ]
+          .filter((v) => v !== undefined && v !== null)
+          .join("|");
+        rows.push([
+          sku,
+          conflicto,
+          mayoritariaLabel,
+          variantesCount,
+          sucursalesSet.size,
+        ]);
+      }
+
+      const { toCSV } = await import("../utils/csv.js");
+      const csv = toCSV(rows);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="discrepancias_sucursales.csv"'
+      );
+      res.send(csv);
+    },
   };
 }

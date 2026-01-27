@@ -9,6 +9,8 @@ import { DiccionariosController } from '../controllers/diccionarios.controller.j
 import { MaestroController } from '../controllers/maestro.controller.js'
 import { ExportController } from '../controllers/export.controller.js'
 
+const authIfProd = () => (process.env.NODE_ENV === 'production' ? authAdmin() : (_req, _res, next) => next())
+
 export default function adminRouter(prisma) {
   const r = Router()
   const admin = AdminController(prisma)
@@ -19,54 +21,55 @@ export default function adminRouter(prisma) {
   const exp = ExportController(prisma)
 
   // Salud
-  r.get('/ping', admin.ping) // activar auth en prod: r.get('/ping', authAdmin(), admin.ping)
+  r.get('/ping', authIfProd(), admin.ping)
 
   // Import por archivo (multer)
   r.post('/diccionarios/import-file',
-    // authAdmin(),
+    authIfProd(),
     upload.fields([{ name:'categorias', maxCount:1 }, { name:'tipos', maxCount:1 }, { name:'clasif', maxCount:1 }]),
     imp.diccionarios
   )
   r.post('/maestro/import-file',
-    // authAdmin(),
+    authIfProd(),
     upload.fields([{ name:'maestro', maxCount:1 }]),
     imp.maestro
   )
 
   // Import por JSON (lo proveen tus controllers de diccionarios/maestro)
-  r.post('/diccionarios/import-json', /*authAdmin(),*/ dic.importar)
-  r.post('/maestro/import-json',      /*authAdmin(),*/ mae.importar)
+  r.post('/diccionarios/import-json', authIfProd(), dic.importar)
+  r.post('/maestro/import-json', authIfProd(), mae.importar)
 
   // Export CSV
-  r.get('/export/categorias.csv', /*authAdmin(),*/ admin.exportCategorias)
-  r.get('/export/tipos.csv',      /*authAdmin(),*/ admin.exportTipos)
-  r.get('/export/clasif.csv',     /*authAdmin(),*/ admin.exportClasif)
-  //r.get('/export/maestro.csv',    /*authAdmin(),*/ mae.exportCSV) // <— agregar método abajo
+  r.get('/export/categorias.csv', authIfProd(), admin.exportCategorias)
+  r.get('/export/tipos.csv', authIfProd(), admin.exportTipos)
+  r.get('/export/clasif.csv', authIfProd(), admin.exportClasif)
+  r.get('/export/maestro.csv', authIfProd(), mae.exportCSV)
 
   // Revisiones (tarjetas)
-  r.get('/revisiones',            /*authAdmin(),*/ rev.listar)
-  r.post('/revisiones/decidir',   /*authAdmin(),*/ rev.decidir)
+  r.get('/revisiones', authIfProd(), rev.listar)
+  r.post('/revisiones/decidir', authIfProd(), rev.decidir)
 
   // Discrepancias resumidas (para Admin/Auditoría: maestro vs top propuesta, y entre sucursales)
-  r.get('/discrepancias',              /*authAdmin(),*/ rev.discrepancias)          // <— agregar método abajo
-  r.get('/discrepancias-sucursales',   /*authAdmin(),*/ rev.discrepanciasSuc)      // <— agregar método abajo
-  r.get('/export/discrepancias.csv',   /*authAdmin(),*/ rev.exportDiscrepanciasCSV) // <— opcional/export
+  r.get('/discrepancias', authIfProd(), rev.discrepancias)
+  r.get('/discrepancias-sucursales', authIfProd(), rev.discrepanciasSuc)
+  r.get('/export/discrepancias.csv', authIfProd(), rev.exportDiscrepanciasCSV)
+  r.get('/export/discrepancias-sucursales.csv', authIfProd(), rev.exportDiscrepanciasSucCSV)
 
   // aliases usados por Auditoría (mantener por compatibilidad)
-r.get('/revisiones/discrepancias',            /*authAdmin(),*/ rev.discrepancias)
-r.get('/revisiones/discrepancias-sucursales', /*authAdmin(),*/ rev.discrepanciasSuc)
+  r.get('/revisiones/discrepancias', authIfProd(), rev.discrepancias)
+  r.get('/revisiones/discrepancias-sucursales', authIfProd(), rev.discrepanciasSuc)
 
   // Cola de actualizaciones
-  r.get('/actualizaciones',                /*authAdmin(),*/ rev.listarActualizaciones)   // <— agregar
-  r.post('/actualizaciones/aplicar',       /*authAdmin(),*/ rev.aplicar)                  // <— agregar
-  r.post('/actualizaciones/archivar',      /*authAdmin(),*/ rev.archivar)                 // <— agregar
-  r.post('/actualizaciones/undo',          /*authAdmin(),*/ rev.undo)                     // <— agregar
-  r.post('/actualizaciones/:id/revertir',  /*authAdmin(),*/ rev.revertir)                 // <— agregar
-  r.get('/export/actualizaciones.csv',     /*authAdmin(),*/ rev.exportActualizacionesCSV)
+  r.get('/actualizaciones', authIfProd(), rev.listarActualizaciones)
+  r.post('/actualizaciones/aplicar', authIfProd(), rev.aplicar)
+  r.post('/actualizaciones/archivar', authIfProd(), rev.archivar)
+  r.post('/actualizaciones/undo', authIfProd(), rev.undo)
+  r.post('/actualizaciones/:id/revertir', authIfProd(), rev.revertir)
+  r.get('/export/actualizaciones.csv', authIfProd(), rev.exportActualizacionesCSV)
  
- //export TXT para actualizaciones masivas (maestro -> propuesta)
-  r.get('/export/txt/categoria', /*authAdmin(),*/ exp.exportTxtCategoria)
-  r.get('/export/txt/tipo',      /*authAdmin(),*/ exp.exportTxtTipo)
-  r.get('/export/txt/clasif',    /*authAdmin(),*/ exp.exportTxtClasif)
+  // export TXT para actualizaciones masivas (maestro -> propuesta)
+  r.get('/export/txt/categoria', authIfProd(), exp.exportTxtCategoria)
+  r.get('/export/txt/tipo', authIfProd(), exp.exportTxtTipo)
+  r.get('/export/txt/clasif', authIfProd(), exp.exportTxtClasif)
   return r
 }

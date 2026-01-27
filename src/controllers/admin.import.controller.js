@@ -21,7 +21,15 @@ export function AdminImportController(prisma) {
       try {
         const maestroBuf = req.files?.maestro?.[0]?.buffer || null
         const result = await svc.importarMaestroDesdeBuffer(maestroBuf)
-        res.json({ ok: true, ...result })
+        const skippedMessage = result.skipped?.length
+          ? 'Artículos omitidos por datos vacíos'
+          : null
+        res.json({
+          ok: true,
+          ...result,
+          skippedCount: result.skipped?.length || 0,
+          skippedMessage
+        })
       } catch (e) {
         console.error('Import maestro falló:', e)
   res.status(e.status || 500).json({ error: e.message || 'Error importando maestro' })

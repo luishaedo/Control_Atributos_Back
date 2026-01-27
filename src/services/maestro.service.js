@@ -1,6 +1,12 @@
 import { cleanSku, pad2 } from '../utils/sku.js'
 
 export function MaestroService(prisma) {
+  const normalizeValue = (value) => {
+    if (value === undefined || value === null) return null
+    const trimmed = String(value).trim()
+    return trimmed === '' ? null : trimmed
+  }
+
   return {
     async upsertDiccionarios({ categorias = [], tipos = [], clasif = [] }) {
       for (const c of categorias) {
@@ -17,27 +23,37 @@ export function MaestroService(prisma) {
 
     async upsertMaestro(items = []) {
       let count = 0
+      const skipped = []
       for (const it of items) {
         if (!it?.sku) continue
+        const sku = cleanSku(it.sku)
+        const descripcion = normalizeValue(it.descripcion)
+        const categoriaCod = normalizeValue(it.categoria_cod)
+        const tipoCod = normalizeValue(it.tipo_cod)
+        const clasifCod = normalizeValue(it.clasif_cod)
+        const updateData = {}
+        if (descripcion !== null) updateData.descripcion = descripcion
+        if (categoriaCod !== null) updateData.categoria_cod = pad2(categoriaCod)
+        if (tipoCod !== null) updateData.tipo_cod = pad2(tipoCod)
+        if (clasifCod !== null) updateData.clasif_cod = pad2(clasifCod)
+        if (Object.keys(updateData).length === 0) {
+          skipped.push({ sku, reason: 'empty_payload' })
+          continue
+        }
         await prisma.maestro.upsert({
-          where: { sku: cleanSku(it.sku) },
+          where: { sku },
           create: {
-            sku: cleanSku(it.sku),
-            descripcion: it.descripcion || '',
-            categoria_cod: pad2(it.categoria_cod || ''),
-            tipo_cod: pad2(it.tipo_cod || ''),
-            clasif_cod: pad2(it.clasif_cod || ''),
+            sku,
+            descripcion: descripcion ?? '',
+            categoria_cod: categoriaCod !== null ? pad2(categoriaCod) : '',
+            tipo_cod: tipoCod !== null ? pad2(tipoCod) : '',
+            clasif_cod: clasifCod !== null ? pad2(clasifCod) : '',
           },
-          update: {
-            descripcion: it.descripcion || '',
-            categoria_cod: pad2(it.categoria_cod || ''),
-            tipo_cod: pad2(it.tipo_cod || ''),
-            clasif_cod: pad2(it.clasif_cod || ''),
-          }
+          update: updateData
         })
         count++
       }
-      return count
+      return { count, skipped }
     },
   }
 }
