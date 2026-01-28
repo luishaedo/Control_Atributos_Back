@@ -1,6 +1,17 @@
 import { pad2 } from "../utils/sku.js";
 
 export function RevisionesController(prisma) {
+  const isEmptyValue = (value) => value === undefined || value === null || String(value).trim() === "";
+  const formatDecision = (decision) => ({
+    estado: decision.estado,
+    id: decision.id,
+    decidedBy: decision.decidedBy,
+    decidedAt: decision.decidedAt,
+  });
+  const pickEffectiveValue = (newValue, oldValue) => {
+    if (!isEmptyValue(newValue)) return newValue;
+    return oldValue ?? "";
+  };
   const applyUpdates = async ({ ids = [], decidedBy = "" } = {}) => {
     if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
     const acts = await prisma.actualizacion.findMany({
@@ -23,9 +34,12 @@ export function RevisionesController(prisma) {
         await tx.maestro.update({
           where: { sku: a.sku },
           data: {
-            categoria_cod: a.new_categoria_cod,
-            tipo_cod: a.new_tipo_cod,
-            clasif_cod: a.new_clasif_cod,
+            categoria_cod: pickEffectiveValue(
+              a.new_categoria_cod,
+              a.old_categoria_cod
+            ),
+            tipo_cod: pickEffectiveValue(a.new_tipo_cod, a.old_tipo_cod),
+            clasif_cod: pickEffectiveValue(a.new_clasif_cod, a.old_clasif_cod),
           },
         });
         await tx.actualizacion.update({
@@ -71,9 +85,46 @@ export function RevisionesController(prisma) {
         where: { campaniaId },
         orderBy: { ts: "desc" },
       });
-      const decKey = (d) =>
-        `${d.sku}|${d.new_categoria_cod}|${d.new_tipo_cod}|${d.new_clasif_cod}`;
-      const mapDec = new Map(decisiones.map((d) => [decKey(d), d]));
+      const decisionesBySku = new Map();
+      for (const dec of decisiones) {
+        const list = decisionesBySku.get(dec.sku) || [];
+        list.push(dec);
+        decisionesBySku.set(dec.sku, list);
+      }
+
+      const findDecision = (sku, propuesta) => {
+        const list = decisionesBySku.get(sku) || [];
+        let best = null;
+        let bestScore = -1;
+        for (const decision of list) {
+          let score = 0;
+          let match = true;
+          const fields = [
+            {
+              decision: decision.new_categoria_cod,
+              propuesta: propuesta.categoria_cod,
+            },
+            { decision: decision.new_tipo_cod, propuesta: propuesta.tipo_cod },
+            {
+              decision: decision.new_clasif_cod,
+              propuesta: propuesta.clasif_cod,
+            },
+          ];
+          for (const field of fields) {
+            if (isEmptyValue(field.decision)) continue;
+            if (String(field.decision) !== String(field.propuesta || "")) {
+              match = false;
+              break;
+            }
+            score += 1;
+          }
+          if (match && score > bestScore) {
+            best = decision;
+            bestScore = score;
+          }
+        }
+        return best ? formatDecision(best) : null;
+      };
 
       const porSku = new Map();
       for (const e of escaneos) {
@@ -124,10 +175,7 @@ export function RevisionesController(prisma) {
             ...p,
             usuarios: Array.from(p.usuarios),
             sucursales: Array.from(p.sucursales),
-            decision:
-              mapDec.get(
-                `${grp.sku}|${p.categoria_cod}|${p.tipo_cod}|${p.clasif_cod}`
-              ) || null,
+            decision: findDecision(grp.sku, p),
           }))
           .sort((a, b) => b.count - a.count);
 
@@ -175,9 +223,15 @@ export function RevisionesController(prisma) {
         const oldCat = snap?.categoria_cod ?? null;
         const oldTip = snap?.tipo_cod ?? null;
         const oldCla = snap?.clasif_cod ?? null;
-        const newCat = pad2(propuesta.categoria_cod || "");
-        const newTip = pad2(propuesta.tipo_cod || "");
-        const newCla = pad2(propuesta.clasif_cod || "");
+        const newCat = isEmptyValue(propuesta?.categoria_cod)
+          ? ""
+          : pad2(propuesta.categoria_cod);
+        const newTip = isEmptyValue(propuesta?.tipo_cod)
+          ? ""
+          : pad2(propuesta.tipo_cod);
+        const newCla = isEmptyValue(propuesta?.clasif_cod)
+          ? ""
+          : pad2(propuesta.clasif_cod);
         const estado =
           decision === "aceptar"
             ? aplicarAhora
@@ -218,19 +272,22 @@ export function RevisionesController(prisma) {
         });
 
         if (decision === "aceptar" && aplicarAhora) {
+          const effectiveCat = pickEffectiveValue(newCat, oldCat);
+          const effectiveTip = pickEffectiveValue(newTip, oldTip);
+          const effectiveCla = pickEffectiveValue(newCla, oldCla);
           await prisma.maestro.upsert({
             where: { sku },
             create: {
               sku,
               descripcion: snap?.descripcion || "",
-              categoria_cod: newCat,
-              tipo_cod: newTip,
-              clasif_cod: newCla,
+              categoria_cod: effectiveCat,
+              tipo_cod: effectiveTip,
+              clasif_cod: effectiveCla,
             },
             update: {
-              categoria_cod: newCat,
-              tipo_cod: newTip,
-              clasif_cod: newCla,
+              categoria_cod: effectiveCat,
+              tipo_cod: effectiveTip,
+              clasif_cod: effectiveCla,
             },
           });
         }
@@ -478,6 +535,7 @@ export function RevisionesController(prisma) {
           "old_clasif_cod",
           "new_clasif_cod",
           "decidedBy",
+          "decidedAt",
           "ts",
         ],
       ];
@@ -497,6 +555,7 @@ export function RevisionesController(prisma) {
           a.old_clasif_cod,
           a.new_clasif_cod,
           a.decidedBy,
+          a.decidedAt?.toISOString?.() || "",
           a.ts?.toISOString?.() || "",
         ]);
       const { toCSV } = await import("../utils/csv.js");
