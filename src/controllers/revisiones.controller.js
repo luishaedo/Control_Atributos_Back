@@ -212,10 +212,19 @@ export function RevisionesController(prisma) {
           aplicarAhora = false,
           notas = "",
         } = req.body || {};
-        if (!campaniaId || !sku || !propuesta || !decision)
+        if (!campaniaId || !sku || !decision)
           return res.status(400).json({ error: "Faltan campos" });
         if (!["aceptar", "rechazar"].includes(decision))
           return res.status(400).json({ error: "decision inválida" });
+        const hasPropuesta =
+          !isEmptyValue(propuesta?.categoria_cod) ||
+          !isEmptyValue(propuesta?.tipo_cod) ||
+          !isEmptyValue(propuesta?.clasif_cod);
+        if (decision === "aceptar" && !hasPropuesta) {
+          return res
+            .status(400)
+            .json({ error: "propuesta requerida para aceptar" });
+        }
 
         const snap = await prisma.campaniaMaestro.findUnique({
           where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } },
@@ -232,12 +241,7 @@ export function RevisionesController(prisma) {
         const newCla = isEmptyValue(propuesta?.clasif_cod)
           ? ""
           : pad2(propuesta.clasif_cod);
-        const estado =
-          decision === "aceptar"
-            ? aplicarAhora
-              ? "aplicada"
-              : "pendiente"
-            : "rechazada";
+        const estado = decision === "aceptar" ? "pendiente" : "rechazada";
 
         await prisma.actualizacion.updateMany({
           where: {
@@ -267,30 +271,9 @@ export function RevisionesController(prisma) {
             decidedBy: decidedBy || null,
             decidedAt: new Date(),
             notas,
-            ...(aplicarAhora ? { appliedAt: new Date() } : {}),
           },
         });
 
-        if (decision === "aceptar" && aplicarAhora) {
-          const effectiveCat = pickEffectiveValue(newCat, oldCat);
-          const effectiveTip = pickEffectiveValue(newTip, oldTip);
-          const effectiveCla = pickEffectiveValue(newCla, oldCla);
-          await prisma.maestro.upsert({
-            where: { sku },
-            create: {
-              sku,
-              descripcion: snap?.descripcion || "",
-              categoria_cod: effectiveCat,
-              tipo_cod: effectiveTip,
-              clasif_cod: effectiveCla,
-            },
-            update: {
-              categoria_cod: effectiveCat,
-              tipo_cod: effectiveTip,
-              clasif_cod: effectiveCla,
-            },
-          });
-        }
         res.json({ ok: true, actualizacion: act });
       } catch (e) {
         console.error(e);
