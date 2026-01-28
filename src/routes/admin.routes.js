@@ -38,6 +38,7 @@ export default function adminRouter(prisma) {
   // Import por JSON (lo proveen tus controllers de diccionarios/maestro)
   r.post('/diccionarios/import-json', authIfProd(), dic.importar)
   r.post('/maestro/import-json', authIfProd(), mae.importar)
+  r.get('/maestro/missing', authIfProd(), mae.missing)
 
   // Export CSV
   r.get('/export/categorias.csv', authIfProd(), admin.exportCategorias)
