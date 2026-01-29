@@ -1,5 +1,4 @@
 import { pad2 } from "../utils/sku.js";
-
 export function RevisionesController(prisma) {
   const isEmptyValue = (value) => value === undefined || value === null || String(value).trim() === "";
   const formatDecision = (decision) => ({
@@ -8,53 +7,6 @@ export function RevisionesController(prisma) {
     decidedBy: decision.decidedBy,
     decidedAt: decision.decidedAt,
   });
-  const pickEffectiveValue = (newValue, oldValue) => {
-    if (!isEmptyValue(newValue)) return newValue;
-    return oldValue ?? "";
-  };
-  const applyUpdates = async ({ ids = [], decidedBy = "" } = {}) => {
-    if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
-    const acts = await prisma.actualizacion.findMany({
-      where: { id: { in: ids }, estado: "pendiente" },
-    });
-    if (acts.length === 0) return { count: 0 };
-
-    await prisma.$transaction(async (tx) => {
-      for (const a of acts) {
-        const existing = await tx.maestro.findUnique({
-          where: { sku: a.sku },
-          select: { sku: true },
-        });
-        if (!existing) {
-          const err = new Error(`Maestro no encontrado para SKU ${a.sku}`);
-          err.status = 400;
-          throw err;
-        }
-
-        await tx.maestro.update({
-          where: { sku: a.sku },
-          data: {
-            categoria_cod: pickEffectiveValue(
-              a.new_categoria_cod,
-              a.old_categoria_cod
-            ),
-            tipo_cod: pickEffectiveValue(a.new_tipo_cod, a.old_tipo_cod),
-            clasif_cod: pickEffectiveValue(a.new_clasif_cod, a.old_clasif_cod),
-          },
-        });
-        await tx.actualizacion.update({
-          where: { id: a.id },
-          data: {
-            estado: "aplicada",
-            decidedBy: decidedBy || a.decidedBy,
-            appliedAt: new Date(),
-          },
-        });
-      }
-    });
-
-    return { count: acts.length };
-  };
 
   return {
     listar: async (req, res) => {
@@ -209,7 +161,6 @@ export function RevisionesController(prisma) {
           propuesta,
           decision,
           decidedBy,
-          aplicarAhora = false,
           notas = "",
         } = req.body || {};
         if (!campaniaId || !sku || !decision)
@@ -274,119 +225,27 @@ export function RevisionesController(prisma) {
           },
         });
 
+        if (decision === "aceptar") {
+          await prisma.skuStage.upsert({
+            where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } },
+            create: {
+              campaniaId: Number(campaniaId),
+              sku,
+              stage: "confirm",
+              updatedBy: decidedBy || null,
+            },
+            update: {
+              stage: "confirm",
+              updatedBy: decidedBy || null,
+              updatedAt: new Date(),
+            },
+          });
+        }
+
         res.json({ ok: true, actualizacion: act });
       } catch (e) {
         console.error(e);
         res.status(500).json({ error: "Error al decidir revisión" });
-      }
-    },
-
-    listarActualizaciones: async (req, res) => {
-      const campaniaId = Number(req.query.campaniaId);
-      if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
-      const where = { campaniaId };
-      if (req.query.estado) where.estado = req.query.estado;
-      if (req.query.archivada && req.query.archivada !== "todas") {
-        where.archivada = req.query.archivada === "true";
-      }
-      const items = await prisma.actualizacion.findMany({
-        where,
-        orderBy: { ts: "desc" },
-      });
-      res.json({ items });
-    },
-
-    aplicar: async (req, res) => {
-      try {
-        const { ids = [], decidedBy = "admin" } = req.body || {};
-        const { count } = await applyUpdates({ ids, decidedBy });
-        res.json({ ok: true, count });
-      } catch (e) {
-        res.status(e.status || 500).json({ error: e.message || "Error" });
-      }
-    },
-
-    aplicarLote: async (req, res) => {
-      const { ids = [], decidedBy = "" } = req.body || {};
-      if (!Array.isArray(ids) || !ids.length)
-        return res.status(400).json({ error: "ids vacío" });
-      try {
-        const { count } = await applyUpdates({ ids, decidedBy });
-        res.json({ ok: true, aplicadas: count });
-      } catch (e) {
-        res.status(e.status || 500).json({ error: e.message || "Error" });
-      }
-    },
-
-    archivar: async (req, res) => {
-      const {
-        ids = [],
-        archivada = true,
-        archivadaBy = "admin",
-      } = req.body || {};
-      if (!ids.length) return res.json({ ok: true, count: 0 });
-      await prisma.actualizacion.updateMany({
-        where: { id: { in: ids } },
-        data: { archivada, archivadaBy, archivadaAt: new Date() },
-      });
-      res.json({ ok: true, count: ids.length });
-    },
-
-    undo: async (req, res) => {
-      const { id } = req.body || {};
-      if (!id) return res.status(400).json({ error: "id requerido" });
-      await prisma.actualizacion.update({
-        where: { id },
-        data: { estado: "pendiente", appliedAt: null },
-      });
-      res.json({ ok: true });
-    },
-
-    revertir: async (req, res) => {
-      try {
-        const idParam = req.params?.id;
-        const idBody = req.body?.id;
-        const id = Number(idParam ?? idBody);
-        const decidedBy = req.body?.decidedBy || "admin@local";
-        if (!id) return res.status(400).json({ error: "id requerido" });
-
-        const act = await prisma.actualizacion.findUnique({ where: { id } });
-        if (!act)
-          return res.status(404).json({ error: "Actualización no encontrada" });
-        if (act.estado !== "aplicada")
-          return res
-            .status(400)
-            .json({ error: "Sólo se pueden revertir las aplicadas" });
-
-        const new_categoria_cod = pad2(
-          act.old_categoria_cod ?? act.new_categoria_cod
-        );
-        const new_tipo_cod = pad2(act.old_tipo_cod ?? act.new_tipo_cod);
-        const new_clasif_cod = pad2(act.old_clasif_cod ?? act.new_clasif_cod);
-        const old_categoria_cod = act.new_categoria_cod;
-        const old_tipo_cod = act.new_tipo_cod;
-        const old_clasif_cod = act.new_clasif_cod;
-
-        const revert = await prisma.actualizacion.create({
-          data: {
-            campaniaId: act.campaniaId,
-            sku: act.sku,
-            old_categoria_cod,
-            old_tipo_cod,
-            old_clasif_cod,
-            new_categoria_cod,
-            new_tipo_cod,
-            new_clasif_cod,
-            estado: "pendiente",
-            decidedBy,
-            decidedAt: new Date(),
-          },
-        });
-        res.json({ ok: true, actualizacion: revert });
-      } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: "Error al revertir" });
       }
     },
 
@@ -502,54 +361,6 @@ export function RevisionesController(prisma) {
       res.json({ items });
     },
 
-    exportActualizacionesCSV: async (req, res) => {
-      const campaniaId = Number(req.query.campaniaId);
-      if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
-      const rows = [
-        [
-          "id",
-          "sku",
-          "estado",
-          "old_categoria_cod",
-          "new_categoria_cod",
-          "old_tipo_cod",
-          "new_tipo_cod",
-          "old_clasif_cod",
-          "new_clasif_cod",
-          "decidedBy",
-          "decidedAt",
-          "ts",
-        ],
-      ];
-      const acts = await prisma.actualizacion.findMany({
-        where: { campaniaId },
-        orderBy: { ts: "desc" },
-      });
-      for (const a of acts)
-        rows.push([
-          a.id,
-          a.sku,
-          a.estado,
-          a.old_categoria_cod,
-          a.new_categoria_cod,
-          a.old_tipo_cod,
-          a.new_tipo_cod,
-          a.old_clasif_cod,
-          a.new_clasif_cod,
-          a.decidedBy,
-          a.decidedAt?.toISOString?.() || "",
-          a.ts?.toISOString?.() || "",
-        ]);
-      const { toCSV } = await import("../utils/csv.js");
-      const csv = toCSV(rows);
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader(
-        "Content-Disposition",
-        'attachment; filename="actualizaciones.csv"'
-      );
-      res.send(csv);
-    },
     exportDiscrepanciasCSV: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId);
       if (!campaniaId)

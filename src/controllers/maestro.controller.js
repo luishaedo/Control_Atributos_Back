@@ -120,27 +120,6 @@ export function MaestroController(prisma) {
         skipped
       })
     },
-    missing: async (req, res) => {
-      const campaniaId = Number(req.query.campaniaId || 0)
-      if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
-      const [snapshot, maestro] = await Promise.all([
-        prisma.campaniaMaestro.findMany({
-          where: { campaniaId },
-          select: { sku: true, categoria_cod: true, tipo_cod: true, clasif_cod: true },
-        }),
-        prisma.maestro.findMany({ select: { sku: true } }),
-      ])
-      const maestroSkuSet = new Set(maestro.map((m) => m.sku))
-      const items = snapshot
-        .filter((snap) => !maestroSkuSet.has(snap.sku))
-        .map((snap) => ({
-          sku: snap.sku,
-          categoria_cod: snap.categoria_cod,
-          tipo_cod: snap.tipo_cod,
-          clasif_cod: snap.clasif_cod,
-        }))
-      res.json({ items })
-    },
      exportCSV: async (_req, res) => {
       const list = await prisma.maestro.findMany({ orderBy: { sku: 'asc' } })
       const rows = [['sku','descripcion','categoria_cod','tipo_cod','clasif_cod']]
