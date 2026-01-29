@@ -42,6 +42,45 @@ export function EscaneosController(prisma) {
           }
         })
 
+        if (!snap) {
+          await prisma.$transaction(async (tx) => {
+            await tx.unknownSku.upsert({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku } },
+              create: {
+                campaniaId: camp.id,
+                sku,
+                categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
+                tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
+                clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
+                status: 'detected',
+                updatedBy: email || null,
+              },
+              update: {
+                categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
+                tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
+                clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
+                status: 'detected',
+                updatedBy: email || null,
+                updatedAt: new Date(),
+              },
+            })
+            await tx.skuStage.upsert({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku } },
+              create: {
+                campaniaId: camp.id,
+                sku,
+                stage: 'unknown',
+                updatedBy: email || null,
+              },
+              update: {
+                stage: 'unknown',
+                updatedBy: email || null,
+                updatedAt: new Date(),
+              },
+            })
+          })
+        }
+
         const maestroOut = snap ? {
           descripcion: snap.descripcion,
           categoria_cod: snap.categoria_cod,
