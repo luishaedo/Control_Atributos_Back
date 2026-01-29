@@ -8,6 +8,7 @@ import { RevisionesController } from '../controllers/revisiones.controller.js'
 import { DiccionariosController } from '../controllers/diccionarios.controller.js'
 import { MaestroController } from '../controllers/maestro.controller.js'
 import { WorkflowController } from '../controllers/workflow.controller.js'
+import { ActualizacionesController } from '../controllers/actualizaciones.controller.js'
 
 const authIfProd = () => (process.env.NODE_ENV === 'production' ? authAdmin() : (_req, _res, next) => next())
 
@@ -19,6 +20,7 @@ export default function adminRouter(prisma) {
   const dic = DiccionariosController(prisma)
   const mae = MaestroController(prisma)
   const flow = WorkflowController(prisma)
+  const acts = ActualizacionesController(prisma)
 
   // Salud
   r.get('/ping', authIfProd(), admin.ping)
@@ -37,6 +39,10 @@ export default function adminRouter(prisma) {
 
   // Import por JSON (lo provee tu controller de diccionarios)
   r.post('/diccionarios/import-json', authIfProd(), dic.importar)
+  r.post('/maestro/import-json', authIfProd(), mae.importar)
+
+  // Actualizaciones (compatibilidad con front)
+  r.post('/actualizaciones/aplicar', authIfProd(), acts.aplicar)
 
   // Export CSV
   r.get('/export/categorias.csv', authIfProd(), admin.exportCategorias)
