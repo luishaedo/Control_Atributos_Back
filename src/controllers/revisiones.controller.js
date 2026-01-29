@@ -1,5 +1,6 @@
 import { pad2 } from "../utils/sku.js";
 export function RevisionesController(prisma) {
+  const { applyUpdates } = ActualizacionesService(prisma);
   const isEmptyValue = (value) => value === undefined || value === null || String(value).trim() === "";
   const formatDecision = (decision) => ({
     estado: decision.estado,
