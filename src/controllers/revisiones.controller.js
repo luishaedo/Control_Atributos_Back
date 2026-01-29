@@ -1,4 +1,5 @@
 import { pad2 } from "../utils/sku.js";
+import { ActualizacionesService } from "../services/actualizaciones.service.js";
 export function RevisionesController(prisma) {
   const { applyUpdates } = ActualizacionesService(prisma);
   const isEmptyValue = (value) => value === undefined || value === null || String(value).trim() === "";
@@ -241,6 +242,13 @@ export function RevisionesController(prisma) {
               updatedBy: decidedBy || null,
               updatedAt: new Date(),
             },
+          });
+        }
+
+        if (decision === "aceptar" && aplicarAhora) {
+          await applyUpdates({
+            ids: [act.id],
+            decidedBy: decidedBy || "admin",
           });
         }
 
