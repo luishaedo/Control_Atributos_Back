@@ -45,6 +45,8 @@ model Campania {
   snapshot CampaniaMaestro[]
 
   actualizaciones Actualizacion[]
+  stages          SkuStage[]
+  unknownSkus     UnknownSku[]
 
   @@index([activa])
 }
@@ -116,5 +118,37 @@ model Actualizacion {
 
   campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
+  @@index([campaniaId, sku])
+}
+
+model SkuStage {
+  campaniaId Int
+  sku        String
+  stage      String
+  updatedBy  String?
+  updatedAt  DateTime @default(now())
+
+  campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  @@id([campaniaId, sku])
+  @@index([stage])
+}
+
+model UnknownSku {
+  id           Int      @id @default(autoincrement())
+  campaniaId   Int
+  sku          String
+  descripcion  String?
+  categoria_cod String?
+  tipo_cod     String?
+  clasif_cod   String?
+  status       String?
+  updatedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  @@unique([campaniaId, sku])
   @@index([campaniaId, sku])
 }
