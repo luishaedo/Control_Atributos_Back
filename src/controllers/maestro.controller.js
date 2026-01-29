@@ -130,5 +130,20 @@ export function MaestroController(prisma) {
       res.setHeader('Content-Disposition', 'attachment; filename="maestro.csv"')
       res.send(csv)
     },
+
+    listMissing: async (req, res) => {
+      const campaniaId = Number(req.query.campaniaId || 0)
+      if (!campaniaId) {
+        return res.status(400).json({ error: 'campaniaId requerido' })
+      }
+      const items = await prisma.unknownSku.findMany({
+        where: {
+          campaniaId,
+          OR: [{ status: { not: 'confirmed' } }, { status: null }],
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
+      res.json({ items })
+    },
   }
 }
