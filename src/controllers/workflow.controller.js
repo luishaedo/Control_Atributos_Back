@@ -94,14 +94,22 @@ export function WorkflowController(prisma) {
       perUser.set(user, (perUser.get(user) || 0) + 1);
     }
 
+    const statsByUserArray = Array.from(perUser.entries()).map(
+      ([user, count]) => ({
+        user,
+        count,
+      })
+    );
+    const statsByUser = Object.fromEntries(perUser.entries());
+
     return {
       totalSkus,
       updated,
       verified,
-      statsByUser: Array.from(perUser.entries()).map(([user, count]) => ({
-        user,
-        count,
-      })),
+      updatedSkus: updated,
+      verifiedSkus: verified,
+      statsByUser,
+      statsByUserArray,
       skusWithChanges: skuWithChanges,
     };
   };
@@ -392,6 +400,26 @@ export function WorkflowController(prisma) {
           if (!Object.keys(changes).length) return null;
           return {
             sku,
+            maestro: maestro
+              ? {
+                  categoria_cod: maestro.categoria_cod,
+                  tipo_cod: maestro.tipo_cod,
+                  clasif_cod: maestro.clasif_cod,
+                }
+              : {
+                  categoria_cod: "",
+                  tipo_cod: "",
+                  clasif_cod: "",
+                },
+            propuestas: [],
+            decision: decision
+              ? {
+                  id: decision.id,
+                  estado: decision.estado,
+                  decidedBy: decision.decidedBy,
+                  decidedAt: decision.decidedAt,
+                }
+              : null,
             changes,
           };
         })
