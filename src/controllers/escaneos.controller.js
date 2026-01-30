@@ -1,10 +1,11 @@
 import { cleanSku, pad2, cumpleObjetivos } from '../utils/sku.js'
 
 export function EscaneosController(prisma) {
-  const ensureModel = (model, name, res) => {
+  const ensureModel = (model, name) => {
     if (!model) {
-      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` })
-      return null
+      const error = new Error(`Prisma client missing ${name}. Run prisma:generate.`)
+      error.status = 500
+      throw error
     }
     return model
   }
@@ -51,9 +52,8 @@ export function EscaneosController(prisma) {
         })
 
         if (!snap) {
-          const unknownSku = ensureModel(prisma.unknownSku, 'unknownSku', res)
-          const skuStage = ensureModel(prisma.skuStage, 'skuStage', res)
-          if (!unknownSku || !skuStage) return
+          ensureModel(prisma.unknownSku, 'unknownSku')
+          ensureModel(prisma.skuStage, 'skuStage')
           await prisma.$transaction(async (tx) => {
             await tx.unknownSku.upsert({
               where: { campaniaId_sku: { campaniaId: camp.id, sku } },
@@ -102,7 +102,10 @@ export function EscaneosController(prisma) {
         res.json({ estado, maestro: maestroOut, asumidos })
       } catch (err) {
         console.error(err)
-        res.status(500).json({ error: 'Error interno' })
+        if (res.headersSent) return
+        const status = err?.status || 500
+        const message = err?.status ? err.message : 'Error interno'
+        res.status(status).json({ error: message })
       }
     }
   }
