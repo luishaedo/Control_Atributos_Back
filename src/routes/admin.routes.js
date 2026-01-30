@@ -42,6 +42,10 @@ export default function adminRouter(prisma) {
   r.post('/maestro/import-json', authIfProd(), mae.importar)
 
   // Actualizaciones (compatibilidad con front)
+  r.get('/actualizaciones', authIfProd(), acts.listar)
+  r.post('/actualizaciones/archivar', authIfProd(), acts.archivar)
+  r.post('/actualizaciones/undo', authIfProd(), acts.undo)
+  r.post('/actualizaciones/:id/revertir', authIfProd(), acts.revertir)
   r.post('/actualizaciones/aplicar', authIfProd(), acts.aplicar)
 
   // Export CSV
@@ -49,6 +53,13 @@ export default function adminRouter(prisma) {
   r.get('/export/tipos.csv', authIfProd(), admin.exportTipos)
   r.get('/export/clasif.csv', authIfProd(), admin.exportClasif)
   r.get('/export/maestro.csv', authIfProd(), mae.exportCSV)
+  r.get('/export/actualizaciones.csv', authIfProd(), acts.exportCSV)
+
+  // Export TXT
+  r.get('/export/txt/categoria', authIfProd(), acts.exportTxtCategoria)
+  r.get('/export/txt/tipo', authIfProd(), acts.exportTxtTipo)
+  r.get('/export/txt/clasif', authIfProd(), acts.exportTxtClasif)
+  r.get('/export/txt/summary', authIfProd(), acts.exportTxtSummary)
 
   // Revisiones (tarjetas)
   r.get('/revisiones', authIfProd(), rev.listar)
@@ -67,6 +78,9 @@ export default function adminRouter(prisma) {
   r.get('/consolidacion/cambios', authIfProd(), flow.listConsolidationChanges)
   r.get('/consolidacion/resumen', authIfProd(), flow.consolidationSummary)
   r.post('/campanias/:id/cerrar', authIfProd(), flow.closeCampaign)
+
+  // Maestro missing
+  r.get('/maestro/missing', authIfProd(), mae.listMissing)
 
   // Discrepancias resumidas (para Admin/Auditoría: maestro vs top propuesta, y entre sucursales)
   r.get('/discrepancias', authIfProd(), rev.discrepancias)
