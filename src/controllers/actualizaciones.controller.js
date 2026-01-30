@@ -1,11 +1,12 @@
 import { ActualizacionesService } from '../services/actualizaciones.service.js'
 import { toCSV } from '../utils/csv.js'
+import { sendAdminError } from '../utils/http.js'
 
 export function ActualizacionesController(prisma) {
   const { applyUpdates, normalizeCode } = ActualizacionesService(prisma)
   const ensureModel = (model, name, res) => {
     if (!model) {
-      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` })
+      sendAdminError(res, 500, `Prisma client missing ${name}. Run prisma:generate.`)
       return null
     }
     return model
@@ -32,11 +33,11 @@ export function ActualizacionesController(prisma) {
     }
     const fields = fieldMap[attributeKey]
     if (!fields) {
-      return res.status(400).json({ error: 'atributo inválido' })
+      return sendAdminError(res, 400, 'atributo inválido')
     }
     const lines = []
     if (scope !== 'applied' && scope !== 'unknown') {
-      return res.status(400).json({ error: 'scope inválido' })
+      return sendAdminError(res, 400, 'scope inválido')
     }
     if (scope === 'applied') {
       const actualizaciones = await prisma.actualizacion.findMany({
@@ -126,10 +127,10 @@ export function ActualizacionesController(prisma) {
 
   return {
     listar: async (req, res) => {
-      const campaniaId = Number(req.query.campaniaId || 0)
-      if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
-      }
+    const campaniaId = Number(req.query.campaniaId || 0)
+    if (!campaniaId) {
+      return sendAdminError(res, 400, 'campaniaId requerido')
+    }
       const estado = req.query.estado ? String(req.query.estado) : null
       const archivadaValue = parseArchivada(req.query.archivada)
       const where = { campaniaId }
@@ -147,23 +148,23 @@ export function ActualizacionesController(prisma) {
       try {
         const { ids = [], decidedBy = '' } = req.body || {}
         if (!Array.isArray(ids) || ids.length === 0) {
-          return res.status(400).json({ error: 'ids requeridos' })
+          return sendAdminError(res, 400, 'ids requeridos')
         }
         const { count } = await applyUpdates({ ids, decidedBy })
         res.json({ ok: true, applied: count })
       } catch (error) {
         console.error(error)
-        res.status(500).json({ error: 'Error aplicando actualizaciones' })
+        sendAdminError(res, 500, 'Error aplicando actualizaciones')
       }
     },
 
     archivar: async (req, res) => {
       const { ids = [], archivada, archivadaBy = '' } = req.body || {}
       if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ error: 'ids requeridos' })
+        return sendAdminError(res, 400, 'ids requeridos')
       }
       if (typeof archivada !== 'boolean') {
-        return res.status(400).json({ error: 'archivada requerida' })
+        return sendAdminError(res, 400, 'archivada requerida')
       }
       const data = archivada
         ? {
@@ -187,7 +188,7 @@ export function ActualizacionesController(prisma) {
       const { ids, id } = req.body || {}
       const normalizedIds = Array.isArray(ids) ? ids : (id ? [id] : [])
       if (!Array.isArray(normalizedIds) || normalizedIds.length === 0) {
-        return res.status(400).json({ error: 'ids requeridos' })
+        return sendAdminError(res, 400, 'ids requeridos')
       }
       const result = await prisma.actualizacion.updateMany({
         where: { id: { in: normalizedIds } },
@@ -206,9 +207,9 @@ export function ActualizacionesController(prisma) {
 
     revertir: async (req, res) => {
       const id = Number(req.params.id || 0)
-      if (!id) return res.status(400).json({ error: 'id requerido' })
+      if (!id) return sendAdminError(res, 400, 'id requerido')
       const act = await prisma.actualizacion.findUnique({ where: { id } })
-      if (!act) return res.status(404).json({ error: 'actualizacion no encontrada' })
+      if (!act) return sendAdminError(res, 404, 'actualizacion no encontrada')
 
       const nueva = await prisma.actualizacion.create({
         data: {
@@ -233,7 +234,7 @@ export function ActualizacionesController(prisma) {
     exportCSV: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId || 0)
       if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
+        return sendAdminError(res, 400, 'campaniaId requerido')
       }
       const estado = req.query.estado ? String(req.query.estado) : null
       const archivadaValue = parseArchivada(req.query.archivada)
@@ -291,7 +292,7 @@ export function ActualizacionesController(prisma) {
     exportTxtCategoria: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId || 0)
       if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
+        return sendAdminError(res, 400, 'campaniaId requerido')
       }
       const scope = req.query.scope ? String(req.query.scope) : 'applied'
       await buildTxtResponse(
@@ -308,7 +309,7 @@ export function ActualizacionesController(prisma) {
     exportTxtTipo: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId || 0)
       if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
+        return sendAdminError(res, 400, 'campaniaId requerido')
       }
       const scope = req.query.scope ? String(req.query.scope) : 'applied'
       await buildTxtResponse(
@@ -325,7 +326,7 @@ export function ActualizacionesController(prisma) {
     exportTxtClasif: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId || 0)
       if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
+        return sendAdminError(res, 400, 'campaniaId requerido')
       }
       const scope = req.query.scope ? String(req.query.scope) : 'applied'
       await buildTxtResponse(
@@ -342,7 +343,7 @@ export function ActualizacionesController(prisma) {
     exportTxtSummary: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId || 0)
       if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
+        return sendAdminError(res, 400, 'campaniaId requerido')
       }
       await buildSummaryTxt({ campaniaId }, res)
     },

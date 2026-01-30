@@ -1,5 +1,6 @@
-import { pad2 } from "../utils/sku.js";
+import { pad2, cleanSku } from "../utils/sku.js";
 import { ActualizacionesService } from "../services/actualizaciones.service.js";
+import { sendAdminError } from "../utils/http.js";
 export function RevisionesController(prisma) {
   const { applyUpdates } = ActualizacionesService(prisma);
   const isEmptyValue = (value) => value === undefined || value === null || String(value).trim() === "";
@@ -11,7 +12,7 @@ export function RevisionesController(prisma) {
   });
   const ensureModel = (model, name, res) => {
     if (!model) {
-      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` });
+      sendAdminError(res, 500, `Prisma client missing ${name}. Run prisma:generate.`);
       return null;
     }
     return model;
@@ -28,7 +29,7 @@ export function RevisionesController(prisma) {
         if (activa) campaniaId = activa.id;
       }
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
 
       const buscarSku = (req.query.sku || "").trim().toUpperCase();
       const filtroConsenso = req.query.consenso; // 'true' | 'false' | undefined
@@ -178,17 +179,15 @@ export function RevisionesController(prisma) {
           notas = "",
         } = req.body || {};
         if (!campaniaId || !sku || !decision)
-          return res.status(400).json({ error: "Faltan campos" });
+          return sendAdminError(res, 400, "Faltan campos");
         if (!["aceptar", "rechazar"].includes(decision))
-          return res.status(400).json({ error: "decision inválida" });
+          return sendAdminError(res, 400, "decision inválida");
         const hasPropuesta =
           !isEmptyValue(propuesta?.categoria_cod) ||
           !isEmptyValue(propuesta?.tipo_cod) ||
           !isEmptyValue(propuesta?.clasif_cod);
         if (decision === "aceptar" && !hasPropuesta) {
-          return res
-            .status(400)
-            .json({ error: "propuesta requerida para aceptar" });
+          return sendAdminError(res, 400, "propuesta requerida para aceptar");
         }
 
         const snap = await prisma.campaniaMaestro.findUnique({
@@ -268,7 +267,7 @@ export function RevisionesController(prisma) {
         res.json({ ok: true, actualizacion: act });
       } catch (e) {
         console.error(e);
-        res.status(500).json({ error: "Error al decidir revisión" });
+        sendAdminError(res, 500, "Error al decidir revisión");
       }
     },
 
@@ -276,8 +275,9 @@ export function RevisionesController(prisma) {
     discrepancias: async (req, res) => {
       const minVotos = Math.max(1, Number(req.query.minVotos || 1));
       const campaniaId = Number(req.query.campaniaId);
+      const filterSku = cleanSku(req.query.sku || "");
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
       const data = await prisma.escaneo.findMany({
         where: { campaniaId },
         orderBy: { ts: "desc" },
@@ -289,6 +289,7 @@ export function RevisionesController(prisma) {
 
       const porSku = new Map();
       for (const e of data) {
+        if (filterSku && e.sku !== filterSku) continue;
         const g = porSku.get(e.sku) || {
           sku: e.sku,
           maestro: null,
@@ -347,12 +348,14 @@ export function RevisionesController(prisma) {
     discrepanciasSuc: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId);
       const minSuc = Math.max(1, Number(req.query.minSucursales || 1));
+      const filterSku = cleanSku(req.query.sku || "");
 
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
       const esc = await prisma.escaneo.findMany({ where: { campaniaId } });
       const bySku = new Map();
       for (const e of esc) {
+        if (filterSku && e.sku !== filterSku) continue;
         const key = `${e.asum_categoria_cod || ""}|${e.asum_tipo_cod || ""}|${
           e.asum_clasif_cod || ""
         }`;
@@ -387,7 +390,7 @@ export function RevisionesController(prisma) {
     exportDiscrepanciasCSV: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId);
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
 
       // Reutilizamos la lógica de "discrepancias"
       const escs = await prisma.escaneo.findMany({
@@ -472,7 +475,7 @@ export function RevisionesController(prisma) {
       const minSuc = Math.max(1, Number(req.query.minSucursales || 1));
 
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
 
       const esc = await prisma.escaneo.findMany({ where: { campaniaId } });
       const bySku = new Map();

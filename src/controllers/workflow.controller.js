@@ -1,12 +1,13 @@
 import { pad2 } from "../utils/sku.js";
 import { ActualizacionesService } from "../services/actualizaciones.service.js";
+import { sendAdminError } from "../utils/http.js";
 
 export function WorkflowController(prisma) {
   const { applyUpdates } = ActualizacionesService(prisma);
   const allowedStages = new Set(["evaluate", "confirm", "consolidate", "unknown"]);
   const ensureModel = (model, name, res) => {
     if (!model) {
-      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` });
+      sendAdminError(res, 500, `Prisma client missing ${name}. Run prisma:generate.`);
       return null;
     }
     return model;
@@ -118,7 +119,7 @@ export function WorkflowController(prisma) {
     listConfirmations: async (req, res) => {
       const campaniaId = await resolveCampaignId(req.query.campaniaId);
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
 
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
       if (!skuStage) return;
@@ -182,9 +183,9 @@ export function WorkflowController(prisma) {
     moveStage: async (req, res) => {
       const { campaniaId, sku, stage, updatedBy } = req.body || {};
       if (!campaniaId || !sku || !stage)
-        return res.status(400).json({ error: "Faltan campos" });
+        return sendAdminError(res, 400, "Faltan campos");
       if (!allowedStages.has(stage))
-        return res.status(400).json({ error: "stage inválido" });
+        return sendAdminError(res, 400, "stage inválido");
 
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
       if (!skuStage) return;
@@ -200,7 +201,7 @@ export function WorkflowController(prisma) {
     listUnknowns: async (req, res) => {
       const campaniaId = await resolveCampaignId(req.query.campaniaId);
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
       const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
       if (!unknownSku) return;
       const items = await unknownSku.findMany({
@@ -214,7 +215,7 @@ export function WorkflowController(prisma) {
       const campaniaId = Number(req.body?.campaniaId || 0);
       const sku = String(req.params?.sku || "").trim();
       if (!campaniaId || !sku)
-        return res.status(400).json({ error: "campaniaId y sku requeridos" });
+        return sendAdminError(res, 400, "campaniaId y sku requeridos");
 
       const descripcion = req.body?.descripcion ?? null;
       const categoria_cod = normalizeCode(req.body?.categoria_cod);
@@ -263,7 +264,7 @@ export function WorkflowController(prisma) {
       const sku = String(req.params?.sku || "").trim();
       const updatedBy = req.body?.updatedBy || null;
       if (!campaniaId || !sku)
-        return res.status(400).json({ error: "campaniaId y sku requeridos" });
+        return sendAdminError(res, 400, "campaniaId y sku requeridos");
 
       const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
@@ -272,15 +273,13 @@ export function WorkflowController(prisma) {
         where: { campaniaId_sku: { campaniaId, sku } },
       });
       if (!unknown)
-        return res.status(404).json({ error: "Unknown SKU no encontrado" });
+        return sendAdminError(res, 404, "Unknown SKU no encontrado");
 
       const categoria_cod = normalizeCode(unknown.categoria_cod);
       const tipo_cod = normalizeCode(unknown.tipo_cod);
       const clasif_cod = normalizeCode(unknown.clasif_cod);
       if (!categoria_cod || !tipo_cod || !clasif_cod) {
-        return res
-          .status(400)
-          .json({ error: "categoría/tipo/clasif requeridos" });
+        return sendAdminError(res, 400, "categoría/tipo/clasif requeridos");
       }
 
       const [dicCat, dicTipo, dicClasif, camp] = await Promise.all([
@@ -291,10 +290,10 @@ export function WorkflowController(prisma) {
       ]);
 
       if (!dicCat || !dicTipo || !dicClasif) {
-        return res.status(400).json({ error: "Diccionarios inválidos" });
+        return sendAdminError(res, 400, "Diccionarios inválidos");
       }
       if (!camp) {
-        return res.status(404).json({ error: "Campaña no encontrada" });
+        return sendAdminError(res, 404, "Campaña no encontrada");
       }
 
       const descripcion = unknown.descripcion || "";
@@ -362,7 +361,7 @@ export function WorkflowController(prisma) {
     listConsolidationChanges: async (req, res) => {
       const campaniaId = await resolveCampaignId(req.query.campaniaId);
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
 
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
       if (!skuStage) return;
@@ -431,7 +430,7 @@ export function WorkflowController(prisma) {
     consolidationSummary: async (req, res) => {
       const campaniaId = await resolveCampaignId(req.query.campaniaId);
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
       const summary = await buildSummary(campaniaId);
       res.json({ summary });
     },
@@ -439,7 +438,7 @@ export function WorkflowController(prisma) {
     closeCampaign: async (req, res) => {
       const campaniaId = Number(req.params?.id || 0);
       if (!campaniaId)
-        return res.status(400).json({ error: "campaniaId requerido" });
+        return sendAdminError(res, 400, "campaniaId requerido");
 
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
       const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
