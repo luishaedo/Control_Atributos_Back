@@ -73,7 +73,11 @@ export function ActualizacionesController(prisma) {
           where: {
             campaniaId,
             sku: { in: skuList },
-            status: 'confirmed',
+            OR: [
+              { status: 'APPROVED' },
+              { status: 'confirmed' },
+              { status: 'CONFIRMED' },
+            ],
           },
           orderBy: { updatedAt: 'desc' },
         })
@@ -109,7 +113,11 @@ export function ActualizacionesController(prisma) {
           where: {
             campaniaId,
             sku: { in: skuList },
-            status: 'confirmed',
+            OR: [
+              { status: 'APPROVED' },
+              { status: 'confirmed' },
+              { status: 'CONFIRMED' },
+            ],
           },
         })
       : 0

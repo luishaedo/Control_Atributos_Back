@@ -10,24 +10,110 @@ export function EscaneosController(prisma) {
     return model
   }
 
+  const normalizeUnknownStatus = (status = '') => {
+    const normalized = String(status || '').trim().toUpperCase()
+    if (['APPROVED', 'REJECTED', 'MERGED', 'PENDING'].includes(normalized)) return normalized
+    if (normalized === 'CONFIRMED') return 'APPROVED'
+    return 'PENDING'
+  }
+
+  const buildResponse = ({ scan, snap, unknown, stage }) => {
+    const maestroOut = snap ? {
+      descripcion: snap.descripcion,
+      categoria_cod: snap.categoria_cod,
+      tipo_cod: snap.tipo_cod,
+      clasif_cod: snap.clasif_cod,
+    } : null
+    const asumidos = {
+      categoria_cod: scan.asum_categoria_cod || '',
+      tipo_cod: scan.asum_tipo_cod || '',
+      clasif_cod: scan.asum_clasif_cod || '',
+    }
+    return {
+      estado: scan.estado,
+      maestro: maestroOut,
+      asumidos,
+      skuNormalized: scan.skuNormalized || scan.sku,
+      skuType: snap ? 'KNOWN' : 'UNKNOWN',
+      unknown: unknown ? {
+        id: unknown.id,
+        status: unknown.status,
+        seenCount: unknown.seenCount ?? 0,
+        stage: stage?.stage || 'unknown',
+      } : null,
+      errors: [],
+    }
+  }
+
   return {
     crear: async (req, res) => {
       try {
-        const { skuRaw = '', email = '', sucursal = '', campaniaId = null, sugeridos = {} } = req.body || {}
-        const sku = cleanSku(skuRaw)
-        if (!sku) return res.status(400).json({ error: 'skuRaw inválido' })
+        const {
+          skuRaw = '',
+          email = '',
+          sucursal = '',
+          campaniaId = null,
+          sugeridos = {},
+          idempotencyKey = null,
+        } = req.body || {}
+        const skuNormalized = cleanSku(skuRaw)
+        if (!skuNormalized) return res.status(400).json({ error: 'skuRaw inválido' })
         if (!campaniaId) return res.status(400).json({ error: 'campaniaId requerido' })
 
         const camp = await prisma.campania.findUnique({ where: { id: Number(campaniaId) } })
         if (!camp || !camp.activa) return res.status(400).json({ error: 'Campaña inexistente o no activa' })
 
-        const snap = await prisma.campaniaMaestro.findUnique({ where: { campaniaId_sku: { campaniaId: camp.id, sku } } })
+        if (idempotencyKey) {
+          const existingScan = await prisma.escaneo.findUnique({
+            where: {
+              campaniaId_idempotencyKey: {
+                campaniaId: camp.id,
+                idempotencyKey,
+              },
+            },
+          })
+          if (existingScan) {
+            const snap = await prisma.campaniaMaestro.findUnique({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku: existingScan.sku } },
+            })
+            const unknown = await prisma.unknownSku.findUnique({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku: existingScan.sku } },
+            })
+            const stage = await prisma.skuStage.findUnique({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku: existingScan.sku } },
+            })
+            return res.json(buildResponse({ scan: existingScan, snap, unknown, stage }))
+          }
+        }
+
+        const snap = await prisma.campaniaMaestro.findUnique({
+          where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
+        })
 
         let estado = 'OK'
         if (!snap) {
           estado = 'NO_MAESTRO'
           if (!sugeridos?.categoria_cod || !sugeridos?.tipo_cod || !sugeridos?.clasif_cod) {
             return res.status(400).json({ error: 'Se requieren categoría/tipo/clasif sugeridos cuando no está en Maestro' })
+          }
+          const categoriaCod = pad2(sugeridos.categoria_cod)
+          const tipoCod = pad2(sugeridos.tipo_cod)
+          const clasifCod = pad2(sugeridos.clasif_cod)
+          const [dicCat, dicTipo, dicClasif] = await Promise.all([
+            prisma.dicCategoria.findUnique({ where: { cod: categoriaCod } }),
+            prisma.dicTipo.findUnique({ where: { cod: tipoCod } }),
+            prisma.dicClasif.findUnique({ where: { cod: clasifCod } }),
+          ])
+          const errors = []
+          if (!dicCat) errors.push({ field: 'categoria_cod', code: 'INVALID_CATEGORIA' })
+          if (!dicTipo) errors.push({ field: 'tipo_cod', code: 'INVALID_TIPO' })
+          if (!dicClasif) errors.push({ field: 'clasif_cod', code: 'INVALID_CLASIF' })
+          if (errors.length) {
+            return res.status(422).json({
+              code: 'INVALID_DICTIONARY',
+              message: 'Diccionarios inválidos',
+              errors,
+            })
           }
         } else if (!cumpleObjetivos(camp, snap)) {
           estado = 'REVISAR'
@@ -39,9 +125,16 @@ export function EscaneosController(prisma) {
           clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos?.clasif_cod) : (snap?.clasif_cod || ''),
         }
 
-        await prisma.escaneo.create({
+        const scan = await prisma.escaneo.create({
           data: {
-            campaniaId: camp.id, sucursal, email, sku, estado,
+            campaniaId: camp.id,
+            sucursal,
+            email,
+            sku: skuNormalized,
+            skuRaw: skuRaw || null,
+            skuNormalized,
+            idempotencyKey: idempotencyKey || null,
+            estado,
             categoria_sug_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
             tipo_sug_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
             clasif_sug_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
@@ -51,55 +144,77 @@ export function EscaneosController(prisma) {
           }
         })
 
+        let unknown = null
+        let stage = null
+
         if (!snap) {
           ensureModel(prisma.unknownSku, 'unknownSku')
           ensureModel(prisma.skuStage, 'skuStage')
           await prisma.$transaction(async (tx) => {
-            await tx.unknownSku.upsert({
-              where: { campaniaId_sku: { campaniaId: camp.id, sku } },
-              create: {
-                campaniaId: camp.id,
-                sku,
-                categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
-                tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
-                clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
-                status: 'detected',
-                updatedBy: email || null,
-              },
-              update: {
-                categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
-                tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
-                clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
-                status: 'detected',
-                updatedBy: email || null,
-                updatedAt: new Date(),
-              },
+            const existingUnknown = await tx.unknownSku.findUnique({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
             })
-            await tx.skuStage.upsert({
-              where: { campaniaId_sku: { campaniaId: camp.id, sku } },
-              create: {
-                campaniaId: camp.id,
-                sku,
-                stage: 'unknown',
-                updatedBy: email || null,
-              },
-              update: {
-                stage: 'unknown',
-                updatedBy: email || null,
-                updatedAt: new Date(),
-              },
-            })
+            const currentStatus = normalizeUnknownStatus(existingUnknown?.status)
+            const shouldUpdateStage = currentStatus === 'PENDING'
+            if (!existingUnknown) {
+              unknown = await tx.unknownSku.create({
+                data: {
+                  campaniaId: camp.id,
+                  sku: skuNormalized,
+                  skuRaw: skuRaw || null,
+                  skuNormalized,
+                  categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : null,
+                  tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : null,
+                  clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : null,
+                  status: 'PENDING',
+                  seenCount: 1,
+                  firstSeenAt: new Date(),
+                  lastSeenAt: new Date(),
+                  updatedBy: email || null,
+                },
+              })
+            } else {
+              unknown = await tx.unknownSku.update({
+                where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
+                data: {
+                  skuRaw: skuRaw || existingUnknown.skuRaw || null,
+                  skuNormalized,
+                  categoria_cod: sugeridos?.categoria_cod ? pad2(sugeridos.categoria_cod) : existingUnknown.categoria_cod,
+                  tipo_cod: sugeridos?.tipo_cod ? pad2(sugeridos.tipo_cod) : existingUnknown.tipo_cod,
+                  clasif_cod: sugeridos?.clasif_cod ? pad2(sugeridos.clasif_cod) : existingUnknown.clasif_cod,
+                  status: currentStatus,
+                  seenCount: { increment: 1 },
+                  lastSeenAt: new Date(),
+                  updatedBy: email || null,
+                },
+              })
+            }
+            if (shouldUpdateStage) {
+              stage = await tx.skuStage.upsert({
+                where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
+                create: {
+                  campaniaId: camp.id,
+                  sku: skuNormalized,
+                  stage: 'unknown',
+                  updatedBy: email || null,
+                },
+                update: {
+                  stage: 'unknown',
+                  updatedBy: email || null,
+                  updatedAt: new Date(),
+                },
+              })
+            }
           })
         }
 
-        const maestroOut = snap ? {
-          descripcion: snap.descripcion,
-          categoria_cod: snap.categoria_cod,
-          tipo_cod: snap.tipo_cod,
-          clasif_cod: snap.clasif_cod,
-        } : null
+        if (unknown && !stage) {
+          stage = await prisma.skuStage.findUnique({
+            where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
+          })
+        }
 
-        res.json({ estado, maestro: maestroOut, asumidos })
+        res.json(buildResponse({ scan, snap, unknown, stage }))
       } catch (err) {
         console.error(err)
         if (res.headersSent) return

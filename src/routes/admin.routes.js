@@ -73,6 +73,9 @@ export default function adminRouter(prisma) {
   r.get('/desconocidos', authIfProd(), flow.listUnknowns)
   r.patch('/desconocidos/:sku', authIfProd(), flow.updateUnknown)
   r.post('/desconocidos/:sku/confirmar', authIfProd(), flow.confirmUnknown)
+  r.post('/unknowns/:id/approve', authIfProd(), flow.approveUnknownById)
+  r.post('/unknowns/:id/reject', authIfProd(), flow.rejectUnknownById)
+  r.post('/unknowns/:id/merge', authIfProd(), flow.mergeUnknownById)
 
   // Consolidación
   r.get('/consolidacion/cambios', authIfProd(), flow.listConsolidationChanges)
