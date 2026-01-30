@@ -1,6 +1,14 @@
 import { cleanSku, pad2, cumpleObjetivos } from '../utils/sku.js'
 
 export function EscaneosController(prisma) {
+  const ensureModel = (model, name, res) => {
+    if (!model) {
+      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` })
+      return null
+    }
+    return model
+  }
+
   return {
     crear: async (req, res) => {
       try {
@@ -43,6 +51,9 @@ export function EscaneosController(prisma) {
         })
 
         if (!snap) {
+          const unknownSku = ensureModel(prisma.unknownSku, 'unknownSku', res)
+          const skuStage = ensureModel(prisma.skuStage, 'skuStage', res)
+          if (!unknownSku || !skuStage) return
           await prisma.$transaction(async (tx) => {
             await tx.unknownSku.upsert({
               where: { campaniaId_sku: { campaniaId: camp.id, sku } },

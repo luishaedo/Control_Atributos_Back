@@ -107,7 +107,11 @@ export function RevisionesController(prisma) {
                 tipo_cod: snap.tipo_cod,
                 clasif_cod: snap.clasif_cod,
               }
-            : null,
+            : {
+                categoria_cod: "",
+                tipo_cod: "",
+                clasif_cod: "",
+              },
           propuestas: new Map(),
         };
         const cat = e.asum_categoria_cod || "";
