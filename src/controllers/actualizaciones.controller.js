@@ -12,7 +12,12 @@ export function ActualizacionesController(prisma) {
     return undefined
   }
 
-  const buildTxtResponse = async ({ campaniaId, attributeKey, filename }, res) => {
+  const buildTxtResponse = async ({
+    campaniaId,
+    attributeKey,
+    filename,
+    scope = 'applied',
+  }, res) => {
     const fieldMap = {
       categoria: { newKey: 'new_categoria_cod', oldKey: 'old_categoria_cod' },
       tipo: { newKey: 'new_tipo_cod', oldKey: 'old_tipo_cod' },
@@ -22,24 +27,86 @@ export function ActualizacionesController(prisma) {
     if (!fields) {
       return res.status(400).json({ error: 'atributo inválido' })
     }
-    const actualizaciones = await prisma.actualizacion.findMany({
-      where: { campaniaId, estado: 'aplicada' },
-      orderBy: { ts: 'desc' },
-    })
-    const seen = new Set()
     const lines = []
-    for (const act of actualizaciones) {
-      if (seen.has(act.sku)) continue
-      const newValue = act[fields.newKey]
-      const oldValue = act[fields.oldKey] ?? ''
-      if (!newValue || String(newValue) === String(oldValue)) continue
-      seen.add(act.sku)
-      lines.push(`${act.sku}\t${newValue}`)
+    if (scope !== 'applied' && scope !== 'unknown') {
+      return res.status(400).json({ error: 'scope inválido' })
+    }
+    if (scope === 'applied') {
+      const actualizaciones = await prisma.actualizacion.findMany({
+        where: { campaniaId, estado: 'aplicada' },
+        orderBy: { ts: 'desc' },
+      })
+      const seen = new Set()
+      for (const act of actualizaciones) {
+        if (seen.has(act.sku)) continue
+        const newValue = act[fields.newKey]
+        const oldValue = act[fields.oldKey] ?? ''
+        if (!newValue || String(newValue) === String(oldValue)) continue
+        seen.add(act.sku)
+        lines.push(`${act.sku}\t${newValue}`)
+      }
+    } else if (scope === 'unknown') {
+      const unknownFieldMap = {
+        categoria: 'categoria_cod',
+        tipo: 'tipo_cod',
+        clasif: 'clasif_cod',
+      }
+      const unknownField = unknownFieldMap[attributeKey]
+      const stages = await prisma.skuStage.findMany({
+        where: { campaniaId, stage: 'consolidate' },
+        select: { sku: true },
+      })
+      const skuList = stages.map((row) => row.sku)
+      if (skuList.length) {
+        const unknowns = await prisma.unknownSku.findMany({
+          where: {
+            campaniaId,
+            sku: { in: skuList },
+            status: 'confirmed',
+          },
+          orderBy: { updatedAt: 'desc' },
+        })
+        for (const item of unknowns) {
+          const value = unknownField ? item[unknownField] : ''
+          if (!value) continue
+          lines.push(`${item.sku}\t${value}`)
+        }
+      }
     }
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${filename}"`
+    )
+    res.send(lines.join('\n'))
+  }
+
+  const buildSummaryTxt = async ({ campaniaId }, res) => {
+    const appliedCount = await prisma.actualizacion.count({
+      where: { campaniaId, estado: 'aplicada' },
+    })
+    const stages = await prisma.skuStage.findMany({
+      where: { campaniaId, stage: 'consolidate' },
+      select: { sku: true },
+    })
+    const skuList = stages.map((row) => row.sku)
+    const unknownCount = skuList.length
+      ? await prisma.unknownSku.count({
+          where: {
+            campaniaId,
+            sku: { in: skuList },
+            status: 'confirmed',
+          },
+        })
+      : 0
+    const lines = [
+      `applied_count\t${appliedCount}`,
+      `unknown_count\t${unknownCount}`,
+    ]
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="summary.txt"'
     )
     res.send(lines.join('\n'))
   }
@@ -212,8 +279,14 @@ export function ActualizacionesController(prisma) {
       if (!campaniaId) {
         return res.status(400).json({ error: 'campaniaId requerido' })
       }
+      const scope = req.query.scope ? String(req.query.scope) : 'applied'
       await buildTxtResponse(
-        { campaniaId, attributeKey: 'categoria', filename: 'categoria.txt' },
+        {
+          campaniaId,
+          attributeKey: 'categoria',
+          filename: 'categoria.txt',
+          scope,
+        },
         res
       )
     },
@@ -223,8 +296,14 @@ export function ActualizacionesController(prisma) {
       if (!campaniaId) {
         return res.status(400).json({ error: 'campaniaId requerido' })
       }
+      const scope = req.query.scope ? String(req.query.scope) : 'applied'
       await buildTxtResponse(
-        { campaniaId, attributeKey: 'tipo', filename: 'tipo.txt' },
+        {
+          campaniaId,
+          attributeKey: 'tipo',
+          filename: 'tipo.txt',
+          scope,
+        },
         res
       )
     },
@@ -234,10 +313,24 @@ export function ActualizacionesController(prisma) {
       if (!campaniaId) {
         return res.status(400).json({ error: 'campaniaId requerido' })
       }
+      const scope = req.query.scope ? String(req.query.scope) : 'applied'
       await buildTxtResponse(
-        { campaniaId, attributeKey: 'clasif', filename: 'clasif.txt' },
+        {
+          campaniaId,
+          attributeKey: 'clasif',
+          filename: 'clasif.txt',
+          scope,
+        },
         res
       )
+    },
+
+    exportTxtSummary: async (req, res) => {
+      const campaniaId = Number(req.query.campaniaId || 0)
+      if (!campaniaId) {
+        return res.status(400).json({ error: 'campaniaId requerido' })
+      }
+      await buildSummaryTxt({ campaniaId }, res)
     },
   }
 }

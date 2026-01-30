@@ -392,6 +392,12 @@ export function WorkflowController(prisma) {
       if (!campaniaId)
         return res.status(400).json({ error: "campaniaId requerido" });
 
+      const stages = await prisma.skuStage.findMany({
+        where: { campaniaId, stage: "consolidate" },
+        select: { sku: true },
+      });
+      const consolidateSkus = stages.map((row) => row.sku);
+
       const ids = (
         await prisma.actualizacion.findMany({
           where: { campaniaId, estado: "pendiente" },
@@ -420,8 +426,75 @@ export function WorkflowController(prisma) {
         });
       }
 
+      if (consolidateSkus.length) {
+        const unknowns = await prisma.unknownSku.findMany({
+          where: {
+            campaniaId,
+            sku: { in: consolidateSkus },
+            status: "confirmed",
+          },
+        });
+        if (unknowns.length) {
+          await prisma.$transaction(async (tx) => {
+            for (const item of unknowns) {
+              await tx.maestro.upsert({
+                where: { sku: item.sku },
+                create: {
+                  sku: item.sku,
+                  descripcion: item.descripcion || "",
+                  categoria_cod: item.categoria_cod || "",
+                  tipo_cod: item.tipo_cod || "",
+                  clasif_cod: item.clasif_cod || "",
+                },
+                update: {
+                  descripcion: item.descripcion || "",
+                  categoria_cod: item.categoria_cod || "",
+                  tipo_cod: item.tipo_cod || "",
+                  clasif_cod: item.clasif_cod || "",
+                },
+              });
+              await tx.campaniaMaestro.upsert({
+                where: { campaniaId_sku: { campaniaId, sku: item.sku } },
+                create: {
+                  campaniaId,
+                  sku: item.sku,
+                  descripcion: item.descripcion || "",
+                  categoria_cod: item.categoria_cod || "",
+                  tipo_cod: item.tipo_cod || "",
+                  clasif_cod: item.clasif_cod || "",
+                },
+                update: {
+                  descripcion: item.descripcion || "",
+                  categoria_cod: item.categoria_cod || "",
+                  tipo_cod: item.tipo_cod || "",
+                  clasif_cod: item.clasif_cod || "",
+                },
+              });
+            }
+          });
+        }
+      }
+
       const summary = await buildSummary(campaniaId);
-      res.json({ ok: true, applied: count, summary });
+      const query = `campaniaId=${campaniaId}`;
+      res.json({
+        ok: true,
+        applied: count,
+        summary,
+        exports: {
+          applied: {
+            categoria: `/api/admin/export/txt/categoria?${query}&scope=applied`,
+            tipo: `/api/admin/export/txt/tipo?${query}&scope=applied`,
+            clasif: `/api/admin/export/txt/clasif?${query}&scope=applied`,
+          },
+          unknown: {
+            categoria: `/api/admin/export/txt/categoria?${query}&scope=unknown`,
+            tipo: `/api/admin/export/txt/tipo?${query}&scope=unknown`,
+            clasif: `/api/admin/export/txt/clasif?${query}&scope=unknown`,
+          },
+          summaryTxt: `/api/admin/export/txt/summary?${query}`,
+        },
+      });
     },
   };
 }

@@ -59,6 +59,7 @@ export default function adminRouter(prisma) {
   r.get('/export/txt/categoria', authIfProd(), acts.exportTxtCategoria)
   r.get('/export/txt/tipo', authIfProd(), acts.exportTxtTipo)
   r.get('/export/txt/clasif', authIfProd(), acts.exportTxtClasif)
+  r.get('/export/txt/summary', authIfProd(), acts.exportTxtSummary)
 
   // Revisiones (tarjetas)
   r.get('/revisiones', authIfProd(), rev.listar)
