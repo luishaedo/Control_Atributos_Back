@@ -42,6 +42,12 @@ export function RevisionesController(prisma) {
           (m) => [m.sku, m]
         )
       );
+      const unknownBySku = new Map(
+        (await prisma.unknownSku.findMany({ where: { campaniaId } })).map((u) => [
+          u.sku,
+          u,
+        ])
+      );
 
       const decisiones = await prisma.actualizacion.findMany({
         where: { campaniaId },
@@ -136,6 +142,7 @@ export function RevisionesController(prisma) {
 
       const items = [];
       for (const grp of porSku.values()) {
+        const unknown = unknownBySku.get(grp.sku) || null;
         const propuestasArr = Array.from(grp.propuestas.values())
           .map((p) => ({
             ...p,
@@ -158,6 +165,9 @@ export function RevisionesController(prisma) {
         items.push({
           sku: grp.sku,
           maestro: grp.maestro,
+          skuType: unknown ? "UNKNOWN" : "KNOWN",
+          unknownId: unknown?.id || null,
+          unknownStatus: unknown?.status || null,
           propuestas: propuestasArr,
           totalVotos: total,
           consensoPct: Number(consenso.toFixed(2)),

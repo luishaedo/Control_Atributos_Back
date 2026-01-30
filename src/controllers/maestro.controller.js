@@ -38,11 +38,29 @@ export function MaestroController(prisma) {
 },
 
     getUno: async (req, res) => {
-      const sku = cleanSku(req.params.sku || '')
-      if (!sku) return res.status(400).json({ error: 'SKU inválido' })
-      const item = await prisma.maestro.findUnique({ where: { sku } })
-      if (!item) return res.status(404).json({ error: 'No encontrado' })
-      res.json(item)
+      try {
+        const sku = cleanSku(req.params.sku || '')
+        if (!sku) {
+          return res.status(400).json({
+            code: 'INVALID_SKU',
+            message: 'SKU inválido',
+          })
+        }
+        const item = await prisma.maestro.findUnique({ where: { sku } })
+        if (!item) {
+          return res.status(404).json({
+            code: 'MAESTRO_NOT_FOUND',
+            message: 'SKU no encontrado en Maestro',
+          })
+        }
+        res.json(item)
+      } catch (error) {
+        console.error(error)
+        res.status(500).json({
+          code: 'INTERNAL_ERROR',
+          message: 'Error interno',
+        })
+      }
     },
     importar: async (req, res) => {
       const { items = [] } = req.body || {}
@@ -140,7 +158,10 @@ export function MaestroController(prisma) {
       const items = await prisma.unknownSku.findMany({
         where: {
           campaniaId,
-          OR: [{ status: { not: 'confirmed' } }, { status: null }],
+          OR: [
+            { status: { notIn: ['APPROVED', 'confirmed', 'CONFIRMED'] } },
+            { status: null },
+          ],
         },
         orderBy: { updatedAt: 'desc' },
       })

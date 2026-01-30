@@ -1,4 +1,4 @@
-import { pad2 } from "../utils/sku.js";
+import { pad2, cleanSku } from "../utils/sku.js";
 import { ActualizacionesService } from "../services/actualizaciones.service.js";
 import { sendAdminError } from "../utils/http.js";
 
@@ -18,6 +18,74 @@ export function WorkflowController(prisma) {
     const trimmed = String(value).trim();
     if (!trimmed) return "";
     return pad2(trimmed);
+  };
+
+  const applyUnknownToMaestro = async ({
+    tx,
+    unknown,
+    campaniaId,
+    appliedBy,
+  }) => {
+    if (unknown.appliedToMaestroAt) return;
+    await tx.maestro.upsert({
+      where: { sku: unknown.sku },
+      create: {
+        sku: unknown.sku,
+        descripcion: unknown.descripcion || "",
+        categoria_cod: unknown.categoria_cod || "",
+        tipo_cod: unknown.tipo_cod || "",
+        clasif_cod: unknown.clasif_cod || "",
+      },
+      update: {
+        descripcion: unknown.descripcion || "",
+        categoria_cod: unknown.categoria_cod || "",
+        tipo_cod: unknown.tipo_cod || "",
+        clasif_cod: unknown.clasif_cod || "",
+      },
+    });
+    await tx.campaniaMaestro.upsert({
+      where: { campaniaId_sku: { campaniaId, sku: unknown.sku } },
+      create: {
+        campaniaId,
+        sku: unknown.sku,
+        descripcion: unknown.descripcion || "",
+        categoria_cod: unknown.categoria_cod || "",
+        tipo_cod: unknown.tipo_cod || "",
+        clasif_cod: unknown.clasif_cod || "",
+      },
+      update: {
+        descripcion: unknown.descripcion || "",
+        categoria_cod: unknown.categoria_cod || "",
+        tipo_cod: unknown.tipo_cod || "",
+        clasif_cod: unknown.clasif_cod || "",
+      },
+    });
+    await tx.unknownSku.update({
+      where: { campaniaId_sku: { campaniaId, sku: unknown.sku } },
+      data: {
+        appliedToMaestroAt: new Date(),
+        appliedToMaestroBy: appliedBy || null,
+      },
+    });
+  };
+
+  const validateUnknownDictionaries = async ({
+    categoria_cod,
+    tipo_cod,
+    clasif_cod,
+  }) => {
+    if (!categoria_cod || !tipo_cod || !clasif_cod) {
+      return { ok: false, message: "categoría/tipo/clasif requeridos" };
+    }
+    const [dicCat, dicTipo, dicClasif] = await Promise.all([
+      prisma.dicCategoria.findUnique({ where: { cod: categoria_cod } }),
+      prisma.dicTipo.findUnique({ where: { cod: tipo_cod } }),
+      prisma.dicClasif.findUnique({ where: { cod: clasif_cod } }),
+    ]);
+    if (!dicCat || !dicTipo || !dicClasif) {
+      return { ok: false, message: "Diccionarios inválidos" };
+    }
+    return { ok: true };
   };
 
   const resolveCampaignId = async (candidate) => {
@@ -213,8 +281,8 @@ export function WorkflowController(prisma) {
 
     updateUnknown: async (req, res) => {
       const campaniaId = Number(req.body?.campaniaId || 0);
-      const sku = String(req.params?.sku || "").trim();
-      if (!campaniaId || !sku)
+      const skuNormalized = cleanSku(req.params?.sku || "");
+      if (!campaniaId || !skuNormalized)
         return sendAdminError(res, 400, "campaniaId y sku requeridos");
 
       const descripcion = req.body?.descripcion ?? null;
@@ -227,15 +295,18 @@ export function WorkflowController(prisma) {
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
       if (!unknownSku || !skuStage) return;
       const record = await unknownSku.upsert({
-        where: { campaniaId_sku: { campaniaId, sku } },
+        where: { campaniaId_sku: { campaniaId, sku: skuNormalized } },
         create: {
           campaniaId,
-          sku,
+          sku: skuNormalized,
+          skuNormalized,
           descripcion,
           categoria_cod,
           tipo_cod,
           clasif_cod,
-          status: "edited",
+          status: "PENDING",
+          firstSeenAt: new Date(),
+          lastSeenAt: new Date(),
           updatedBy,
         },
         update: {
@@ -243,7 +314,7 @@ export function WorkflowController(prisma) {
           categoria_cod,
           tipo_cod,
           clasif_cod,
-          status: "edited",
+          status: "PENDING",
           updatedBy,
           updatedAt: new Date(),
         },
@@ -251,7 +322,7 @@ export function WorkflowController(prisma) {
 
       await upsertStage({
         campaniaId,
-        sku,
+        sku: skuNormalized,
         stage: "unknown",
         updatedBy,
       });
@@ -261,16 +332,16 @@ export function WorkflowController(prisma) {
 
     confirmUnknown: async (req, res) => {
       const campaniaId = Number(req.body?.campaniaId || 0);
-      const sku = String(req.params?.sku || "").trim();
+      const skuNormalized = cleanSku(req.params?.sku || "");
       const updatedBy = req.body?.updatedBy || null;
-      if (!campaniaId || !sku)
+      if (!campaniaId || !skuNormalized)
         return sendAdminError(res, 400, "campaniaId y sku requeridos");
 
       const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
       const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
       if (!unknownSku || !skuStage) return;
       const unknown = await unknownSku.findUnique({
-        where: { campaniaId_sku: { campaniaId, sku } },
+        where: { campaniaId_sku: { campaniaId, sku: skuNormalized } },
       });
       if (!unknown)
         return sendAdminError(res, 404, "Unknown SKU no encontrado");
@@ -278,77 +349,53 @@ export function WorkflowController(prisma) {
       const categoria_cod = normalizeCode(unknown.categoria_cod);
       const tipo_cod = normalizeCode(unknown.tipo_cod);
       const clasif_cod = normalizeCode(unknown.clasif_cod);
-      if (!categoria_cod || !tipo_cod || !clasif_cod) {
-        return sendAdminError(res, 400, "categoría/tipo/clasif requeridos");
-      }
-
-      const [dicCat, dicTipo, dicClasif, camp] = await Promise.all([
-        prisma.dicCategoria.findUnique({ where: { cod: categoria_cod } }),
-        prisma.dicTipo.findUnique({ where: { cod: tipo_cod } }),
-        prisma.dicClasif.findUnique({ where: { cod: clasif_cod } }),
-        prisma.campania.findUnique({ where: { id: campaniaId } }),
-      ]);
-
-      if (!dicCat || !dicTipo || !dicClasif) {
-        return sendAdminError(res, 400, "Diccionarios inválidos");
-      }
+      const camp = await prisma.campania.findUnique({ where: { id: campaniaId } });
       if (!camp) {
         return sendAdminError(res, 404, "Campaña no encontrada");
+      }
+      const dictValidation = await validateUnknownDictionaries({
+        categoria_cod,
+        tipo_cod,
+        clasif_cod,
+      });
+      if (!dictValidation.ok) {
+        return sendAdminError(res, 400, dictValidation.message);
       }
 
       const descripcion = unknown.descripcion || "";
 
       await prisma.$transaction(async (tx) => {
-        await tx.maestro.upsert({
-          where: { sku },
-          create: {
-            sku,
-            descripcion,
-            categoria_cod,
-            tipo_cod,
-            clasif_cod,
-          },
-          update: {
-            descripcion,
-            categoria_cod,
-            tipo_cod,
-            clasif_cod,
-          },
-        });
-        await tx.campaniaMaestro.upsert({
-          where: { campaniaId_sku: { campaniaId, sku } },
-          create: {
-            campaniaId,
-            sku,
-            descripcion,
-            categoria_cod,
-            tipo_cod,
-            clasif_cod,
-          },
-          update: {
-            descripcion,
-            categoria_cod,
-            tipo_cod,
-            clasif_cod,
-          },
-        });
-        await tx.unknownSku.update({
-          where: { campaniaId_sku: { campaniaId, sku } },
+        const updatedUnknown = await tx.unknownSku.update({
+          where: { campaniaId_sku: { campaniaId, sku: skuNormalized } },
           data: {
-            status: "confirmed",
+            status: "APPROVED",
+            decidedBy: updatedBy || null,
+            decidedAt: new Date(),
             updatedBy,
           },
+        });
+        await applyUnknownToMaestro({
+          tx,
+          unknown: {
+            ...updatedUnknown,
+            descripcion,
+            categoria_cod,
+            tipo_cod,
+            clasif_cod,
+          },
+          campaniaId,
+          appliedBy: updatedBy,
         });
         await tx.skuStage.upsert({
-          where: { campaniaId_sku: { campaniaId, sku } },
+          where: { campaniaId_sku: { campaniaId, sku: skuNormalized } },
           create: {
             campaniaId,
-            sku,
-            stage: "confirm",
+            sku: skuNormalized,
+            stage: "consolidate",
             updatedBy,
           },
           update: {
-            stage: "confirm",
+            stage: "consolidate",
             updatedBy,
             updatedAt: new Date(),
           },
@@ -356,6 +403,106 @@ export function WorkflowController(prisma) {
       });
 
       res.json({ ok: true });
+    },
+
+    approveUnknownById: async (req, res) => {
+      const unknownId = Number(req.params?.id || 0);
+      const decidedBy = req.body?.decidedBy || null;
+      if (!unknownId) return sendAdminError(res, 400, "id requerido");
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!unknownSku || !skuStage) return;
+      const unknown = await unknownSku.findUnique({ where: { id: unknownId } });
+      if (!unknown) return sendAdminError(res, 404, "Unknown SKU no encontrado");
+
+      const categoria_cod = normalizeCode(unknown.categoria_cod);
+      const tipo_cod = normalizeCode(unknown.tipo_cod);
+      const clasif_cod = normalizeCode(unknown.clasif_cod);
+      const dictValidation = await validateUnknownDictionaries({
+        categoria_cod,
+        tipo_cod,
+        clasif_cod,
+      });
+      if (!dictValidation.ok) {
+        return sendAdminError(res, 400, dictValidation.message);
+      }
+
+      const updated = await unknownSku.update({
+        where: { id: unknownId },
+        data: {
+          status: "APPROVED",
+          decidedBy,
+          decidedAt: new Date(),
+        },
+      });
+      await upsertStage({
+        campaniaId: updated.campaniaId,
+        sku: updated.sku,
+        stage: "consolidate",
+        updatedBy: decidedBy,
+      });
+      res.json({ ok: true, item: updated });
+    },
+
+    rejectUnknownById: async (req, res) => {
+      const unknownId = Number(req.params?.id || 0);
+      const decidedBy = req.body?.decidedBy || null;
+      const reason = req.body?.reason || null;
+      if (!unknownId) return sendAdminError(res, 400, "id requerido");
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!unknownSku || !skuStage) return;
+      const unknown = await unknownSku.findUnique({ where: { id: unknownId } });
+      if (!unknown) return sendAdminError(res, 404, "Unknown SKU no encontrado");
+
+      const updated = await unknownSku.update({
+        where: { id: unknownId },
+        data: {
+          status: "REJECTED",
+          decidedBy,
+          decidedAt: new Date(),
+          decisionReason: reason,
+        },
+      });
+      await upsertStage({
+        campaniaId: updated.campaniaId,
+        sku: updated.sku,
+        stage: "consolidate",
+        updatedBy: decidedBy,
+      });
+      res.json({ ok: true, item: updated });
+    },
+
+    mergeUnknownById: async (req, res) => {
+      const unknownId = Number(req.params?.id || 0);
+      const decidedBy = req.body?.decidedBy || null;
+      const mergedIntoSku = cleanSku(req.body?.mergedIntoSku || "");
+      if (!unknownId) return sendAdminError(res, 400, "id requerido");
+      if (!mergedIntoSku) return sendAdminError(res, 400, "mergedIntoSku requerido");
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!unknownSku || !skuStage) return;
+      const unknown = await unknownSku.findUnique({ where: { id: unknownId } });
+      if (!unknown) return sendAdminError(res, 404, "Unknown SKU no encontrado");
+      const target = await prisma.maestro.findUnique({ where: { sku: mergedIntoSku } });
+      if (!target) return sendAdminError(res, 404, "SKU destino no encontrado");
+
+      const updated = await unknownSku.update({
+        where: { id: unknownId },
+        data: {
+          status: "MERGED",
+          mergedIntoSku,
+          decidedBy,
+          decidedAt: new Date(),
+        },
+      });
+      await upsertStage({
+        campaniaId: updated.campaniaId,
+        sku: updated.sku,
+        stage: "consolidate",
+        updatedBy: decidedBy,
+      });
+      res.json({ ok: true, item: updated });
     },
 
     listConsolidationChanges: async (req, res) => {
@@ -482,44 +629,22 @@ export function WorkflowController(prisma) {
           where: {
             campaniaId,
             sku: { in: consolidateSkus },
-            status: "confirmed",
+            OR: [
+              { status: "APPROVED" },
+              { status: "confirmed" },
+              { status: "CONFIRMED" },
+            ],
+            appliedToMaestroAt: null,
           },
         });
         if (unknowns.length) {
           await prisma.$transaction(async (tx) => {
             for (const item of unknowns) {
-              await tx.maestro.upsert({
-                where: { sku: item.sku },
-                create: {
-                  sku: item.sku,
-                  descripcion: item.descripcion || "",
-                  categoria_cod: item.categoria_cod || "",
-                  tipo_cod: item.tipo_cod || "",
-                  clasif_cod: item.clasif_cod || "",
-                },
-                update: {
-                  descripcion: item.descripcion || "",
-                  categoria_cod: item.categoria_cod || "",
-                  tipo_cod: item.tipo_cod || "",
-                  clasif_cod: item.clasif_cod || "",
-                },
-              });
-              await tx.campaniaMaestro.upsert({
-                where: { campaniaId_sku: { campaniaId, sku: item.sku } },
-                create: {
-                  campaniaId,
-                  sku: item.sku,
-                  descripcion: item.descripcion || "",
-                  categoria_cod: item.categoria_cod || "",
-                  tipo_cod: item.tipo_cod || "",
-                  clasif_cod: item.clasif_cod || "",
-                },
-                update: {
-                  descripcion: item.descripcion || "",
-                  categoria_cod: item.categoria_cod || "",
-                  tipo_cod: item.tipo_cod || "",
-                  clasif_cod: item.clasif_cod || "",
-                },
+              await applyUnknownToMaestro({
+                tx,
+                unknown: item,
+                campaniaId,
+                appliedBy: req.body?.decidedBy || "admin",
               });
             }
           });

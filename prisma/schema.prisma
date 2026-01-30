@@ -72,6 +72,9 @@ model Escaneo {
   sucursal           String
   email              String
   sku                String
+  skuRaw             String?
+  skuNormalized      String?
+  idempotencyKey     String?
   estado             String
   categoria_sug_cod  String?
   tipo_sug_cod       String?
@@ -83,7 +86,9 @@ model Escaneo {
   campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
   @@index([sku])
+  @@index([skuNormalized])
   @@index([campaniaId])
+  @@unique([campaniaId, idempotencyKey])
 }
 
 model Actualizacion {
@@ -138,11 +143,22 @@ model UnknownSku {
   id           Int      @id @default(autoincrement())
   campaniaId   Int
   sku          String
+  skuRaw       String?
+  skuNormalized String?
   descripcion  String?
   categoria_cod String?
   tipo_cod     String?
   clasif_cod   String?
   status       String?
+  seenCount    Int      @default(0)
+  firstSeenAt  DateTime?
+  lastSeenAt   DateTime?
+  mergedIntoSku String?
+  decidedBy    String?
+  decidedAt    DateTime?
+  decisionReason String?
+  appliedToMaestroAt DateTime?
+  appliedToMaestroBy String?
   updatedBy    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -151,4 +167,5 @@ model UnknownSku {
 
   @@unique([campaniaId, sku])
   @@index([campaniaId, sku])
+  @@index([campaniaId, skuNormalized])
 }
