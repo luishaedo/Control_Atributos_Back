@@ -3,6 +3,13 @@ import { toCSV } from '../utils/csv.js'
 
 export function ActualizacionesController(prisma) {
   const { applyUpdates, normalizeCode } = ActualizacionesService(prisma)
+  const ensureModel = (model, name, res) => {
+    if (!model) {
+      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` })
+      return null
+    }
+    return model
+  }
 
   const parseArchivada = (value) => {
     if (value === undefined || value === null) return undefined
@@ -52,13 +59,16 @@ export function ActualizacionesController(prisma) {
         clasif: 'clasif_cod',
       }
       const unknownField = unknownFieldMap[attributeKey]
-      const stages = await prisma.skuStage.findMany({
+      const skuStage = ensureModel(prisma.skuStage, 'skuStage', res)
+      const unknownSku = ensureModel(prisma.unknownSku, 'unknownSku', res)
+      if (!skuStage || !unknownSku) return
+      const stages = await skuStage.findMany({
         where: { campaniaId, stage: 'consolidate' },
         select: { sku: true },
       })
       const skuList = stages.map((row) => row.sku)
       if (skuList.length) {
-        const unknowns = await prisma.unknownSku.findMany({
+        const unknowns = await unknownSku.findMany({
           where: {
             campaniaId,
             sku: { in: skuList },
@@ -85,13 +95,16 @@ export function ActualizacionesController(prisma) {
     const appliedCount = await prisma.actualizacion.count({
       where: { campaniaId, estado: 'aplicada' },
     })
-    const stages = await prisma.skuStage.findMany({
+    const skuStage = ensureModel(prisma.skuStage, 'skuStage', res)
+    const unknownSku = ensureModel(prisma.unknownSku, 'unknownSku', res)
+    if (!skuStage || !unknownSku) return
+    const stages = await skuStage.findMany({
       where: { campaniaId, stage: 'consolidate' },
       select: { sku: true },
     })
     const skuList = stages.map((row) => row.sku)
     const unknownCount = skuList.length
-      ? await prisma.unknownSku.count({
+      ? await unknownSku.count({
           where: {
             campaniaId,
             sku: { in: skuList },
