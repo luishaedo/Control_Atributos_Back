@@ -1,4 +1,5 @@
 import { ImportService } from '../services/import.service.js'
+import { sendAdminError } from '../utils/http.js'
 
 export function AdminImportController(prisma) {
   const svc = ImportService(prisma)
@@ -13,7 +14,7 @@ export function AdminImportController(prisma) {
         const result = await svc.importarDiccionariosDesdeBuffers({ categoriasBuf, tiposBuf, clasifBuf })
         res.json({ ok: true, ...result })
       } catch (e) {
-        res.status(e.status || 500).json({ error: e.message || 'Error importando diccionarios' })
+        sendAdminError(res, e.status || 500, e.message || 'Error importando diccionarios')
       }
     },
 
@@ -32,7 +33,7 @@ export function AdminImportController(prisma) {
         })
       } catch (e) {
         console.error('Import maestro falló:', e)
-  res.status(e.status || 500).json({ error: e.message || 'Error importando maestro' })
+        sendAdminError(res, e.status || 500, e.message || 'Error importando maestro')
       }
     },
   }

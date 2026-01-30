@@ -1,6 +1,7 @@
 import { MaestroService } from '../services/maestro.service.js'
 import { cleanSku, pad2 } from '../utils/sku.js'
 import { toCSV } from '../utils/csv.js'
+import { sendAdminError } from '../utils/http.js'
 
 
 export function MaestroController(prisma) {
@@ -134,7 +135,7 @@ export function MaestroController(prisma) {
     listMissing: async (req, res) => {
       const campaniaId = Number(req.query.campaniaId || 0)
       if (!campaniaId) {
-        return res.status(400).json({ error: 'campaniaId requerido' })
+        return sendAdminError(res, 400, 'campaniaId requerido')
       }
       const items = await prisma.unknownSku.findMany({
         where: {
