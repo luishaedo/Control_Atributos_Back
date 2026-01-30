@@ -4,6 +4,13 @@ import { ActualizacionesService } from "../services/actualizaciones.service.js";
 export function WorkflowController(prisma) {
   const { applyUpdates } = ActualizacionesService(prisma);
   const allowedStages = new Set(["evaluate", "confirm", "consolidate", "unknown"]);
+  const ensureModel = (model, name, res) => {
+    if (!model) {
+      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` });
+      return null;
+    }
+    return model;
+  };
 
   const normalizeCode = (value) => {
     if (value === undefined || value === null) return "";
@@ -105,7 +112,9 @@ export function WorkflowController(prisma) {
       if (!campaniaId)
         return res.status(400).json({ error: "campaniaId requerido" });
 
-      const stages = await prisma.skuStage.findMany({
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!skuStage) return;
+      const stages = await skuStage.findMany({
         where: { campaniaId, stage: "confirm" },
       });
       const skus = stages.map((row) => row.sku);
@@ -169,6 +178,8 @@ export function WorkflowController(prisma) {
       if (!allowedStages.has(stage))
         return res.status(400).json({ error: "stage inválido" });
 
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!skuStage) return;
       await upsertStage({
         campaniaId: Number(campaniaId),
         sku,
@@ -182,7 +193,9 @@ export function WorkflowController(prisma) {
       const campaniaId = await resolveCampaignId(req.query.campaniaId);
       if (!campaniaId)
         return res.status(400).json({ error: "campaniaId requerido" });
-      const items = await prisma.unknownSku.findMany({
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      if (!unknownSku) return;
+      const items = await unknownSku.findMany({
         where: { campaniaId },
         orderBy: { updatedAt: "desc" },
       });
@@ -201,7 +214,10 @@ export function WorkflowController(prisma) {
       const clasif_cod = normalizeCode(req.body?.clasif_cod);
       const updatedBy = req.body?.updatedBy || null;
 
-      const record = await prisma.unknownSku.upsert({
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!unknownSku || !skuStage) return;
+      const record = await unknownSku.upsert({
         where: { campaniaId_sku: { campaniaId, sku } },
         create: {
           campaniaId,
@@ -241,7 +257,10 @@ export function WorkflowController(prisma) {
       if (!campaniaId || !sku)
         return res.status(400).json({ error: "campaniaId y sku requeridos" });
 
-      const unknown = await prisma.unknownSku.findUnique({
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!unknownSku || !skuStage) return;
+      const unknown = await unknownSku.findUnique({
         where: { campaniaId_sku: { campaniaId, sku } },
       });
       if (!unknown)
@@ -337,7 +356,9 @@ export function WorkflowController(prisma) {
       if (!campaniaId)
         return res.status(400).json({ error: "campaniaId requerido" });
 
-      const stages = await prisma.skuStage.findMany({
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      if (!skuStage) return;
+      const stages = await skuStage.findMany({
         where: { campaniaId, stage: "consolidate" },
       });
       const skus = stages.map((row) => row.sku);
@@ -392,7 +413,10 @@ export function WorkflowController(prisma) {
       if (!campaniaId)
         return res.status(400).json({ error: "campaniaId requerido" });
 
-      const stages = await prisma.skuStage.findMany({
+      const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+      const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+      if (!skuStage || !unknownSku) return;
+      const stages = await skuStage.findMany({
         where: { campaniaId, stage: "consolidate" },
         select: { sku: true },
       });
@@ -420,14 +444,14 @@ export function WorkflowController(prisma) {
           where: { id: { in: ids } },
           select: { sku: true },
         });
-        await prisma.skuStage.updateMany({
+        await skuStage.updateMany({
           where: { campaniaId, sku: { in: skus.map((row) => row.sku) } },
           data: { stage: "consolidate", updatedAt: new Date() },
         });
       }
 
       if (consolidateSkus.length) {
-        const unknowns = await prisma.unknownSku.findMany({
+        const unknowns = await unknownSku.findMany({
           where: {
             campaniaId,
             sku: { in: consolidateSkus },
