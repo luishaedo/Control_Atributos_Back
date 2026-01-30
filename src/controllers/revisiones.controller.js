@@ -9,6 +9,13 @@ export function RevisionesController(prisma) {
     decidedBy: decision.decidedBy,
     decidedAt: decision.decidedAt,
   });
+  const ensureModel = (model, name, res) => {
+    if (!model) {
+      res.status(500).json({ error: `Prisma client missing ${name}. Run prisma:generate.` });
+      return null;
+    }
+    return model;
+  };
 
   return {
     listar: async (req, res) => {
@@ -229,7 +236,9 @@ export function RevisionesController(prisma) {
         });
 
         if (decision === "aceptar") {
-          await prisma.skuStage.upsert({
+          const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
+          if (!skuStage) return;
+          await skuStage.upsert({
             where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } },
             create: {
               campaniaId: Number(campaniaId),
