@@ -95,13 +95,16 @@ export function ActualizacionesController(prisma) {
     const appliedCount = await prisma.actualizacion.count({
       where: { campaniaId, estado: 'aplicada' },
     })
-    const stages = await prisma.skuStage.findMany({
+    const skuStage = ensureModel(prisma.skuStage, 'skuStage', res)
+    const unknownSku = ensureModel(prisma.unknownSku, 'unknownSku', res)
+    if (!skuStage || !unknownSku) return
+    const stages = await skuStage.findMany({
       where: { campaniaId, stage: 'consolidate' },
       select: { sku: true },
     })
     const skuList = stages.map((row) => row.sku)
     const unknownCount = skuList.length
-      ? await prisma.unknownSku.count({
+      ? await unknownSku.count({
           where: {
             campaniaId,
             sku: { in: skuList },
