@@ -184,12 +184,13 @@ export function ActualizacionesController(prisma) {
     },
 
     undo: async (req, res) => {
-      const { ids = [] } = req.body || {}
-      if (!Array.isArray(ids) || ids.length === 0) {
+      const { ids, id } = req.body || {}
+      const normalizedIds = Array.isArray(ids) ? ids : (id ? [id] : [])
+      if (!Array.isArray(normalizedIds) || normalizedIds.length === 0) {
         return res.status(400).json({ error: 'ids requeridos' })
       }
       const result = await prisma.actualizacion.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: normalizedIds } },
         data: {
           estado: 'pendiente',
           decidedBy: null,
