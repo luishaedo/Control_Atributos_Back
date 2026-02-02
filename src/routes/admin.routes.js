@@ -95,6 +95,7 @@ export default function adminRouter(prisma) {
   r.get('/discrepancias-sucursales', authIfProd(), rev.discrepanciasSuc)
   r.get('/export/discrepancias.csv', authIfProd(), rev.exportDiscrepanciasCSV)
   r.get('/export/discrepancias-sucursales.csv', authIfProd(), rev.exportDiscrepanciasSucCSV)
+  r.get('/auditoria/resumen', authIfProd(), rev.resumenAuditoria)
 
   // aliases usados por Auditoría (mantener por compatibilidad)
   r.get('/revisiones/discrepancias', authIfProd(), rev.discrepancias)

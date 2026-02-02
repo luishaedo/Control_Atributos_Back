@@ -20,6 +20,27 @@ export function ActualizacionesController(prisma) {
     return undefined
   }
 
+  const formatTimestamp = (date) => {
+    const yyyy = date.getFullYear()
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
+    const dd = String(date.getDate()).padStart(2, '0')
+    const hh = String(date.getHours()).padStart(2, '0')
+    const min = String(date.getMinutes()).padStart(2, '0')
+    return `${yyyy}${mm}${dd}_${hh}${min}`
+  }
+
+  const sanitizeFilenamePart = (value) => {
+    const raw = String(value || '').trim()
+    if (!raw) return 'campania'
+    return raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9_-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase() || 'campania'
+  }
+
   const buildTxtResponse = async ({
     campaniaId,
     attributeKey,
@@ -90,10 +111,17 @@ export function ActualizacionesController(prisma) {
         }
       }
     }
+    const camp = await prisma.campania.findUnique({
+      where: { id: campaniaId },
+      select: { nombre: true },
+    })
+    const safeName = sanitizeFilenamePart(camp?.nombre || `campania_${campaniaId}`)
+    const timestamp = formatTimestamp(new Date())
+    const exportName = `${safeName}_${attributeKey}_${timestamp}.txt`
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${filename}"`
+      `attachment; filename="${exportName}"`
     )
     res.send(lines.join('\n'))
   }
@@ -127,10 +155,17 @@ export function ActualizacionesController(prisma) {
       `applied_count\t${appliedCount}`,
       `unknown_count\t${unknownCount}`,
     ]
+    const camp = await prisma.campania.findUnique({
+      where: { id: campaniaId },
+      select: { nombre: true },
+    })
+    const safeName = sanitizeFilenamePart(camp?.nombre || `campania_${campaniaId}`)
+    const timestamp = formatTimestamp(new Date())
+    const exportName = `${safeName}_summary_${timestamp}.txt`
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename="summary.txt"'
+      `attachment; filename="${exportName}"`
     )
     res.send(lines.join('\n'))
   }

@@ -133,6 +133,34 @@ export function WorkflowController(prisma) {
     return { changes, verified };
   };
 
+  const buildChangeSetFromDecisions = ({ decisions, maestro }) => {
+    if (!decisions?.length) return { changes: {}, verified: {} };
+    const fields = [
+      { key: "categoria_cod", newKey: "new_categoria_cod", oldKey: "old_categoria_cod" },
+      { key: "tipo_cod", newKey: "new_tipo_cod", oldKey: "old_tipo_cod" },
+      { key: "clasif_cod", newKey: "new_clasif_cod", oldKey: "old_clasif_cod" },
+    ];
+    const latestByField = {};
+    for (const field of fields) {
+      const found = decisions.find((d) => d?.[field.newKey]);
+      if (found) latestByField[field.key] = found;
+    }
+
+    const changes = {};
+    const verified = {};
+    for (const field of fields) {
+      const decision = latestByField[field.key] || null;
+      const oldValue = maestro?.[field.key] ?? decision?.[field.oldKey] ?? "";
+      const newValue = decision?.[field.newKey] ?? "";
+      if (newValue && String(newValue) !== String(oldValue)) {
+        changes[field.key] = newValue;
+      } else {
+        verified[field.key] = oldValue || newValue || "";
+      }
+    }
+    return { changes, verified };
+  };
+
   const buildSummary = async (campaniaId) => {
     const totalSkus = await prisma.campaniaMaestro.count({ where: { campaniaId } });
     const actualizaciones = await prisma.actualizacion.findMany({
@@ -216,21 +244,22 @@ export function WorkflowController(prisma) {
         (await prisma.unknownSku.findMany({ where: { campaniaId, sku: { in: skus } } }))
           .map((u) => [u.sku, u])
       )
-      const decisionBySku = new Map();
+      const decisionsBySku = new Map();
       for (const decision of decisions) {
-        if (!decisionBySku.has(decision.sku)) {
-          decisionBySku.set(decision.sku, decision);
-        }
+        const list = decisionsBySku.get(decision.sku) || [];
+        list.push(decision);
+        decisionsBySku.set(decision.sku, list);
       }
 
       const items = skus.map((sku) => {
-        const decision = decisionBySku.get(sku) || null;
+        const skuDecisions = decisionsBySku.get(sku) || [];
+        const decision = skuDecisions[0] || null;
         const maestro = snapshotBySku.get(sku) || null;
         const unknown = unknownBySku.get(sku) || null;
         let changes = {};
         let verified = {};
-        if (decision) {
-          ({ changes, verified } = buildChangeSet({ decision, maestro }));
+        if (skuDecisions.length) {
+          ({ changes, verified } = buildChangeSetFromDecisions({ decisions: skuDecisions, maestro }));
         } else if (unknown) {
           changes = {
             categoria_cod: unknown.categoria_cod || "",

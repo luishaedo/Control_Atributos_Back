@@ -20,6 +20,11 @@ export function RevisionesController(prisma) {
     }
     return model;
   };
+  const toTopList = (map, limit = 5) =>
+    Array.from(map.entries())
+      .map(([user, count]) => ({ user, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
 
   return {
     listar: async (req, res) => {
@@ -280,26 +285,17 @@ export function RevisionesController(prisma) {
           const orConditions = [];
           if (fieldsToArchive.includes("categoria_cod")) {
             orConditions.push({
-              AND: [
-                { new_categoria_cod: { not: "" } },
-                { new_categoria_cod: { not: null } },
-              ],
+              new_categoria_cod: { not: "" },
             });
           }
           if (fieldsToArchive.includes("tipo_cod")) {
             orConditions.push({
-              AND: [
-                { new_tipo_cod: { not: "" } },
-                { new_tipo_cod: { not: null } },
-              ],
+              new_tipo_cod: { not: "" },
             });
           }
           if (fieldsToArchive.includes("clasif_cod")) {
             orConditions.push({
-              AND: [
-                { new_clasif_cod: { not: "" } },
-                { new_clasif_cod: { not: null } },
-              ],
+              new_clasif_cod: { not: "" },
             });
           }
           await prisma.actualizacion.updateMany({
@@ -639,6 +635,132 @@ export function RevisionesController(prisma) {
         'attachment; filename="discrepancias_sucursales.csv"'
       );
       res.send(csv);
+    },
+
+    resumenAuditoria: async (req, res) => {
+      const campaniaId = Number(req.query.campaniaId || 0);
+      if (!campaniaId) {
+        return sendAdminError(res, 400, "campaniaId requerido");
+      }
+
+      const [escaneos, snapshots, actualizaciones] = await Promise.all([
+        prisma.escaneo.findMany({ where: { campaniaId } }),
+        prisma.campaniaMaestro.findMany({ where: { campaniaId } }),
+        prisma.actualizacion.findMany({
+          where: {
+            campaniaId,
+            estado: { in: ["pendiente", "aplicada"] },
+            archivada: false,
+          },
+          orderBy: { ts: "desc" },
+        }),
+      ]);
+
+      const snapBySku = new Map(snapshots.map((s) => [s.sku, s]));
+      const skuStats = new Map();
+      const scansByUser = new Map();
+      const suggestionsByUser = new Map();
+
+      const acceptedBySku = new Map();
+      for (const act of actualizaciones) {
+        const entry = acceptedBySku.get(act.sku) || {
+          categoria_cod: "",
+          tipo_cod: "",
+          clasif_cod: "",
+        };
+        if (!entry.categoria_cod && act.new_categoria_cod) entry.categoria_cod = act.new_categoria_cod;
+        if (!entry.tipo_cod && act.new_tipo_cod) entry.tipo_cod = act.new_tipo_cod;
+        if (!entry.clasif_cod && act.new_clasif_cod) entry.clasif_cod = act.new_clasif_cod;
+        acceptedBySku.set(act.sku, entry);
+      }
+
+      const acceptedByUser = new Map(); // user => Set<sku|field>
+
+      for (const e of escaneos) {
+        const sku = e.sku;
+        const snap = snapBySku.get(sku) || null;
+        const hasMaestro = Boolean(snap);
+        const diff =
+          !snap ||
+          String(e.asum_categoria_cod || "") !== String(snap?.categoria_cod || "") ||
+          String(e.asum_tipo_cod || "") !== String(snap?.tipo_cod || "") ||
+          String(e.asum_clasif_cod || "") !== String(snap?.clasif_cod || "");
+
+        const stat = skuStats.get(sku) || { hasMaestro: false, hasDiff: false };
+        stat.hasMaestro = stat.hasMaestro || hasMaestro;
+        stat.hasDiff = stat.hasDiff || diff;
+        skuStats.set(sku, stat);
+
+        const user = e.email || "";
+        if (user) {
+          scansByUser.set(user, (scansByUser.get(user) || 0) + 1);
+          if (diff) {
+            suggestionsByUser.set(user, (suggestionsByUser.get(user) || 0) + 1);
+          }
+          const accepted = acceptedBySku.get(sku);
+          if (accepted) {
+            const set = acceptedByUser.get(user) || new Set();
+            if (
+              accepted.categoria_cod &&
+              String(e.asum_categoria_cod || "") === String(accepted.categoria_cod)
+            ) {
+              set.add(`${sku}|categoria_cod`);
+            }
+            if (
+              accepted.tipo_cod &&
+              String(e.asum_tipo_cod || "") === String(accepted.tipo_cod)
+            ) {
+              set.add(`${sku}|tipo_cod`);
+            }
+            if (
+              accepted.clasif_cod &&
+              String(e.asum_clasif_cod || "") === String(accepted.clasif_cod)
+            ) {
+              set.add(`${sku}|clasif_cod`);
+            }
+            acceptedByUser.set(user, set);
+          }
+        }
+      }
+
+      const skuEscaneados = skuStats.size;
+      const skuConSugerencias = Array.from(skuStats.values()).filter((s) => s.hasDiff).length;
+      const skuVerificados = Array.from(skuStats.values()).filter((s) => s.hasMaestro && !s.hasDiff).length;
+
+      let atributosAceptados = 0;
+      for (const act of actualizaciones) {
+        if (act.new_categoria_cod) atributosAceptados += 1;
+        if (act.new_tipo_cod) atributosAceptados += 1;
+        if (act.new_clasif_cod) atributosAceptados += 1;
+      }
+
+      const acceptedCountByUser = new Map(
+        Array.from(acceptedByUser.entries()).map(([user, set]) => [user, set.size])
+      );
+
+      const acceptanceRateByUser = Array.from(acceptedCountByUser.entries())
+        .map(([user, count]) => {
+          const base = suggestionsByUser.get(user) || 0;
+          const rate = base ? count / base : 0;
+          return { user, count, base, rate };
+        })
+        .sort((a, b) => b.rate - a.rate)
+        .slice(0, 5);
+
+      res.json({
+        kpis: {
+          skuEscaneados,
+          skuVerificados,
+          skuConSugerencias,
+          atributosAceptados,
+        },
+        top: {
+          escaneos: toTopList(scansByUser, 5),
+          sugerencias: toTopList(suggestionsByUser, 5),
+          aceptadas: toTopList(acceptedCountByUser, 5),
+          tasaAceptacion: acceptanceRateByUser,
+        },
+      });
     },
   };
 }
