@@ -39,6 +39,7 @@ model Campania {
   tipo_objetivo_cod      String?
   clasif_objetivo_cod    String?
   activa                 Boolean  @default(false)
+  activatedOnce          Boolean  @default(false)
 
   // relaciones existentes
   escaneos Escaneo[]

@@ -62,6 +62,62 @@ export function MaestroController(prisma) {
         })
       }
     },
+    getUnoCampania: async (req, res) => {
+      try {
+        const campaniaId = Number(req.params?.id || 0)
+        if (!campaniaId) {
+          return res.status(400).json({
+            code: 'INVALID_CAMPANIA',
+            message: 'campaniaId invÃ¡lido',
+          })
+        }
+        const sku = cleanSku(req.params.sku || '')
+        if (!sku) {
+          return res.status(400).json({
+            code: 'INVALID_SKU',
+            message: 'SKU invÃ¡lido',
+          })
+        }
+        let item = await prisma.campaniaMaestro.findUnique({
+          where: { campaniaId_sku: { campaniaId, sku } },
+        })
+        if (!item) {
+          const maestroItem = await prisma.maestro.findUnique({ where: { sku } })
+          if (maestroItem) {
+            item = await prisma.campaniaMaestro.upsert({
+              where: { campaniaId_sku: { campaniaId, sku } },
+              create: {
+                campaniaId,
+                sku: maestroItem.sku,
+                descripcion: maestroItem.descripcion,
+                categoria_cod: maestroItem.categoria_cod,
+                tipo_cod: maestroItem.tipo_cod,
+                clasif_cod: maestroItem.clasif_cod,
+              },
+              update: {
+                descripcion: maestroItem.descripcion,
+                categoria_cod: maestroItem.categoria_cod,
+                tipo_cod: maestroItem.tipo_cod,
+                clasif_cod: maestroItem.clasif_cod,
+              },
+            })
+          }
+        }
+        if (!item) {
+          return res.status(404).json({
+            code: 'MAESTRO_NOT_FOUND',
+            message: 'SKU no encontrado en Maestro de campaÃ±a',
+          })
+        }
+        res.json(item)
+      } catch (error) {
+        console.error(error)
+        res.status(500).json({
+          code: 'INTERNAL_ERROR',
+          message: 'Error interno',
+        })
+      }
+    },
     importar: async (req, res) => {
       const { items = [] } = req.body || {}
       if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items vacío' })

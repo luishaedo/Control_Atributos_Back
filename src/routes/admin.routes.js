@@ -9,6 +9,7 @@ import { DiccionariosController } from '../controllers/diccionarios.controller.j
 import { MaestroController } from '../controllers/maestro.controller.js'
 import { WorkflowController } from '../controllers/workflow.controller.js'
 import { ActualizacionesController } from '../controllers/actualizaciones.controller.js'
+import { CampaniasController } from '../controllers/campanias.controller.js'
 
 const authIfProd = () => (process.env.NODE_ENV === 'production' ? authAdmin() : (_req, _res, next) => next())
 
@@ -21,9 +22,13 @@ export default function adminRouter(prisma) {
   const mae = MaestroController(prisma)
   const flow = WorkflowController(prisma)
   const acts = ActualizacionesController(prisma)
+  const camp = CampaniasController(prisma)
 
   // Salud
   r.get('/ping', authIfProd(), admin.ping)
+
+  // CampaÃ±as (ediciÃ³n)
+  r.patch('/campanias/:id', authIfProd(), camp.actualizar)
 
   // Import por archivo (multer)
   r.post('/diccionarios/import-file',

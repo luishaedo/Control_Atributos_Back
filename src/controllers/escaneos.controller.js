@@ -86,9 +86,31 @@ export function EscaneosController(prisma) {
           }
         }
 
-        const snap = await prisma.campaniaMaestro.findUnique({
+        let snap = await prisma.campaniaMaestro.findUnique({
           where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
         })
+        if (!snap) {
+          const maestroItem = await prisma.maestro.findUnique({ where: { sku: skuNormalized } })
+          if (maestroItem) {
+            snap = await prisma.campaniaMaestro.upsert({
+              where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
+              create: {
+                campaniaId: camp.id,
+                sku: maestroItem.sku,
+                descripcion: maestroItem.descripcion,
+                categoria_cod: maestroItem.categoria_cod,
+                tipo_cod: maestroItem.tipo_cod,
+                clasif_cod: maestroItem.clasif_cod,
+              },
+              update: {
+                descripcion: maestroItem.descripcion,
+                categoria_cod: maestroItem.categoria_cod,
+                tipo_cod: maestroItem.tipo_cod,
+                clasif_cod: maestroItem.clasif_cod,
+              },
+            })
+          }
+        }
 
         let estado = 'OK'
         if (!snap) {
@@ -205,6 +227,26 @@ export function EscaneosController(prisma) {
                 },
               })
             }
+          })
+        } else {
+          ensureModel(prisma.skuStage, 'skuStage')
+          const hasDif =
+            asumidos.categoria_cod !== (snap?.categoria_cod || '') ||
+            asumidos.tipo_cod !== (snap?.tipo_cod || '') ||
+            asumidos.clasif_cod !== (snap?.clasif_cod || '')
+          stage = await prisma.skuStage.upsert({
+            where: { campaniaId_sku: { campaniaId: camp.id, sku: skuNormalized } },
+            create: {
+              campaniaId: camp.id,
+              sku: skuNormalized,
+              stage: hasDif ? 'evaluate' : 'confirm',
+              updatedBy: email || null,
+            },
+            update: {
+              stage: hasDif ? 'evaluate' : 'confirm',
+              updatedBy: email || null,
+              updatedAt: new Date(),
+            },
           })
         }
 

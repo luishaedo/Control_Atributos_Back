@@ -36,12 +36,13 @@ export function ActualizacionesController(prisma) {
       return sendAdminError(res, 400, 'atributo inválido')
     }
     const lines = []
-    if (scope !== 'applied' && scope !== 'unknown') {
+    if (scope !== 'applied' && scope !== 'unknown' && scope !== 'pending') {
       return sendAdminError(res, 400, 'scope inválido')
     }
-    if (scope === 'applied') {
+    if (scope === 'applied' || scope === 'pending') {
+      const estadoFiltro = scope === 'pending' ? 'pendiente' : 'aplicada'
       const actualizaciones = await prisma.actualizacion.findMany({
-        where: { campaniaId, estado: 'aplicada' },
+        where: { campaniaId, estado: estadoFiltro },
         orderBy: { ts: 'desc' },
       })
       const seen = new Set()
@@ -75,6 +76,7 @@ export function ActualizacionesController(prisma) {
             sku: { in: skuList },
             OR: [
               { status: 'APPROVED' },
+              { status: 'PENDING' },
               { status: 'confirmed' },
               { status: 'CONFIRMED' },
             ],

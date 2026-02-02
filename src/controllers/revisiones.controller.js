@@ -9,6 +9,9 @@ export function RevisionesController(prisma) {
     id: decision.id,
     decidedBy: decision.decidedBy,
     decidedAt: decision.decidedAt,
+    new_categoria_cod: decision.new_categoria_cod || "",
+    new_tipo_cod: decision.new_tipo_cod || "",
+    new_clasif_cod: decision.new_clasif_cod || "",
   });
   const ensureModel = (model, name, res) => {
     if (!model) {
@@ -42,22 +45,69 @@ export function RevisionesController(prisma) {
           (m) => [m.sku, m]
         )
       );
+      const escaneoSkus = Array.from(new Set(escaneos.map((e) => e.sku)));
+      const maestroBySku = new Map(
+        (escaneoSkus.length
+          ? await prisma.maestro.findMany({ where: { sku: { in: escaneoSkus } } })
+          : []
+        ).map((m) => [m.sku, m])
+      );
       const unknownBySku = new Map(
         (await prisma.unknownSku.findMany({ where: { campaniaId } })).map((u) => [
           u.sku,
           u,
         ])
       );
+      const stageBySku = new Map(
+        (await prisma.skuStage.findMany({ where: { campaniaId } })).map((s) => [
+          s.sku,
+          s.stage,
+        ])
+      );
 
       const decisiones = await prisma.actualizacion.findMany({
-        where: { campaniaId },
+        where: { campaniaId, archivada: false },
         orderBy: { ts: "desc" },
       });
       const decisionesBySku = new Map();
+      const decisionesByField = new Map();
       for (const dec of decisiones) {
         const list = decisionesBySku.get(dec.sku) || [];
         list.push(dec);
         decisionesBySku.set(dec.sku, list);
+        const fieldEntry = decisionesByField.get(dec.sku) || {
+          categoria_cod: null,
+          tipo_cod: null,
+          clasif_cod: null,
+        };
+        if (!fieldEntry.categoria_cod && dec.new_categoria_cod) {
+          fieldEntry.categoria_cod = {
+            code: dec.new_categoria_cod,
+            id: dec.id,
+            estado: dec.estado,
+            decidedBy: dec.decidedBy,
+            decidedAt: dec.decidedAt,
+          };
+        }
+        if (!fieldEntry.tipo_cod && dec.new_tipo_cod) {
+          fieldEntry.tipo_cod = {
+            code: dec.new_tipo_cod,
+            id: dec.id,
+            estado: dec.estado,
+            decidedBy: dec.decidedBy,
+            decidedAt: dec.decidedAt,
+          };
+        }
+        if (!fieldEntry.clasif_cod && dec.new_clasif_cod) {
+          fieldEntry.clasif_cod = {
+            code: dec.new_clasif_cod,
+            id: dec.id,
+            estado: dec.estado,
+            decidedBy: dec.decidedBy,
+            decidedAt: dec.decidedAt,
+          };
+        }
+        decisionesByField.set(dec.sku, fieldEntry);
       }
 
       const findDecision = (sku, propuesta) => {
@@ -98,7 +148,7 @@ export function RevisionesController(prisma) {
       for (const e of escaneos) {
         if (buscarSku && !String(e.sku).toUpperCase().includes(buscarSku))
           continue;
-        const snap = snapBySku.get(e.sku) || null;
+        const snap = snapBySku.get(e.sku) || maestroBySku.get(e.sku) || null;
         const dif =
           !snap ||
           e.asum_categoria_cod !== (snap?.categoria_cod || null) ||
@@ -168,6 +218,8 @@ export function RevisionesController(prisma) {
           skuType: unknown ? "UNKNOWN" : "KNOWN",
           unknownId: unknown?.id || null,
           unknownStatus: unknown?.status || null,
+          stage: stageBySku.get(grp.sku) || null,
+          decisionsByField: decisionesByField.get(grp.sku) || null,
           propuestas: propuestasArr,
           totalVotos: total,
           consensoPct: Number(consenso.toFixed(2)),
@@ -217,19 +269,54 @@ export function RevisionesController(prisma) {
           : pad2(propuesta.clasif_cod);
         const estado = decision === "aceptar" ? "pendiente" : "rechazada";
 
-        await prisma.actualizacion.updateMany({
-          where: {
-            campaniaId: Number(campaniaId),
-            sku,
-            estado: "pendiente",
-            archivada: false,
-          },
-          data: {
-            archivada: true,
-            archivadaAt: new Date(),
-            archivadaBy: decidedBy || "admin",
-          },
-        });
+        const fieldsToArchive = [];
+        if (!isEmptyValue(propuesta?.categoria_cod))
+          fieldsToArchive.push("categoria_cod");
+        if (!isEmptyValue(propuesta?.tipo_cod))
+          fieldsToArchive.push("tipo_cod");
+        if (!isEmptyValue(propuesta?.clasif_cod))
+          fieldsToArchive.push("clasif_cod");
+        if (fieldsToArchive.length) {
+          const orConditions = [];
+          if (fieldsToArchive.includes("categoria_cod")) {
+            orConditions.push({
+              AND: [
+                { new_categoria_cod: { not: "" } },
+                { new_categoria_cod: { not: null } },
+              ],
+            });
+          }
+          if (fieldsToArchive.includes("tipo_cod")) {
+            orConditions.push({
+              AND: [
+                { new_tipo_cod: { not: "" } },
+                { new_tipo_cod: { not: null } },
+              ],
+            });
+          }
+          if (fieldsToArchive.includes("clasif_cod")) {
+            orConditions.push({
+              AND: [
+                { new_clasif_cod: { not: "" } },
+                { new_clasif_cod: { not: null } },
+              ],
+            });
+          }
+          await prisma.actualizacion.updateMany({
+            where: {
+              campaniaId: Number(campaniaId),
+              sku,
+              estado: "pendiente",
+              archivada: false,
+              OR: orConditions,
+            },
+            data: {
+              archivada: true,
+              archivadaAt: new Date(),
+              archivadaBy: decidedBy || "admin",
+            },
+          });
+        }
 
         const act = await prisma.actualizacion.create({
           data: {

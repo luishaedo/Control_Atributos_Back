@@ -50,12 +50,44 @@ export function CampaniasService(prisma) {
     async activar(id) {
       return prisma.$transaction(async (tx) => {
         await tx.campania.updateMany({ data: { activa: false } })
-        return tx.campania.update({ where: { id: Number(id) }, data: { activa: true } })
+        return tx.campania.update({
+          where: { id: Number(id) },
+          data: { activa: true, activatedOnce: true },
+        })
       })
     },
 
     listar() {
       return prisma.campania.findMany({ orderBy: { id: 'asc' } })
+    },
+
+    async actualizar(id, payload = {}) {
+      const campaniaId = Number(id)
+      if (!campaniaId) {
+        const err = new Error('id invÃ¡lido')
+        err.status = 400
+        throw err
+      }
+      const camp = await prisma.campania.findUnique({ where: { id: campaniaId } })
+      if (!camp) {
+        const err = new Error('CampaÃ±a no encontrada')
+        err.status = 404
+        throw err
+      }
+      if (camp.activatedOnce) {
+        const err = new Error('La campaÃ±a ya fue activada y no puede editarse')
+        err.status = 400
+        throw err
+      }
+      const data = {
+        ...(payload.nombre ? { nombre: payload.nombre } : {}),
+        ...(payload.inicia ? { inicia: new Date(payload.inicia) } : {}),
+        ...(payload.termina ? { termina: new Date(payload.termina) } : {}),
+        ...(payload.categoria_objetivo_cod !== undefined ? { categoria_objetivo_cod: payload.categoria_objetivo_cod || null } : {}),
+        ...(payload.tipo_objetivo_cod !== undefined ? { tipo_objetivo_cod: payload.tipo_objetivo_cod || null } : {}),
+        ...(payload.clasif_objetivo_cod !== undefined ? { clasif_objetivo_cod: payload.clasif_objetivo_cod || null } : {}),
+      }
+      return prisma.campania.update({ where: { id: campaniaId }, data })
     },
   }
 }

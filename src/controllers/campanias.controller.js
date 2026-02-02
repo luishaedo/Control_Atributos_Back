@@ -20,5 +20,13 @@ export function CampaniasController(prisma) {
       if (Number.isNaN(id)) return res.status(400).json({ error: 'id inválido' })
       res.json(await svc.activar(id))
     },
+    actualizar: async (req, res) => {
+      try {
+        const id = Number(req.params.id)
+        res.json(await svc.actualizar(id, req.body || {}))
+      } catch (e) {
+        res.status(e.status || 500).json({ error: e.message || 'Error' })
+      }
+    }
   }
 }

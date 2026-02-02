@@ -212,6 +212,10 @@ export function WorkflowController(prisma) {
         }),
       ]);
       const snapshotBySku = new Map(snapshots.map((snap) => [snap.sku, snap]));
+      const unknownBySku = new Map(
+        (await prisma.unknownSku.findMany({ where: { campaniaId, sku: { in: skus } } }))
+          .map((u) => [u.sku, u])
+      )
       const decisionBySku = new Map();
       for (const decision of decisions) {
         if (!decisionBySku.has(decision.sku)) {
@@ -222,7 +226,18 @@ export function WorkflowController(prisma) {
       const items = skus.map((sku) => {
         const decision = decisionBySku.get(sku) || null;
         const maestro = snapshotBySku.get(sku) || null;
-        const { changes, verified } = buildChangeSet({ decision, maestro });
+        const unknown = unknownBySku.get(sku) || null;
+        let changes = {};
+        let verified = {};
+        if (decision) {
+          ({ changes, verified } = buildChangeSet({ decision, maestro }));
+        } else if (unknown) {
+          changes = {
+            categoria_cod: unknown.categoria_cod || "",
+            tipo_cod: unknown.tipo_cod || "",
+            clasif_cod: unknown.clasif_cod || "",
+          };
+        }
         return {
           sku,
           maestro: maestro
@@ -234,6 +249,16 @@ export function WorkflowController(prisma) {
             : null,
           changes,
           verified,
+          skuType: unknown ? "UNKNOWN" : "KNOWN",
+          unknown: unknown
+            ? {
+                id: unknown.id,
+                categoria_cod: unknown.categoria_cod || "",
+                tipo_cod: unknown.tipo_cod || "",
+                clasif_cod: unknown.clasif_cod || "",
+                status: unknown.status || null,
+              }
+            : null,
           decision: decision
             ? {
                 id: decision.id,
@@ -263,6 +288,24 @@ export function WorkflowController(prisma) {
         stage,
         updatedBy: updatedBy || null,
       });
+
+      if (stage === "consolidate") {
+        const unknownSku = ensureModel(prisma.unknownSku, "unknownSku", res);
+        if (!unknownSku) return;
+        const unknown = await unknownSku.findUnique({
+          where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } },
+        });
+        if (unknown && unknown.status !== "APPROVED") {
+          await unknownSku.update({
+            where: { id: unknown.id },
+            data: {
+              status: "APPROVED",
+              decidedBy: updatedBy || null,
+              decidedAt: new Date(),
+            },
+          });
+        }
+      }
       res.json({ ok: true });
     },
 
@@ -518,7 +561,7 @@ export function WorkflowController(prisma) {
       const skus = stages.map((row) => row.sku);
       if (!skus.length) return res.json({ items: [] });
 
-      const [decisions, snapshots] = await Promise.all([
+      const [decisions, snapshots, unknowns] = await Promise.all([
         prisma.actualizacion.findMany({
           where: {
             campaniaId,
@@ -529,8 +572,10 @@ export function WorkflowController(prisma) {
         prisma.campaniaMaestro.findMany({
           where: { campaniaId, sku: { in: skus } },
         }),
+        prisma.unknownSku.findMany({ where: { campaniaId, sku: { in: skus } } }),
       ]);
       const snapshotBySku = new Map(snapshots.map((snap) => [snap.sku, snap]));
+      const unknownBySku = new Map(unknowns.map((u) => [u.sku, u]));
       const decisionBySku = new Map();
       for (const decision of decisions) {
         if (!decisionBySku.has(decision.sku)) {
@@ -542,7 +587,17 @@ export function WorkflowController(prisma) {
         .map((sku) => {
           const decision = decisionBySku.get(sku) || null;
           const maestro = snapshotBySku.get(sku) || null;
-          const { changes } = buildChangeSet({ decision, maestro });
+          const unknown = unknownBySku.get(sku) || null;
+          let changes = {};
+          if (decision) {
+            ({ changes } = buildChangeSet({ decision, maestro }));
+          } else if (unknown) {
+            changes = {
+              categoria_cod: unknown.categoria_cod || "",
+              tipo_cod: unknown.tipo_cod || "",
+              clasif_cod: unknown.clasif_cod || "",
+            };
+          }
           if (!Object.keys(changes).length) return null;
           return {
             sku,
@@ -567,6 +622,7 @@ export function WorkflowController(prisma) {
                 }
               : null,
             changes,
+            skuType: unknown ? "UNKNOWN" : "KNOWN",
           };
         })
         .filter(Boolean);
@@ -650,6 +706,13 @@ export function WorkflowController(prisma) {
           });
         }
       }
+
+      await unknownSku.deleteMany({
+        where: {
+          campaniaId,
+          status: "REJECTED",
+        },
+      });
 
       const summary = await buildSummary(campaniaId);
       const query = `campaniaId=${campaniaId}`;
