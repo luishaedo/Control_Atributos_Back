@@ -9,8 +9,22 @@ import adminRouter from './routes/admin.routes.js'
 const prisma = new PrismaClient()
 const app = express()
 
+// CORS
+const rawOrigins = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ''
+const allowList = rawOrigins.split(',').map(s => s.trim()).filter(Boolean)
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true)
+    if (!allowList.length) return cb(null, true)
+    return cb(null, allowList.includes(origin))
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+}
+
 // Middlewares globales
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(express.json({ limit: '20mb' }))
 
 // Health

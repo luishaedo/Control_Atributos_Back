@@ -26,6 +26,8 @@ export default function adminRouter(prisma) {
 
   // Salud
   r.get('/ping', authIfProd(), admin.ping)
+  r.post('/login', admin.login)
+  r.post('/logout', authIfProd(), admin.logout)
 
   // CampaÃ±as (ediciÃ³n)
   r.patch('/campanias/:id', authIfProd(), camp.actualizar)
