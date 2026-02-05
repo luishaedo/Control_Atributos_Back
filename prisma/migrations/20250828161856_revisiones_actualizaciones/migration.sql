@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "Actualizacion" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "ts" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "id" SERIAL PRIMARY KEY,
+    "ts" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "campaniaId" INTEGER NOT NULL,
     "sku" TEXT NOT NULL,
     "old_categoria_cod" TEXT,
@@ -12,7 +12,7 @@ CREATE TABLE "Actualizacion" (
     "new_clasif_cod" TEXT NOT NULL,
     "estado" TEXT NOT NULL,
     "decidedBy" TEXT,
-    "decidedAt" DATETIME,
+    "decidedAt" TIMESTAMP(3),
     "notas" TEXT
 );
 

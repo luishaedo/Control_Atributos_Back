@@ -27,10 +27,10 @@ CREATE TABLE "Maestro" (
 
 -- CreateTable
 CREATE TABLE "Campania" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL PRIMARY KEY,
     "nombre" TEXT NOT NULL,
-    "inicia" DATETIME NOT NULL,
-    "termina" DATETIME NOT NULL,
+    "inicia" TIMESTAMP(3) NOT NULL,
+    "termina" TIMESTAMP(3) NOT NULL,
     "categoria_objetivo_cod" TEXT,
     "tipo_objetivo_cod" TEXT,
     "clasif_objetivo_cod" TEXT,
@@ -52,8 +52,8 @@ CREATE TABLE "CampaniaMaestro" (
 
 -- CreateTable
 CREATE TABLE "Escaneo" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "ts" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "id" SERIAL PRIMARY KEY,
+    "ts" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "campaniaId" INTEGER NOT NULL,
     "sucursal" TEXT NOT NULL,
     "email" TEXT NOT NULL,

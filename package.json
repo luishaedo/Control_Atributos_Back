@@ -4,11 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node src/server.js",
+    "dev": "PORT=4000 node src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:deploy": "prisma migrate deploy",
     "seed": "node prisma/seed.js"
+  },
+  "engines": {
+    "node": ">=18 <21"
   },
   "dependencies": {
     "@prisma/client": "^5.17.0",

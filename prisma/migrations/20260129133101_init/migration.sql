@@ -4,7 +4,7 @@ CREATE TABLE "SkuStage" (
     "sku" TEXT NOT NULL,
     "stage" TEXT NOT NULL,
     "updatedBy" TEXT,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY ("campaniaId", "sku"),
     CONSTRAINT "SkuStage_campaniaId_fkey" FOREIGN KEY ("campaniaId") REFERENCES "Campania" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -12,7 +12,7 @@ CREATE TABLE "SkuStage" (
 
 -- CreateTable
 CREATE TABLE "UnknownSku" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL PRIMARY KEY,
     "campaniaId" INTEGER NOT NULL,
     "sku" TEXT NOT NULL,
     "descripcion" TEXT,
@@ -21,8 +21,8 @@ CREATE TABLE "UnknownSku" (
     "clasif_cod" TEXT,
     "status" TEXT,
     "updatedBy" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "UnknownSku_campaniaId_fkey" FOREIGN KEY ("campaniaId") REFERENCES "Campania" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
