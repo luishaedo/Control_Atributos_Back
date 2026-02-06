@@ -50,7 +50,19 @@ if (!PORT) {
   process.exit(1)
 }
 
-const server = app.listen(PORT, () => console.log(`API listening on port ${PORT}`))
+const startServer = async () => {
+  try {
+    await prisma.$connect()
+    console.log('✅ DB connected')
+  } catch (error) {
+    console.error('❌ DB connection failed', error)
+    process.exit(1)
+  }
+
+  return app.listen(PORT, () => console.log(`API listening on port ${PORT}`))
+}
+
+const server = await startServer()
 
 const shutdown = async signal => {
   console.log(`Received ${signal}, shutting down...`)
