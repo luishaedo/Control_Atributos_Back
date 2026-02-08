@@ -6,23 +6,40 @@ import { PrismaClient } from '@prisma/client'
 import publicRouter from './routes/public.routes.js'
 import adminRouter from './routes/admin.routes.js'
 
+const dbUrl = String(process.env.DATABASE_URL || '').trim()
+if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+  console.error('DATABASE_URL debe usar PostgreSQL (postgresql:// o postgres://). SQLite no esta soportado.')
+  process.exit(1)
+}
+
 const prisma = new PrismaClient()
 const app = express()
 
 app.set('trust proxy', 1)
 
 // CORS
+const isProd = process.env.NODE_ENV === 'production'
+const allowAllCors = String(process.env.CORS_ALLOW_ALL || '').trim().toLowerCase() === 'true'
 const rawOrigins = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ''
-const allowList = rawOrigins.split(',').map(s => s.trim()).filter(Boolean)
+const configuredAllowList = rawOrigins.split(',').map((s) => s.trim()).filter(Boolean)
+const devFallbackAllowList = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]
+const allowList = configuredAllowList.length ? configuredAllowList : (isProd ? [] : devFallbackAllowList)
+
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true)
-    if (!allowList.length) return cb(null, true)
-    return cb(null, allowList.includes(origin))
+    if (allowAllCors) return cb(null, true)
+    if (allowList.includes(origin)) return cb(null, true)
+    return cb(new Error(`Origin no permitido por CORS: ${origin}`))
   },
   credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }
 
 // Middlewares globales
@@ -31,7 +48,7 @@ app.use(express.json({ limit: '20mb' }))
 
 // Health
 app.get('/health', (_req, res) => res.json({ ok: true }))
-app.get('/api/health', (_, res) => res.json({ ok: true }))
+app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
 // Routers
 app.use('/api', publicRouter(prisma))
@@ -39,6 +56,9 @@ app.use('/api/admin', adminRouter(prisma))
 
 // Error handler
 app.use((err, _req, res, _next) => {
+  if (String(err?.message || '').startsWith('Origin no permitido por CORS')) {
+    return res.status(403).json({ error: err.message })
+  }
   console.error(err)
   res.status(500).json({ error: 'Internal server error' })
 })
@@ -53,9 +73,9 @@ if (!PORT) {
 const startServer = async () => {
   try {
     await prisma.$connect()
-    console.log('✅ DB connected')
+    console.log('DB connected')
   } catch (error) {
-    console.error('❌ DB connection failed', error)
+    console.error('DB connection failed', error)
     process.exit(1)
   }
 
@@ -64,7 +84,7 @@ const startServer = async () => {
 
 const server = await startServer()
 
-const shutdown = async signal => {
+const shutdown = async (signal) => {
   console.log(`Received ${signal}, shutting down...`)
   server.close(async () => {
     await prisma.$disconnect()
@@ -74,10 +94,10 @@ const shutdown = async signal => {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
-process.on('unhandledRejection', err => {
+process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection', err)
 })
-process.on('uncaughtException', err => {
+process.on('uncaughtException', (err) => {
   console.error('Uncaught exception', err)
   shutdown('uncaughtException')
 })

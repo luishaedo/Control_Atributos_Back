@@ -13,6 +13,14 @@ function parseCookies(header = '') {
     }, {})
 }
 
+const TRUTHY_VALUES = new Set(['1', 'true', 'yes', 'on'])
+let bypassWarningShown = false
+
+function isDevAuthBypassEnabled() {
+  const raw = String(process.env.ADMIN_AUTH_BYPASS_DEV || '').trim().toLowerCase()
+  return process.env.NODE_ENV !== 'production' && TRUTHY_VALUES.has(raw)
+}
+
 export function authAdmin() {
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || ''
   return (req, res, next) => {
@@ -24,5 +32,19 @@ export function authAdmin() {
     const token = bearer || cookieToken
     if (token !== ADMIN_TOKEN) return res.status(401).json({ error: 'No autorizado' })
     next()
+  }
+}
+
+export function authAdminOrDevBypass() {
+  const strictAuth = authAdmin()
+  return (req, res, next) => {
+    if (isDevAuthBypassEnabled()) {
+      if (!bypassWarningShown) {
+        bypassWarningShown = true
+        console.warn('[SECURITY] ADMIN_AUTH_BYPASS_DEV habilitado: rutas admin sin auth (solo desarrollo).')
+      }
+      return next()
+    }
+    return strictAuth(req, res, next)
   }
 }

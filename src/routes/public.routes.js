@@ -13,15 +13,11 @@ export default function publicRouter(prisma) {
 
   r.get('/diccionarios', dic.listar)
   r.get('/maestro', mae.listar)
-  r.post('/diccionarios/import', dic.importar)
 
   r.get('/campanias', camp.listar)
-  r.post('/campanias', camp.crear)
-  r.post('/campanias/:id/activar', camp.activar)
   r.get('/campanias/:id/maestro/:sku', mae.getUnoCampania)
 
   r.get('/maestro/:sku', mae.getUno)
-  r.post('/maestro/import', mae.importar)
 
   r.post('/escaneos', esc.crear)
 
