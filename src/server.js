@@ -20,15 +20,28 @@ app.set('trust proxy', 1)
 // CORS
 const isProd = process.env.NODE_ENV === 'production'
 const allowAllCors = String(process.env.CORS_ALLOW_ALL || '').trim().toLowerCase() === 'true'
-const rawOrigins = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ''
-const configuredAllowList = rawOrigins.split(',').map((s) => s.trim()).filter(Boolean)
+const configuredOriginVars = [
+  process.env.CORS_ORIGINS,
+  process.env.CORS_ORIGIN,
+  process.env.FRONTEND_URL,
+  process.env.APP_URL,
+]
+const configuredAllowList = configuredOriginVars
+  .flatMap((value) => String(value || '').split(','))
+  .map((value) => value.trim())
+  .filter(Boolean)
 const devFallbackAllowList = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
 ]
-const allowList = configuredAllowList.length ? configuredAllowList : (isProd ? [] : devFallbackAllowList)
+const prodFallbackAllowList = [
+  'https://stockeador-client-1nll.vercel.app',
+]
+const allowList = configuredAllowList.length
+  ? configuredAllowList
+  : (isProd ? prodFallbackAllowList : devFallbackAllowList)
 
 const corsOptions = {
   origin: (origin, cb) => {
@@ -44,6 +57,7 @@ const corsOptions = {
 
 // Middlewares globales
 app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 app.use(express.json({ limit: '20mb' }))
 
 // Health
