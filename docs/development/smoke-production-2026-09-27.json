@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-09-27T17:25:17.658Z",
+  "base": "https://control-atributos-back.onrender.com",
+  "origin": "https://stockeador-client-1nll.vercel.app",
+  "expectedVersion": null,
+  "timeoutMs": 10000,
+  "passed": false,
+  "results": [
+    {
+      "path": "/api/health",
+      "status": null,
+      "durationMs": 10017,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/health/live",
+      "status": null,
+      "durationMs": 10011,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/health/ready",
+      "status": null,
+      "durationMs": 10010,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/campanias",
+      "status": null,
+      "durationMs": 10004,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/diccionarios",
+      "status": null,
+      "durationMs": 10003,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/maestro?page=1&pageSize=1",
+      "status": null,
+      "durationMs": 10004,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/admin/ping",
+      "status": 401,
+      "expectedStatus": 401,
+      "durationMs": 4277,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": null,
+      "passed": true
+    }
+  ]
+}

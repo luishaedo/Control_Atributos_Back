@@ -1,8 +1,8 @@
 import { toCSV } from '../utils/csv.js'
 
-export function AdminController(prisma) {
-  const ADMIN_TOKEN = process.env.ADMIN_TOKEN || ''
-  const isProd = process.env.NODE_ENV === 'production'
+export function AdminController(prisma, env = process.env) {
+  const ADMIN_TOKEN = env.ADMIN_TOKEN || ''
+  const isProd = env.NODE_ENV === 'production'
   const cookieOptions = {
     httpOnly: true,
     sameSite: isProd ? 'none' : 'lax',

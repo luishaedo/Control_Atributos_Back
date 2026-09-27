@@ -1,0 +1,42 @@
+[
+  {
+    "name": "20250827230701_init",
+    "sha256": "d1697028c6ceddc9f6d9c00bfa9ae95241694a8ded3efe07411bc1332c677bc9",
+    "bytes": 2246
+  },
+  {
+    "name": "20250828161856_revisiones_actualizaciones",
+    "sha256": "a61689f32c5d1c932ebb1ba4193409efe79dbb2487889d34ed1cf8c9ca1efa5c",
+    "bytes": 609
+  },
+  {
+    "name": "20250831125857_add_archivado_cols",
+    "sha256": "78dc73f67f9258ce3eb8f038204f4a86d2f8d064440272892c851327869af87e",
+    "bytes": 227
+  },
+  {
+    "name": "20250831230017_export_marks",
+    "sha256": "4633dd4911463a022f00532386689ed4b693462a9c31fb34e76df412f9d1b711",
+    "bytes": 307
+  },
+  {
+    "name": "20250902181321_add_relation_actualizacion_campania",
+    "sha256": "7d6acfcd4423b2800eabd1c8744837103fdc84ccd92d566b677f2a9d6b9768d0",
+    "bytes": 187
+  },
+  {
+    "name": "20260129133101_init",
+    "sha256": "41a5e4244b0ce52e81a1f8918e6b1380ec9daaf0e88d8917e369b622713bed5d",
+    "bytes": 1218
+  },
+  {
+    "name": "20260130223650_add_unknown_sku_tracking",
+    "sha256": "84ad87ca24f8cae6f0cc9b0a826d7f74d2a444d2b4f0a09806c280c25ac4b367",
+    "bytes": 1222
+  },
+  {
+    "name": "20260201210645_add_activated_once",
+    "sha256": "b970021b0929a958758ef78c61f398e929517a67de83dedf21e130c29b0b5532",
+    "bytes": 98
+  }
+]

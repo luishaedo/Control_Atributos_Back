@@ -1,0 +1,291 @@
+{
+  "checkedAt": "2026-09-27T23:08:03.058Z",
+  "environment": "API local + Neon isolated branch",
+  "commands": [
+    {
+      "operation": "migrate deploy",
+      "exitCode": 0,
+      "noPending": false,
+      "upToDate": false,
+      "emptyDiff": false
+    },
+    {
+      "operation": "migrate deploy",
+      "exitCode": 0,
+      "noPending": true,
+      "upToDate": false,
+      "emptyDiff": false
+    },
+    {
+      "operation": "migrate status",
+      "exitCode": 0,
+      "noPending": false,
+      "upToDate": true,
+      "emptyDiff": false
+    },
+    {
+      "operation": "migrate diff",
+      "exitCode": 0,
+      "noPending": false,
+      "upToDate": false,
+      "emptyDiff": true
+    }
+  ],
+  "reports": [
+    {
+      "checkedAt": "2026-09-27T23:07:58.619Z",
+      "base": "http://127.0.0.1:43127",
+      "origin": "https://stockeador-client-1nll.vercel.app",
+      "expectedVersion": "r02-local-working-tree",
+      "timeoutMs": 10000,
+      "passed": true,
+      "results": [
+        {
+          "path": "/api/health",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 56,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "78888b0d-b726-490c-b80b-cb4b9f192c3a",
+          "passed": true
+        },
+        {
+          "path": "/api/health/live",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 24,
+          "contractOK": true,
+          "corsOK": true,
+          "version": "r02-local-working-tree",
+          "versionOK": true,
+          "requestId": "2c7a31c8-ba35-4874-9bf8-9960197bd21a",
+          "passed": true
+        },
+        {
+          "path": "/api/health/ready",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 390,
+          "contractOK": true,
+          "corsOK": true,
+          "version": "r02-local-working-tree",
+          "versionOK": true,
+          "requestId": "d392531c-299a-4f2c-a1be-96ca50d7f9db",
+          "passed": true
+        },
+        {
+          "path": "/api/campanias",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 1668,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "889408c0-bae5-4eb5-8890-5cc2e5e2c4e0",
+          "passed": true
+        },
+        {
+          "path": "/api/diccionarios",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 1686,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "ec1dadbe-d62e-4b8b-a8be-eb1a175819d4",
+          "passed": true
+        },
+        {
+          "path": "/api/maestro?page=1&pageSize=1",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 1689,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "754c9f9b-a4c3-4a38-87f7-75db58aaa205",
+          "passed": true
+        },
+        {
+          "path": "/api/admin/ping",
+          "status": 401,
+          "expectedStatus": 401,
+          "durationMs": 4,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "4956d3cd-0143-4128-b96b-64716ce1124a",
+          "passed": true
+        }
+      ],
+      "afterProcessRestart": false
+    },
+    {
+      "checkedAt": "2026-09-27T23:07:59.393Z",
+      "base": "http://127.0.0.1:43127",
+      "origin": "https://stockeador-client-1nll.vercel.app",
+      "expectedVersion": "r02-local-working-tree",
+      "timeoutMs": 10000,
+      "passed": true,
+      "results": [
+        {
+          "path": "/api/health",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 3,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "2a348632-3654-4179-9d33-e3edb313ae08",
+          "passed": true
+        },
+        {
+          "path": "/api/health/live",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 4,
+          "contractOK": true,
+          "corsOK": true,
+          "version": "r02-local-working-tree",
+          "versionOK": true,
+          "requestId": "18e9c3c8-f140-415e-bca4-b520cebbaaef",
+          "passed": true
+        },
+        {
+          "path": "/api/health/ready",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 381,
+          "contractOK": true,
+          "corsOK": true,
+          "version": "r02-local-working-tree",
+          "versionOK": true,
+          "requestId": "73065cd3-2783-4f47-8123-442ca5034262",
+          "passed": true
+        },
+        {
+          "path": "/api/campanias",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 385,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "6b022545-e4ab-4924-acee-486be978ed33",
+          "passed": true
+        },
+        {
+          "path": "/api/diccionarios",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 384,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "101af0aa-00d3-4981-928a-2dde1c77db20",
+          "passed": true
+        },
+        {
+          "path": "/api/maestro?page=1&pageSize=1",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 382,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "f5ae85f7-afb7-469e-b4ec-0b421f75dddd",
+          "passed": true
+        },
+        {
+          "path": "/api/admin/ping",
+          "status": 401,
+          "expectedStatus": 401,
+          "durationMs": 6,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "874cae28-5f57-4966-92a6-313eb33369af",
+          "passed": true
+        }
+      ],
+      "afterProcessRestart": false
+    },
+    {
+      "checkedAt": "2026-09-27T23:08:03.046Z",
+      "base": "http://127.0.0.1:43127",
+      "origin": "https://stockeador-client-1nll.vercel.app",
+      "expectedVersion": "r02-local-working-tree",
+      "timeoutMs": 10000,
+      "passed": true,
+      "results": [
+        {
+          "path": "/api/health",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 12,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "bbe118c4-0a7c-415c-b045-3364f9282cb0",
+          "passed": true
+        },
+        {
+          "path": "/api/health/live",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 16,
+          "contractOK": true,
+          "corsOK": true,
+          "version": "r02-local-working-tree",
+          "versionOK": true,
+          "requestId": "91d533c8-ace7-4cd3-a38e-b2a7fdd9beab",
+          "passed": true
+        },
+        {
+          "path": "/api/health/ready",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 382,
+          "contractOK": true,
+          "corsOK": true,
+          "version": "r02-local-working-tree",
+          "versionOK": true,
+          "requestId": "9c0f3d4b-9b52-48c8-a899-89125b89d60e",
+          "passed": true
+        },
+        {
+          "path": "/api/campanias",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 368,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "f2029fdf-06b3-4f44-b051-a46d8b4c7e80",
+          "passed": true
+        },
+        {
+          "path": "/api/diccionarios",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 1657,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "c7f4df0e-1661-47af-ad34-443b410a2bfa",
+          "passed": true
+        },
+        {
+          "path": "/api/maestro?page=1&pageSize=1",
+          "status": 200,
+          "expectedStatus": 200,
+          "durationMs": 1659,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "27a47fce-6ed7-47a2-8b6c-7c91ae34bf88",
+          "passed": true
+        },
+        {
+          "path": "/api/admin/ping",
+          "status": 401,
+          "expectedStatus": 401,
+          "durationMs": 13,
+          "contractOK": true,
+          "corsOK": true,
+          "requestId": "37cc643a-5e13-4a4b-8600-7a0a57e208dd",
+          "passed": true
+        }
+      ],
+      "afterProcessRestart": true
+    }
+  ]
+}

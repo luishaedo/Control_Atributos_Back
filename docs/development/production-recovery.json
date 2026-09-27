@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-09-27T23:18:28.519Z",
+  "target": "Neon production/neondb",
+  "operations": [
+    {
+      "operation": "migrate deploy",
+      "exitCode": 0,
+      "upToDate": false,
+      "emptyDiff": false
+    },
+    {
+      "operation": "migrate status",
+      "exitCode": 0,
+      "upToDate": true,
+      "emptyDiff": false
+    },
+    {
+      "operation": "migrate diff",
+      "exitCode": 0,
+      "upToDate": false,
+      "emptyDiff": true
+    }
+  ],
+  "before": {
+    "database": "neondb",
+    "schema": "public",
+    "user_relations": 0
+  },
+  "after": [
+    {
+      "migrations": 8,
+      "applied": 8
+    }
+  ],
+  "passed": true
+}

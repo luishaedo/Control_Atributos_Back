@@ -1,5 +1,5 @@
 // src/routes/admin.routes.js
-import { Router } from 'express'
+import { createAsyncRouter as Router } from '../utils/asyncRouter.js'
 import { upload } from '../middlewares/upload.js'
 import { authAdminOrDevBypass } from '../middlewares/authAdmin.js'
 import { AdminController } from '../controllers/admin.controller.js'
@@ -11,10 +11,10 @@ import { WorkflowController } from '../controllers/workflow.controller.js'
 import { ActualizacionesController } from '../controllers/actualizaciones.controller.js'
 import { CampaniasController } from '../controllers/campanias.controller.js'
 
-export default function adminRouter(prisma) {
+export default function adminRouter(prisma, env = process.env) {
   const r = Router()
-  const requireAdmin = authAdminOrDevBypass()
-  const admin = AdminController(prisma)
+  const requireAdmin = authAdminOrDevBypass(env)
+  const admin = AdminController(prisma, env)
   const imp = AdminImportController(prisma)
   const rev = RevisionesController(prisma)
   const dic = DiccionariosController(prisma)

@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { createAsyncRouter as Router } from '../utils/asyncRouter.js'
 import { DiccionariosController } from '../controllers/diccionarios.controller.js'
 import { CampaniasController } from '../controllers/campanias.controller.js'
 import { MaestroController } from '../controllers/maestro.controller.js'

@@ -4,6 +4,7 @@ node_modules/
 # Archivos de entorno
 .env
 .env.local
+.r02-runtime/
 
 # Prisma SQLite
 prisma/dev.db
