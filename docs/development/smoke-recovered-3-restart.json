@@ -1,0 +1,71 @@
+{
+  "checkedAt": "2026-09-28T20:42:37.725Z",
+  "base": "https://control-atributos-back.onrender.com",
+  "origin": "https://stockeador-client-1nll.vercel.app",
+  "expectedVersion": "487a0e9e9ee97ab306f133aee7b3792d68e75783",
+  "timeoutMs": 10000,
+  "passed": false,
+  "results": [
+    {
+      "path": "/api/health",
+      "status": null,
+      "durationMs": 10006,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/health/live",
+      "status": null,
+      "durationMs": 10014,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/health/ready",
+      "status": null,
+      "durationMs": 10013,
+      "passed": false,
+      "failure": "TIMEOUT"
+    },
+    {
+      "path": "/api/campanias",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 4474,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "d5d0bbb8-ff78-4d6d-91e4-e2cb16abcde4",
+      "passed": true
+    },
+    {
+      "path": "/api/diccionarios",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 4934,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "8b0f0717-d307-4cff-bf62-dc4db1484830",
+      "passed": true
+    },
+    {
+      "path": "/api/maestro?page=1&pageSize=1",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 4853,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "16791dc0-0ff8-49f4-86db-39764d26c8fa",
+      "passed": true
+    },
+    {
+      "path": "/api/admin/ping",
+      "status": 401,
+      "expectedStatus": 401,
+      "durationMs": 236,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "4c47df4f-27b9-47b6-a0b4-b2218256aa89",
+      "passed": true
+    }
+  ]
+}

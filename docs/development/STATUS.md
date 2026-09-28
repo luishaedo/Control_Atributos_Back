@@ -1,51 +1,40 @@
 # Estado de trabajo compartido
 
-Actualizado: 27/09/2026. Coordinador actual: Codex, chat de roadmap y primera entrega.
+Actualizado: 28/09/2026. Coordinador: Codex, chat de roadmap y recuperación R0.2.
 
 ## Última entrega y propiedad
 
-| Tarea | Estado | Responsable | Archivos reservados |
+| Tarea | Estado | Responsable | Alcance |
 |---|---|---|---|
-| R0.1 | IMPLEMENTADO_LOCAL | Codex/coordinador de este chat | Backend app/server, routers, lifecycle/auth, health service, asyncRouter/http, test/http.test.js, package.json, .env.example, README y runbook |
-| Documentación de coordinación | COMPLETADA_LOCAL | Mismo coordinador | AGENTS.md raíz y ambos repos; ROADMAP.md raíz; docs/development/* |
-| R0.2 | EN_CURSO | Codex/coordinador de este chat | Recuperación y verificación Render/Neon productivos autorizada por usuario; scripts de operación, publicación backend y docs/development/* |
+| R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
+| R0.2 | EN_CURSO; recuperación productiva VALIDADA | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
+| Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
-No hay otros agentes delegados por este chat. R0.2 iniciado por pedido del usuario de avanzar al siguiente paso; reservado diagnóstico remoto de lectura, scripts/test de smoke y documentación de coordinación. Esta tabla no es un bloqueo automático de archivos.
+No hay agentes delegados. Reserva actual: cierre documental de recuperación R0.2. No se modificó código frontend ni reglas de negocio en esta continuación.
 
-## Base y ambiente
+## Despliegue real
 
-Recuperación productiva autorizada explícitamente por el usuario al pedir continuar con el despliegue Render. Destino Render/Neon confirmado por endpoint, base neondb y esquema public. Preflight real: cero tablas/vistas/secuencias de usuario. Se aplicaron las ocho migraciones validadas mediante Prisma: status actualizado, diff vacío e historial 8/8. Evidencia production-recovery.json. No seed/reset ni borrado de datos. Publicación del backend y smoke remoto EN_CURSO; los bullets históricos siguientes describen la base previa.
+- Backend publicado en main y desplegado manualmente: `487a0e9e9ee97ab306f133aee7b3792d68e75783`. Incluye R0.1 y scripts/evidencias previas de R0.2. Base anterior b56e2dd; Render antes ejecutaba 266cea5.
+- Render: https://control-atributos-back.onrender.com, servicio srv-d62ji3ffte5s73b4iefg, deploy dep-dasq9nh7lnhs73ab3vd0, estado Live. Build observado: Node 20.20.2, Prisma 5.22.0. Plan Free, sin cambio de plan.
+- Build `npm ci && npx prisma generate`, start `npm run start`, health `/api/health`. No paso automático de migración. Auto Deploy muestra On Commit, pero el push anterior no disparó despliegue; se usó Manual Deploy. Integración GitHub pendiente de revisar.
+- Neon production/neondb/public: destino cotejado con Render, preflight cero relaciones de usuario, ocho migraciones aplicadas con Prisma, status al día, diff vacío e historial 8/8. Evidencia production-recovery.json. Producción SÍ fue modificada el 27/09 para recuperar esquema y backend; sin seed/reset ni borrado de datos.
+- Frontend https://stockeador-client-1nll.vercel.app/: el 28/09, tras recarga con backend disponible, muestra «No hay campañas disponibles» y deshabilita escaneo sin campaña. Sin errores/warnings capturados en esa revisión. No es una prueba de flujos de negocio ni del panel autenticado. SHA local auditado a361e7e; no se verificó SHA Vercel.
 
-- Backend: se hizo fetch y fast-forward limpio de 266cea5 a b56e2dd antes de implementar; las modificaciones R0.1 están encima de b56e2dd, sin commit/push todavía.
-- Frontend local/main auditado: a361e7e. No se planifican cambios de aplicación frontend en R0.1.
-- Producción: Vercel `https://stockeador-client-1nll.vercel.app`, Render `https://control-atributos-back.onrender.com`.
-- Render live confirmado: 266cea59f089fd1bc42aa4850d924de51dce5167, plan Free, build sin migraciones. Logs P2021 por tablas Campania/DicCategoria/DicClasif ausentes y rechazos async no manejados. Health 200, admin 401, consultas funcionales timeout incluso con proceso activo. Ver DIAGNOSTICO_RENDER_2026-09-27.md y dos smoke JSON.
-- Neon: proyecto control-atributos-db, rama production, neondb, PostgreSQL 17. Dos SELECT de metadatos confirman public, cero tablas de usuario visibles y ausencia de public._prisma_migrations. Falta correspondencia exacta con DATABASE_URL; credenciales no reveladas.
-- Producción no modificada. Sí se ejecutaron migraciones y fixtures sintéticos en la rama Neon aislada autorizada; ver migration-validation/RESULTS.md. Sin seed ni reset.
+## Validación y evidencia
 
-## Pendientes externos
+- `npm test`: 22/22 el 27/09, antes de publicar (17 HTTP y 5 smoke, dobles sin DB). Node local 24.20.0. No se repitió suite por esta entrega documental.
+- Rama Neon aislada persistente `r02-migration-validation`, sin expiración: SQL 10 tablas/90 columnas sin diferencias, 10 PK/5 FK, fixtures con ROLLBACK; DB r02_prisma_validation: migrate deploy dos veces/status/diff correctos, historial 8/8. API local con Neon real: tres smoke exitosos incluido reinicio. Ver migration-validation/RESULTS.md.
+- Producción: smoke-recovered-1.json y -2.json exitosos el 27/09, siete comprobaciones cada uno.
+- Reinicio real solicitado y confirmado por evento Render el 28/09 a las 17:41 ART; captura render-restarted.png. Primer smoke tras reinicio (-3-restart.json) falló por timeout de 10 s en tres health; consultas funcionales y admin sí respondieron. Se conserva el fallo.
+- Repetición después del arranque: smoke-recovered-4-restart-warm.json, 20:43:03 UTC, 7/7 PASS, SHA exacto, JSON/CORS válidos y admin 401. Latencias 248–760 ms. Son tres smoke productivos exitosos en total, uno después del reinicio; no tres intentos consecutivos sin fallos.
+- Credenciales temporales de pruebas y producción eliminadas; no reutilizar archivos de conexión ni imprimir variables de entorno.
 
-27/09, continuación R0.2: usuario autorizó expresamente crear/conservar rama Neon y probar migraciones; pidió autonomía para continuar desarrollo. Bloqueo anterior de aprobación resuelto. Rama `r02-migration-validation` creada (`br-crimson-poetry-an1ipez1`), sin expiración, plan Free sin cambio de plan. En su neondb se ejecutaron ocho migraciones SQL: 10 tablas/90 columnas, cero diferencias de tipos/nulabilidad, 10 PK y 5 FK. Fixtures de restricciones ejecutados con ROLLBACK exitoso. Base adicional `r02_prisma_validation` creada SOLO en esa rama para validar migrate deploy e integración API. Operación en curso; no es validación productiva.
+## Límites y siguiente acción
 
-Validación aislada completada: SQL y Prisma deploy dos veces/status/diff exitosos; 8 migraciones aplicadas; API local con DB Neon real pasa tres smoke (21 consultas), incluido reinicio de proceso. R0.2 requiere confirmar destino Render y verificar despliegue remoto; staging Render no creado. R0.1 sigue sin publicar. Credencial temporal de pruebas eliminada tras uso.
+R0.2 sigue abierto porque no existe staging Render desplegado: integración API local + Neon aislado no equivale a VALIDADO_STAGING remoto. Próximo tramo: preparar/desplegar servicio staging con DB aislada y repetir smoke/reinicio, manteniendo separados credenciales y destinos. No volver a inicializar producción: ya tiene esquema y el script de recuperación exige base vacía.
 
-## Validación R0.1
-
-- `npm test`: 22/22 pasan el 27/09 (17 HTTP + 5 del smoke), Node v24.20.0; loopback/Prisma y fetch simulados. Sin `.env`, DB externa ni nuevas dependencias en estos tests.
-- `node --check`: 27 archivos JS de src/test, cero errores.
-- `git diff --check`: limpio después de quitar una línea vacía final; Git informa solamente conversión de LF/CRLF propia del entorno.
-- No se ejecutó suite frontend porque no cambió código de aplicación frontend; solo se agregó su AGENTS.md.
-- Integración PostgreSQL y migraciones validadas en Neon aislado el 27/09; no seed/publicación. Runtime local Node 24.20.0; runtime declarado >=18 <21 sigue pendiente en R5.1.
-
-## Límites relevantes para el siguiente agente
-
-- GET/HEAD API: deadline 7000 ms por defecto; no cancela consultas. Readiness: 2000 ms y máximo una query pendiente por proceso.
-- Los handlers que ya capturan errores conservan su política propia. El middleware nuevo protege los rechazos antes no capturados; no afirmar uniformidad total de códigos de error o logs.
-- Sigue pendiente el GET heredado que puede escribir snapshot (R1.4), y las mutaciones sin idempotencia completa (R1.2/R1.4).
-- H01: tablas ausentes confirmadas por logs; reparación pendiente. H02 tiene corrección local de propagación async; no marcarlo validado en producción.
-- La auditoría histórica y sus evidencias no se sobrescribieron. Las reglas D-B01–D-B06 siguen pendientes.
-- Documentos y código aún locales: un agente en otra máquina/checkout necesita estos cambios o su publicación antes de asumir el contexto actualizado.
-
-## Siguiente acción
-
-R0.2: confirmar correspondencia DATABASE_URL Render con rama/db Neon, preparar inicialización correcta usando Prisma y publicación de código, verificar smoke remoto y frontend. No repetir aprobación ya concedida para pruebas aisladas. Ver migration-validation/RESULTS.md para evidencia y límites. R1–R6: NO_INICIADO; reservar alcance y revisar decisiones antes de tomarlas.
+- Render Free puede demorar más que los timeouts frontend al despertar/reiniciar. La recuperación en caliente está validada, no disponibilidad continua ni SLA para siete sucursales. Pendiente definir hosting/UX de arranque antes del piloto.
+- H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
+- GET/HEAD deadline 7000 ms; readiness 2000 ms y una query pendiente máxima; timeout no cancela DB. GET heredado con snapshot y mutaciones sin idempotencia siguen pendientes R1.
+- Node soportado, dependencias/CI, integración GitHub y despliegue de migraciones siguen R5. No afirmar seguridad ni preparación completa para piloto.
+- Auditoría histórica preservada. D-B01–D-B06 siguen pendientes; autorización operativa no aprueba sus reglas de negocio. R1–R6 no iniciados.

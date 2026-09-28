@@ -1,5 +1,15 @@
 # Historial de entregas
 
+## 28/09/2026 — R0.2, recuperación Render verificada tras reinicio
+
+Código y evidencia previa publicados en main y desplegados manualmente como 487a0e9e9ee97ab306f133aee7b3792d68e75783; Render Live (dep-dasq9nh7lnhs73ab3vd0), Node 20.20.2 / Prisma 5.22.0. Esquema productivo inicializado el 27/09 según entrada previa. Dos smoke productivos exitosos ese día.
+
+Reinicio controlado confirmado por evento Render 28/09 17:41 ART. Primer smoke conserva tres timeouts health durante arranque; cuatro rutas restantes respondieron correctamente. Segundo intento en caliente pasa 7/7 con SHA exacto, CORS/contratos y admin 401 (248–760 ms). Frontend recargado muestra estado vacío de campañas y escaneo deshabilitado, sin errores/warnings capturados. No se crearon datos de negocio ni se probaron escrituras productivas.
+
+Archivos: STATUS reescrito para eliminar estado obsoleto; CHANGELOG; render-recovered.png, render-restarted.png; smoke-recovered-1.json, -2.json, -3-restart.json (FAIL conservado), -4-restart-warm.json (PASS). Comando: node scripts/smoke.mjs con base Render, origen Vercel, expected-version 487a0e9 completo y salida específica por intento. Suite previa npm test 22/22; sin cambios de código en esta continuación.
+
+R0.1 disponibilidad publicada y verificada; R0.2 sigue abierto por staging Render pendiente. Límites: demora de arranque Free, despliegue automático GitHub no demostrado, migración operativa manual, runtime/dependencias R5 y flujos de negocio R1–R6. Próximo: staging remoto aislado. Documentación/evidencia de este cierre local; el SHA productivo es el indicado arriba.
+
 ## 27/09/2026 — R0.2, inicialización productiva autorizada
 
 Confirmada correspondencia entre DATABASE_URL de Render y endpoint de Neon production/neondb/public. Preflight PostgreSQL sin tablas/vistas/secuencias de usuario. scripts/recover-production-schema.mjs verifica destino exacto, base vacía y SHA256 de las ocho migraciones ensayadas antes de ejecutar migrate deploy. Resultado: deploy correcto, status actualizado, diff vacío, historial 8/8. Evidencia sanitizada production-recovery.json. Sin seed/reset ni borrado. Credencial temporal fuera de Git; se elimina al terminar. Publicación y smoke remoto todavía en curso. npm test 22/22 previo a publicar.
