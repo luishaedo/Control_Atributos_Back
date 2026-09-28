@@ -1,5 +1,13 @@
 # Historial de entregas
 
+## 28/09/2026 — R0.2, staging remoto desplegado y validado
+
+Creado por autorización explícita control-atributos-staging en Render Free/Oregon, servicio srv-datd8aek1f9s73fqp9fg, deploy dep-datd8amk1f9s73fqpaf0 Live en 46,9 s. SHA 487a0e9e9ee97ab306f133aee7b3792d68e75783 desde main público; Node 20.20.2, Prisma 5.22.0. Build npm ci && npx prisma generate, start npm run start, health /api/health, Auto-Deploy Off. DATABASE_URL apunta exclusivamente a Neon r02-migration-validation/r02_prisma_validation, con esquema ya validado; token admin independiente y CORS localhost:5173. Sin seed/reset/migraciones adicionales ni cambios productivos.
+
+Validación: npm test 22/22; node scripts/smoke.mjs con base staging, origin localhost:5173 y expected-version SHA completo: tres rondas 7/7, incluida posterior a reinicio real confirmado a las 17:57 ART. Contratos JSON, CORS, versión, DB/consultas y admin 401 correctos; 241–925 ms. Evidencia smoke-staging-1.json, smoke-staging-2.json, smoke-staging-3-restart.json y staging-render-verified.png. Credenciales no volcadas a disco/logs; clipboard y variables temporales limpiados.
+
+Documentación: STAGING.md nuevo, STATUS y DECISIONS actualizados. R0.2 COMPLETADO / VALIDADO_STAGING, junto con recuperación productiva previa. Límite: API únicamente, sin nuevo frontend ni pruebas de escritura/carga; suspensión Free, runtime/seguridad/CI y reglas de negocio siguen pendientes. Próximo desarrollo: R1.3. Documentación de esta entrega registrada localmente; no se efectuó push ni otro deploy de producción.
+
 ## 28/09/2026 — R0.2, recuperación Render verificada tras reinicio
 
 Código y evidencia previa publicados en main y desplegados manualmente como 487a0e9e9ee97ab306f133aee7b3792d68e75783; Render Live (dep-dasq9nh7lnhs73ab3vd0), Node 20.20.2 / Prisma 5.22.0. Esquema productivo inicializado el 27/09 según entrada previa. Dos smoke productivos exitosos ese día.

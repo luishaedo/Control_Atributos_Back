@@ -9,6 +9,8 @@
 - D-T05: registrar versión desde `RENDER_GIT_COMMIT` o `APP_VERSION`; si falta, declarar `unknown` y no inventar un SHA.
 - D-T06: deadline GET/HEAD por defecto 7000 ms, menor a los 8/10 s usados por lookup/carga inicial frontend; readiness 2000 ms. Configurables y validados. Las exportaciones grandes pueden requerir revisar el límite con mediciones, sin desactivar el diagnóstico general.
 
+- D-T07 (28/09/2026): staging API en servicio Render Free independiente, rama Git main con despliegue manual, conectado exclusivamente a Neon r02-migration-validation/r02_prisma_validation; CORS localhost:5173 y token propio. Sin frontend Vercel adicional ni migraciones automáticas al arranque. No usar staging con datos reales; límites Free y hardening siguen R5.
+
 ## Decisiones de negocio pendientes
 
 Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esta autorización no decide por sí sola D-B01–D-B06.

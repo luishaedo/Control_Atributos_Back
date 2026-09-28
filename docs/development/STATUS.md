@@ -7,10 +7,10 @@ Actualizado: 28/09/2026. Coordinador: Codex, chat de roadmap y recuperación R0.
 | Tarea | Estado | Responsable | Alcance |
 |---|---|---|---|
 | R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
-| R0.2 | EN_CURSO; recuperación productiva VALIDADA | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
+| R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
-No hay agentes delegados. Reserva actual: cierre documental de recuperación R0.2. No se modificó código frontend ni reglas de negocio en esta continuación.
+No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. Sin reserva activa de código; próximo agente debe reservar su tarea antes de editar. No se modificó código frontend ni reglas de negocio en esta continuación.
 
 ## Despliegue real
 
@@ -22,7 +22,7 @@ No hay agentes delegados. Reserva actual: cierre documental de recuperación R0.
 
 ## Validación y evidencia
 
-- `npm test`: 22/22 el 27/09, antes de publicar (17 HTTP y 5 smoke, dobles sin DB). Node local 24.20.0. No se repitió suite por esta entrega documental.
+- `npm test`: 22/22 el 27/09, antes de publicar (17 HTTP y 5 smoke, dobles sin DB). Node local 24.20.0. Suite repetida durante despliegue staging el 28/09: 22/22 PASS.
 - Rama Neon aislada persistente `r02-migration-validation`, sin expiración: SQL 10 tablas/90 columnas sin diferencias, 10 PK/5 FK, fixtures con ROLLBACK; DB r02_prisma_validation: migrate deploy dos veces/status/diff correctos, historial 8/8. API local con Neon real: tres smoke exitosos incluido reinicio. Ver migration-validation/RESULTS.md.
 - Producción: smoke-recovered-1.json y -2.json exitosos el 27/09, siete comprobaciones cada uno.
 - Reinicio real solicitado y confirmado por evento Render el 28/09 a las 17:41 ART; captura render-restarted.png. Primer smoke tras reinicio (-3-restart.json) falló por timeout de 10 s en tres health; consultas funcionales y admin sí respondieron. Se conserva el fallo.
@@ -31,7 +31,7 @@ No hay agentes delegados. Reserva actual: cierre documental de recuperación R0.
 
 ## Límites y siguiente acción
 
-R0.2 sigue abierto porque no existe staging Render desplegado: integración API local + Neon aislado no equivale a VALIDADO_STAGING remoto. Próximo tramo: preparar/desplegar servicio staging con DB aislada y repetir smoke/reinicio, manteniendo separados credenciales y destinos. No volver a inicializar producción: ya tiene esquema y el script de recuperación exige base vacía.
+R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. Próximo desarrollo propuesto: R1.3, aplicación por atributo y conflictos, reservar alcance antes de comenzar. No volver a inicializar producción: ya tiene esquema.
 
 - Render Free puede demorar más que los timeouts frontend al despertar/reiniciar. La recuperación en caliente está validada, no disponibilidad continua ni SLA para siete sucursales. Pendiente definir hosting/UX de arranque antes del piloto.
 - H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
