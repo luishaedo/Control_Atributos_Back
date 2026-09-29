@@ -1,4 +1,13 @@
 # Historial de entregas
+## 29/09/2026 — R1.3, conservación por atributo y conflictos validada localmente
+
+Codex/01a0eef9 retomó cambios locales del chat anterior, confirmado por historial y usuario; sin agentes adicionales. Aplicación por parches y comparación del baseline por atributo, Serializable, decisión vigente determinista y rollback del lote completo ante conflicto. 409 con request ID en aplicación directa, revisión inmediata y cierre. Creación de decisión/sustitución/etapa/aplicación inmediata atómicas; sustitución parcial conserva atributos restantes y original auditado; nuevas revisiones usan maestro actual, sin modificar snapshot. Cierre excluye archivadas y conserva el caso vacío; su atomicidad completa sigue R1.4.
+
+Archivos: servicio actualizaciones; controladores actualizaciones/revisiones/workflow; middleware httpLifecycle; tests actualizaciones/actualizaciones.postgres/http; STATUS, DECISIONS y nuevo R13_VALIDATION.md. Frontend y esquema intactos.
+
+Validación: `npm test` con R13_TEST_DATABASE_URL al cluster nuevo PostgreSQL 16.3 en 127.0.0.1:55439/r13_isolated: 57/57 PASS, cero omitidas; seis órdenes, carreras reales, rechazos/archivado/vigencia, sustitución parcial, rollback y HTTP. Ocho migraciones existentes aplicadas exclusivamente en esa base vacía; fixtures propios limpiados y cluster detenido. Sin .env, DB remota, seed/reset ni datos reales. `git diff --check` correcto. Evidencia y reproducción: R13_VALIDATION.md.
+
+Estado IMPLEMENTADO_LOCAL; no VALIDADO_STAGING/PRODUCCION para R1.3. Límites: comparación por valor (sin ABA/token de pantalla), sin carga/UI, cierre y reversión pendientes R1.4. Próximo: publicación/validación staging autorizadas y R1.4 con D-B02/B03. Sin commit, PR, push o deploy; SHA remoto permanece 487a0e9.
 
 ## 28/09/2026 — R0.2, staging remoto desplegado y validado
 

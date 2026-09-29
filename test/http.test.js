@@ -7,6 +7,57 @@ import { createApp } from '../src/app.js'
 const token = 'test-token-not-a-real-secret'
 const origin = 'https://stockeador-client-1nll.vercel.app'
 
+test('R1.3 conflicts reach all application routes as 409 with request ID', async t => {
+  let writes = 0
+  const f = await fixture(t, { prisma: {
+    skuStage: { findMany: async () => [] }, unknownSku: {},
+    actualizacion: { findMany: async ({ where }) => {
+      assert.equal(where.archivada, false)
+      return [{ id: 1, sku: 'SKU' }]
+    } },
+    campania: { update: async () => { writes++ } },
+    $transaction: async () => { throw Object.assign(new Error('private details'), { code: 'P2034' }) },
+  } })
+  for (const [path, body] of [
+    ['/actualizaciones/aplicar', { ids: [1] }],
+    ['/revisiones/decidir', { campaniaId: 1, sku: 'SKU', propuesta: { tipo_cod: '02' }, decision: 'aceptar', aplicarAhora: true }],
+    ['/campanias/1/cerrar', {}],
+  ]) {
+    const res = await f.request(`/api/admin${path}`, { method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    assert.equal(res.status, 409)
+    assert.equal(res.body.code, 'UPDATE_CONFLICT')
+    assert.equal(res.body.requestId, res.headers.get('x-request-id'))
+    assert.doesNotMatch(JSON.stringify(res.body), /private details/)
+  }
+  assert.equal(writes, 0)
+})
+
+test('R1.3 invalid apply IDs return 400 without database access', async t => {
+  const f = await fixture(t)
+  const res = await f.request('/api/admin/actualizaciones/aplicar', { method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ['1'] }) })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.code, 'INVALID_IDS')
+})
+
+test('R1.3 empty close remains a no-op for the application service', async t => {
+  let closed = false
+  const f = await fixture(t, { prisma: {
+    skuStage: { findMany: async () => [] },
+    unknownSku: { deleteMany: async () => ({ count: 0 }) },
+    actualizacion: { findMany: async () => [] },
+    campaniaMaestro: { count: async () => 0 },
+    campania: { update: async () => { closed = true } },
+    $transaction: async () => { assert.fail('empty close must not apply an empty batch') },
+  } })
+  const res = await f.request('/api/admin/campanias/1/cerrar', { method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.applied, 0)
+  assert.equal(closed, true)
+})
+
 async function fixture(t, { prisma = {}, env = {} } = {}) {
   const logs = []
   const db = { $queryRaw: async () => [{ result: 1 }], ...prisma }

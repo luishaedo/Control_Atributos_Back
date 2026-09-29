@@ -1,6 +1,6 @@
 # Estado de trabajo compartido
 
-Actualizado: 28/09/2026. Coordinador: Codex, chat de roadmap y recuperación R0.2.
+Actualizado: 29/09/2026. Coordinador: Codex, chat Corregir aplicación de atributos (01a0eef9).
 
 ## Última entrega y propiedad
 
@@ -8,9 +8,10 @@ Actualizado: 28/09/2026. Coordinador: Codex, chat de roadmap y recuperación R0.
 |---|---|---|---|
 | R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
 | R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
+| R1.3 | IMPLEMENTADO_LOCAL (PostgreSQL aislado real) | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; docs/development/* |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
-No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. Sin reserva activa de código; próximo agente debe reservar su tarea antes de editar. No se modificó código frontend ni reglas de negocio en esta continuación.
+No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9, continuando cambios del chat anterior interrumpido. Reserva activa: validación staging R1.3 por Codex/01a0eef9, sin agentes adicionales. Alcance: scripts/test de smoke R1.3, docs/development/*, rama de publicación exclusiva y configuración de staging Render. No se modificó código frontend ni reglas de negocio en esta continuación.
 
 ## Despliegue real
 
@@ -31,10 +32,20 @@ No hay agentes delegados. Entrega staging completada por Codex/coordinador: serv
 
 ## Límites y siguiente acción
 
-R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. Próximo desarrollo propuesto: R1.3, aplicación por atributo y conflictos, reservar alcance antes de comenzar. No volver a inicializar producción: ya tiene esquema.
+R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. R1.3 implementado localmente el 29/09; próximo: validación de escrituras en staging y R1.4, sujeto a D-B02/B03. No volver a inicializar producción: ya tiene esquema.
 
 - Render Free puede demorar más que los timeouts frontend al despertar/reiniciar. La recuperación en caliente está validada, no disponibilidad continua ni SLA para siete sucursales. Pendiente definir hosting/UX de arranque antes del piloto.
 - H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
 - GET/HEAD deadline 7000 ms; readiness 2000 ms y una query pendiente máxima; timeout no cancela DB. GET heredado con snapshot y mutaciones sin idempotencia siguen pendientes R1.
 - Node soportado, dependencias/CI, integración GitHub y despliegue de migraciones siguen R5. No afirmar seguridad ni preparación completa para piloto.
-- Auditoría histórica preservada. D-B01–D-B06 siguen pendientes; autorización operativa no aprueba sus reglas de negocio. R1–R6 no iniciados.
+- Auditoría histórica preservada. D-B01–D-B06 siguen pendientes; autorización operativa no aprueba sus reglas de negocio. R1.3 implementado localmente; otras entregas R1–R6 pendientes.
+
+## Entrega R1.3 — 29/09/2026
+
+Conservación por atributo; compare-and-set de valores propuestos; decisiones y aplicación Serializable; sustitución parcial conserva atributos restantes y original auditado; baseline de nuevas revisiones desde maestro vigente; 409 en tres caminos de aplicación. Sin cambios de esquema/frontend. Detalle, comandos y límites: R13_VALIDATION.md.
+
+Pruebas: `npm test` con R13_TEST_DATABASE_URL apuntando exclusivamente a PostgreSQL 16.3 local dedicado (127.0.0.1:55439/r13_isolated): 57/57 PASS, cero omitidas, incluidas carreras reales de dos transacciones y rollback. Ocho migraciones históricas solo sobre cluster nuevo aislado; fixtures propios limpiados y cluster detenido. `git diff --check` correcto. Sin .env, DB remota, seed/reset ni carga real.
+
+Archivos: src/services/actualizaciones.service.js; src/controllers/{actualizaciones,revisiones,workflow}.controller.js; src/middlewares/httpLifecycle.js; test/{actualizaciones,actualizaciones.postgres,http}.test.js; docs/development/{STATUS,CHANGELOG,DECISIONS,R13_VALIDATION}.md. El AGENTS.md no rastreado del frontend se preservó.
+
+Límites: no versión de pantalla ni detección ABA; cierre completo aún no atómico (R1.4); sin pruebas frontend/carga ni validación remota R1.3. Próximo: validar esta versión en staging tras publicación autorizada y abordar R1.4/D-B02/B03. Despliegue real sin cambios: SHA 487a0e9 en Render. Sin commit/PR/push/deploy de esta entrega.

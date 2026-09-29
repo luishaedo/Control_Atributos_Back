@@ -683,15 +683,15 @@ export function WorkflowController(prisma) {
 
       const ids = (
         await prisma.actualizacion.findMany({
-          where: { campaniaId, estado: "pendiente" },
+          where: { campaniaId, estado: "pendiente", archivada: false },
           select: { id: true, sku: true },
         })
       ).map((row) => row.id);
 
-      const { count } = await applyUpdates({
+      const { count } = ids.length ? await applyUpdates({
         ids,
         decidedBy: req.body?.decidedBy || "admin",
-      });
+      }) : { count: 0 };
 
       await prisma.campania.update({
         where: { id: campaniaId },

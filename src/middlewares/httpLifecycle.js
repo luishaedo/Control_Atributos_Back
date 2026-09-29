@@ -43,6 +43,10 @@ export function errorHandler(logger) {
     let message = 'Error interno del servidor'
     if (err.code === 'CORS_DENIED') {
       status = 403; code = 'CORS_DENIED'; message = 'Origen no permitido'
+    } else if (err.code === 'UPDATE_CONFLICT') {
+      status = 409; code = 'UPDATE_CONFLICT'; message = 'La decisión o el maestro cambió. Actualizá la revisión antes de aplicar.'
+    } else if (err.code === 'INVALID_IDS') {
+      status = 400; code = 'INVALID_IDS'; message = 'ids debe contener enteros positivos'
     } else if (err.type === 'entity.parse.failed') {
       status = 400; code = 'INVALID_JSON'; message = 'JSON inválido'
     } else if (err.type === 'entity.too.large' || err.code === 'LIMIT_FILE_SIZE') {

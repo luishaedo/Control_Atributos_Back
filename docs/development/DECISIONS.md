@@ -11,6 +11,9 @@
 
 - D-T07 (28/09/2026): staging API en servicio Render Free independiente, rama Git main con despliegue manual, conectado exclusivamente a Neon r02-migration-validation/r02_prisma_validation; CORS localhost:5173 y token propio. Sin frontend Vercel adicional ni migraciones automáticas al arranque. No usar staging con datos reales; límites Free y hardening siguen R5.
 
+- D-T08 (29/09/2026, R1.3): aplicar parches solo a atributos propuestos; comparar sus valores anteriores dentro de Serializable; conflictos 409 sin retry. Vigencia lógica por campaña/SKU/atributo y desempate ts/id, incluyendo rechazo. Sustitución parcial conserva campos aún vigentes mediante continuación trazable, sin mutar el original archivado. No hay nuevo esquema ni reparación de datos históricos.
+- D-T09 (29/09/2026, R1.3): crear revisión, sustituir pendientes, mover etapa y aplicación inmediata en una transacción. Nuevas revisiones toman baseline del maestro actual, manteniendo snapshot inmutable. Control por valor y de transacciones superpuestas; no equivale a token de revisión de pantalla ni detecta ABA. Reglas de cierre/reversión y decisiones de negocio siguen pendientes.
+
 ## Decisiones de negocio pendientes
 
 Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esta autorización no decide por sí sola D-B01–D-B06.

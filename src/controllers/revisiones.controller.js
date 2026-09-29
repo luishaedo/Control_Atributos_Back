@@ -2,7 +2,7 @@ import { pad2, cleanSku } from "../utils/sku.js";
 import { ActualizacionesService } from "../services/actualizaciones.service.js";
 import { sendAdminError } from "../utils/http.js";
 export function RevisionesController(prisma) {
-  const { applyUpdates } = ActualizacionesService(prisma);
+  const { recordDecision } = ActualizacionesService(prisma);
   const isEmptyValue = (value) => value === undefined || value === null || String(value).trim() === "";
   const formatDecision = (decision) => ({
     estado: decision.estado,
@@ -72,7 +72,7 @@ export function RevisionesController(prisma) {
 
       const decisiones = await prisma.actualizacion.findMany({
         where: { campaniaId, archivada: false },
-        orderBy: { ts: "desc" },
+        orderBy: [{ ts: "desc" }, { id: "desc" }],
       });
       const decisionesBySku = new Map();
       const decisionesByField = new Map();
@@ -257,109 +257,16 @@ export function RevisionesController(prisma) {
           return sendAdminError(res, 400, "propuesta requerida para aceptar");
         }
 
-        const snap = await prisma.campaniaMaestro.findUnique({
-          where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } },
+        const act = await recordDecision({
+          campaniaId: Number(campaniaId), sku, propuesta, decision,
+          decidedBy, aplicarAhora, notas,
         });
-        const oldCat = snap?.categoria_cod ?? null;
-        const oldTip = snap?.tipo_cod ?? null;
-        const oldCla = snap?.clasif_cod ?? null;
-        const newCat = isEmptyValue(propuesta?.categoria_cod)
-          ? ""
-          : pad2(propuesta.categoria_cod);
-        const newTip = isEmptyValue(propuesta?.tipo_cod)
-          ? ""
-          : pad2(propuesta.tipo_cod);
-        const newCla = isEmptyValue(propuesta?.clasif_cod)
-          ? ""
-          : pad2(propuesta.clasif_cod);
-        const estado = decision === "aceptar" ? "pendiente" : "rechazada";
-
-        const fieldsToArchive = [];
-        if (!isEmptyValue(propuesta?.categoria_cod))
-          fieldsToArchive.push("categoria_cod");
-        if (!isEmptyValue(propuesta?.tipo_cod))
-          fieldsToArchive.push("tipo_cod");
-        if (!isEmptyValue(propuesta?.clasif_cod))
-          fieldsToArchive.push("clasif_cod");
-        if (fieldsToArchive.length) {
-          const orConditions = [];
-          if (fieldsToArchive.includes("categoria_cod")) {
-            orConditions.push({
-              new_categoria_cod: { not: "" },
-            });
-          }
-          if (fieldsToArchive.includes("tipo_cod")) {
-            orConditions.push({
-              new_tipo_cod: { not: "" },
-            });
-          }
-          if (fieldsToArchive.includes("clasif_cod")) {
-            orConditions.push({
-              new_clasif_cod: { not: "" },
-            });
-          }
-          await prisma.actualizacion.updateMany({
-            where: {
-              campaniaId: Number(campaniaId),
-              sku,
-              estado: "pendiente",
-              archivada: false,
-              OR: orConditions,
-            },
-            data: {
-              archivada: true,
-              archivadaAt: new Date(),
-              archivadaBy: decidedBy || "admin",
-            },
-          });
-        }
-
-        const act = await prisma.actualizacion.create({
-          data: {
-            campaniaId: Number(campaniaId),
-            sku,
-            old_categoria_cod: oldCat,
-            old_tipo_cod: oldTip,
-            old_clasif_cod: oldCla,
-            new_categoria_cod: newCat,
-            new_tipo_cod: newTip,
-            new_clasif_cod: newCla,
-            estado,
-            decidedBy: decidedBy || null,
-            decidedAt: new Date(),
-            notas,
-          },
-        });
-
-        if (decision === "aceptar") {
-          const skuStage = ensureModel(prisma.skuStage, "skuStage", res);
-          if (!skuStage) return;
-          await skuStage.upsert({
-            where: { campaniaId_sku: { campaniaId: Number(campaniaId), sku } },
-            create: {
-              campaniaId: Number(campaniaId),
-              sku,
-              stage: "confirm",
-              updatedBy: decidedBy || null,
-            },
-            update: {
-              stage: "confirm",
-              updatedBy: decidedBy || null,
-              updatedAt: new Date(),
-            },
-          });
-        }
-
-        if (decision === "aceptar" && aplicarAhora) {
-          await applyUpdates({
-            ids: [act.id],
-            decidedBy: decidedBy || "admin",
-          });
-        }
-
         res.json({ ok: true, actualizacion: act });
       } catch (e) {
-        console.error(e);
+        if (e.code === 'UPDATE_CONFLICT') {
+          return res.status(409).json({ error: e.message, code: e.code, requestId: req.id });
+        }
+        console.error({ event: 'decision_error', code: e.code || 'INTERNAL_ERROR' });
         sendAdminError(res, 500, "Error al decidir revisión");
       }
     },
@@ -652,7 +559,7 @@ export function RevisionesController(prisma) {
             estado: { in: ["pendiente", "aplicada"] },
             archivada: false,
           },
-          orderBy: { ts: "desc" },
+          orderBy: [{ ts: "desc" }, { id: "desc" }],
         }),
       ]);
 

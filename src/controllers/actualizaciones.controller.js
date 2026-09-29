@@ -198,7 +198,10 @@ export function ActualizacionesController(prisma) {
         const { count } = await applyUpdates({ ids, decidedBy })
         res.json({ ok: true, applied: count })
       } catch (error) {
-        console.error(error)
+        if (['UPDATE_CONFLICT', 'INVALID_IDS'].includes(error.code)) {
+          return res.status(error.status).json({ error: error.message, code: error.code, requestId: req.id })
+        }
+        console.error({ event: 'apply_updates_error', code: error.code || 'INTERNAL_ERROR' })
         sendAdminError(res, 500, 'Error aplicando actualizaciones')
       }
     },
