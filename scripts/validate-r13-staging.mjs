@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { PrismaClient } from '@prisma/client'
+import { createRequire } from 'node:module'
+
+const { PrismaClient } = createRequire(import.meta.url)('@prisma/client')
 
 const stagingBase = 'https://control-atributos-staging.onrender.com'
 const fields = ['categoria_cod', 'tipo_cod', 'clasif_cod']

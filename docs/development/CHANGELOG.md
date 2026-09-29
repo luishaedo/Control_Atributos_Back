@@ -1,4 +1,11 @@
 # Historial de entregas
+## 29/09/2026 — R1.3 publicada y desplegada exclusivamente en staging
+
+Commit 520cd35d33a3be2e7ca1d90adc745880d0d53eff en rama r13-atributos-staging, deploy dep-dau2pc97lnhs73f705eg Live tras 43,3 s. Render staging sigue esa rama con Auto-Deploy Off; main remoto permanece 487a0e9, sin despliegue productivo. Cambios de negocio de R1.3 publicados junto con evidencia local anterior.
+
+scripts/validate-r13-staging.mjs: verificador con destinos permitidos exactos, SHA obligatorio, fixtures nuevos y sin eliminación/reintentos. 12 escenarios/58 HTTP pasan primero en API local+PostgreSQL aislado; suite 57/57 PASS. Smoke remoto read-only pasa 7/7 (smoke-r13-staging.json). Captura r13-staging-deployed.png. Preflight remoto del entorno navegador falla por EACCES antes de escribir, evidencia sanitizada preservada. scripts/run-r13-staging-memory.mjs recibe credenciales una vez por pipe Windows, en memoria y sin archivos; su ejecución fue rechazada por revisión automática por requerir autorización explícita de fixtures remotos. Consulta enviada al usuario; pruebas remotas de comportamiento pendientes, sin fixtures remotos creados. No se guardaron archivos de credenciales.
+
+Archivos de esta continuación: dos scripts de validación; STAGING, STATUS, CHANGELOG y DECISIONS; evidencia JSON/PNG. Estado: DESPLEGADO_STAGING + disponibilidad validada; no VALIDADO_STAGING de comportamiento R1.3 todavía. Próximo: con autorización específica, ejecutar 12 escenarios en rama Neon aislada; no avanzar R1.4 automáticamente. Sin PR ni merge.
 ## 29/09/2026 — R1.3, conservación por atributo y conflictos validada localmente
 
 Codex/01a0eef9 retomó cambios locales del chat anterior, confirmado por historial y usuario; sin agentes adicionales. Aplicación por parches y comparación del baseline por atributo, Serializable, decisión vigente determinista y rollback del lote completo ante conflicto. 409 con request ID en aplicación directa, revisión inmediata y cierre. Creación de decisión/sustitución/etapa/aplicación inmediata atómicas; sustitución parcial conserva atributos restantes y original auditado; nuevas revisiones usan maestro actual, sin modificar snapshot. Cierre excluye archivadas y conserva el caso vacío; su atomicidad completa sigue R1.4.

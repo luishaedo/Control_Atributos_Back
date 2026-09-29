@@ -14,6 +14,8 @@
 - D-T08 (29/09/2026, R1.3): aplicar parches solo a atributos propuestos; comparar sus valores anteriores dentro de Serializable; conflictos 409 sin retry. Vigencia lógica por campaña/SKU/atributo y desempate ts/id, incluyendo rechazo. Sustitución parcial conserva campos aún vigentes mediante continuación trazable, sin mutar el original archivado. No hay nuevo esquema ni reparación de datos históricos.
 - D-T09 (29/09/2026, R1.3): crear revisión, sustituir pendientes, mover etapa y aplicación inmediata en una transacción. Nuevas revisiones toman baseline del maestro actual, manteniendo snapshot inmutable. Control por valor y de transacciones superpuestas; no equivale a token de revisión de pantalla ni detecta ABA. Reglas de cierre/reversión y decisiones de negocio siguen pendientes.
 
+- D-T10 (29/09/2026): staging R1.3 sigue rama exclusiva r13-atributos-staging, Auto-Deploy Off. No publicar en main para evitar despliegue productivo involuntario. Verificador remoto restringe destino y SHA, crea fixtures nuevos identificables que conserva y usa credenciales solo en memoria; autorización específica de escrituras consultada tras rechazo automático.
+
 ## Decisiones de negocio pendientes
 
 Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esta autorización no decide por sí sola D-B01–D-B06.

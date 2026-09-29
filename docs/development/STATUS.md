@@ -8,7 +8,7 @@ Actualizado: 29/09/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 |---|---|---|---|
 | R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
 | R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
-| R1.3 | IMPLEMENTADO_LOCAL (PostgreSQL aislado real) | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; docs/development/* |
+| R1.3 | IMPLEMENTADO_LOCAL; DESPLEGADO_STAGING, escrituras pendientes | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; docs/development/* |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9, continuando cambios del chat anterior interrumpido. Reserva activa: validación staging R1.3 por Codex/01a0eef9, sin agentes adicionales. Alcance: scripts/test de smoke R1.3, docs/development/*, rama de publicación exclusiva y configuración de staging Render. No se modificó código frontend ni reglas de negocio en esta continuación.
@@ -49,3 +49,9 @@ Pruebas: `npm test` con R13_TEST_DATABASE_URL apuntando exclusivamente a Postgre
 Archivos: src/services/actualizaciones.service.js; src/controllers/{actualizaciones,revisiones,workflow}.controller.js; src/middlewares/httpLifecycle.js; test/{actualizaciones,actualizaciones.postgres,http}.test.js; docs/development/{STATUS,CHANGELOG,DECISIONS,R13_VALIDATION}.md. El AGENTS.md no rastreado del frontend se preservó.
 
 Límites: no versión de pantalla ni detección ABA; cierre completo aún no atómico (R1.4); sin pruebas frontend/carga ni validación remota R1.3. Próximo: validar esta versión en staging tras publicación autorizada y abordar R1.4/D-B02/B03. Despliegue real sin cambios: SHA 487a0e9 en Render. Sin commit/PR/push/deploy de esta entrega.
+
+## Continuación staging R1.3 — 29/09/2026
+
+Commit 520cd35d33a3be2e7ca1d90adc745880d0d53eff publicado en rama r13-atributos-staging y desplegado manualmente solo en srv-datd8aek1f9s73fqp9fg (dep-dau2pc97lnhs73f705eg, Live). Staging sigue esa rama con Auto-Deploy Off. main remoto conserva 487a0e9; producción no se modificó. Smoke 7/7 PASS con SHA exacto.
+
+Verificador de comportamiento preparado y validado localmente: 12 escenarios/58 HTTP más suite 57/57. Remoto: preflight del entorno navegador sin acceso de red, cero fixtures; ejecución CLI mediante IPC efímero bloqueada por auto-review antes de iniciar escrituras. Usuario consultado para autorización explícita de campaña inactiva y 11 artículos ficticios en base aislada. R1.3 aún NO VALIDADO_STAGING en comportamiento. Detalles y evidencia en STAGING.md. Cluster PostgreSQL local detenido; fixtures del nuevo smoke local conservados en base aislada.

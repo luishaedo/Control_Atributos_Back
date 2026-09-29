@@ -1,5 +1,15 @@
 # Staging R0.2 — Render + Neon
 
+## R1.3 — despliegue 29/09/2026
+
+Rama exclusiva `r13-atributos-staging`, commit `520cd35d33a3be2e7ca1d90adc745880d0d53eff`, deploy manual `dep-dau2pc97lnhs73f705eg`, Live tras 43,3 s. Auto-Deploy permanece Off; build/start/DB/CORS/token sin cambio. No se publicó main ni se desplegó producción. Evidencia: r13-staging-deployed.png.
+
+Smoke de disponibilidad: smoke-r13-staging.json, 7/7 PASS, SHA exacto y CORS/auth/readiness válidos, 213–783 ms. No equivale a validación remota de escrituras R1.3. El verificador scripts/validate-r13-staging.mjs pasó 12 escenarios/58 HTTP contra API local y PostgreSQL aislado antes de publicarse; suite 57/57 PASS.
+
+Validación de escrituras pendiente de autorización específica solicitada tras rechazo de revisión automática: crear campaña inactiva TEST-R13 y 11 SKUs únicos en r02_prisma_validation, conservar fixtures, no borrar datos existentes. El primer preflight desde el entorno del navegador no pudo acceder a la red (EACCES); ningún fixture creado, evidencia r13-staging-preflight-environment-failure.json. Se preparó scripts/run-r13-staging-memory.mjs para ejecutar por canal IPC local efímero sin persistir credenciales. Ejecución remota de ese runner bloqueada antes de comenzar. No se crearon archivos de credenciales.
+
+## Configuración y validación inicial R0.2
+
 Preparación: 28/09/2026, Codex/coordinador. Autorización explícita del usuario para desplegar y verificar staging.
 
 - Servicio Render: `control-atributos-staging`, `srv-datd8aek1f9s73fqp9fg`, Oregon, Free (0 USD/mes de instancia); sujeto a cuotas y suspensión por inactividad.
