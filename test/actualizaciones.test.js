@@ -105,11 +105,11 @@ test('invalid IDs are rejected before database access', async () => {
     await assert.rejects(service.applyUpdates({ ids }), { status: 400 })
   }
 })
-test('controller preserves actionable 409 and correlation ID', async () => {
+test('R1.4 controller disables direct application and preserves correlation ID', async () => {
   const controller = ActualizacionesController({ $transaction: async () => { throw { code: 'P2034' } } })
   const response = { status(n) { this.statusCode = n; return this }, json(body) { this.body = body; return this } }
   await controller.aplicar({ body: { ids: [1] }, id: 'correlation' }, response)
   assert.equal(response.statusCode, 409)
-  assert.equal(response.body.code, 'UPDATE_CONFLICT')
+  assert.equal(response.body.code, 'APPLY_REQUIRES_CLOSE')
   assert.equal(response.body.requestId, 'correlation')
 })

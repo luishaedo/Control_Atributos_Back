@@ -1,6 +1,6 @@
 # R1.3 — aplicación por atributo y conflictos
 
-29/09/2026. Responsable: Codex/01a0eef9, sin agentes delegados. IMPLEMENTADO_LOCAL. Sin commit, PR, push ni despliegue de esta entrega.
+29/09/2026. Responsable local: Codex/01a0eef9; validación remota 30/09/2026: Codex/01a0f1e5; sin agentes delegados. VALIDADO_STAGING. Publicado solo en rama `r13-atributos-staging`; producción/main no modificados por esta entrega.
 
 ## Comportamiento
 
@@ -33,10 +33,14 @@ Escenarios: los seis órdenes de tres atributos; sustitución parcial; rechazo p
 
 ## Límites y siguiente paso
 
-IMPLEMENTADO_LOCAL con PostgreSQL real no equivale a VALIDADO_STAGING/PRODUCCION. Sin pruebas de carga, navegador ni ejecución remota de estas escrituras. Frontend intacto; sus clientes existentes reciben el mensaje de error JSON. No se ejecutan lint/build frontend por no modificarlo.
+VALIDADO_STAGING no equivale a VALIDADO_PRODUCCION. No hubo pruebas de carga ni de UI en navegador. Frontend intacto; sus clientes existentes reciben el mensaje de error JSON. No se ejecutan lint/build frontend por no modificarlo.
 
 La comparación optimista es por valor, no por contador de versión: no detecta ABA (valor cambiado y restituido) ni que una pantalla antigua se envíe después de concluir otra revisión. Serializable detecta carreras de transacciones superpuestas; no es un token de versión de pantalla. Puede rechazar también atributos distintos del mismo SKU; se informa 409 y el operador vuelve a revisar antes de reenviar. No hay retry automático.
 
 Datos históricos ya perdidos no se reconstruyen. Duplicados históricos no vigentes se rechazan al aplicar; no se limpian automáticamente. Archivar/deshacer/revertir, cierre único y frontera de confirmados, snapshot y exportaciones continúan en R1.4/R3.2; en particular, el cierre completo aún no es atómico. Las propuestas D-B01–D-B06 siguen pendientes.
 
-Próximo: revisar/publicar esta entrega mediante autorización de despliegue y validar escrituras en staging; continuar R1.4 cuando se definan D-B02/B03.
+Seguimiento local 30/09/2026: `npm test` repetido sin `R13_TEST_DATABASE_URL`: 41/41 PASS, 1 integración PostgreSQL omitida por no estar activo el cluster aislado. Esto comprueba la suite no remota disponible en el checkout actual y no sustituye los 57/57 previos con PostgreSQL real.
+
+Validación staging 30/09/2026: `scripts/run-r13-staging-loopback.mjs` entregó credenciales en memoria al mismo verificador restringido, mediante listener efímero en `127.0.0.1`. SHA esperado y observado `520cd35d33a3be2e7ca1d90adc745880d0d53eff`; base `r02_prisma_validation`; 12/12 escenarios PASS y 58 solicitudes HTTP con 200/409 esperados. Se conservaron una campaña inactiva TEST-R13, ID 1, y 11 SKU ficticios como evidencia. Reporte sanitizado: `docs/development/r13-staging-validation-20260930.json`; búsqueda de patrones confirmó que no contiene cadena PostgreSQL, host Neon, token, contraseña ni Bearer. Producción no fue consultada ni modificada.
+
+Estado final: VALIDADO_STAGING, no VALIDADO_PRODUCCION. Próximo: continuar R1.4 solo después de resolver R1.2 y confirmar D-B02/D-B03.

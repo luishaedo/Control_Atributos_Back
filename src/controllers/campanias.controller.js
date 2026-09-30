@@ -13,19 +13,21 @@ export function CampaniasController(prisma) {
     },
     crear: async (req, res) => {
       try { res.json(await svc.crearCampaniaConSnapshot(req.body || {})) }
-      catch (e) { res.status(e.status || 500).json({ error: e.message || 'Error' }) }
+      catch (e) { res.status(e.status || 500).json({ error: e.message || 'Error', code: e.code, requestId: req.id }) }
     },
     activar: async (req, res) => {
-      const id = Number(req.params.id)
-      if (Number.isNaN(id)) return res.status(400).json({ error: 'id inválido' })
-      res.json(await svc.activar(id))
+      try {
+        res.json(await svc.activar(req.params.id))
+      } catch (e) {
+        res.status(e.status || 500).json({ error: e.message || 'Error', code: e.code, requestId: req.id })
+      }
     },
     actualizar: async (req, res) => {
       try {
         const id = Number(req.params.id)
         res.json(await svc.actualizar(id, req.body || {}))
       } catch (e) {
-        res.status(e.status || 500).json({ error: e.message || 'Error' })
+        res.status(e.status || 500).json({ error: e.message || 'Error', code: e.code, requestId: req.id })
       }
     }
   }

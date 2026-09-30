@@ -40,6 +40,10 @@ model Campania {
   clasif_objetivo_cod    String?
   activa                 Boolean  @default(false)
   activatedOnce          Boolean  @default(false)
+  estado                 String   @default("BORRADOR")
+  activatedAt            DateTime?
+  closedAt               DateTime?
+  closedBy               String?
 
   // relaciones existentes
   escaneos Escaneo[]
@@ -116,6 +120,7 @@ model Actualizacion {
   archivadaBy String?
   archivadaAt DateTime?
   appliedAt   DateTime?
+  reversalOfId Int?      @unique
 
   // marcas de export, si las usás
   exported_categoria_at DateTime?
@@ -125,6 +130,7 @@ model Actualizacion {
   campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
   @@index([campaniaId, sku])
+  @@index([reversalOfId])
 }
 
 model SkuStage {

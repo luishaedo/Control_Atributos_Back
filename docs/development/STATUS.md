@@ -1,6 +1,6 @@
 # Estado de trabajo compartido
 
-Actualizado: 29/09/2026. Coordinador: Codex, chat Corregir aplicación de atributos (01a0eef9).
+Actualizado: 30/09/2026. Coordinador: Codex, chat Corregir aplicación de atributos (01a0eef9).
 
 ## Última entrega y propiedad
 
@@ -8,10 +8,13 @@ Actualizado: 29/09/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 |---|---|---|---|
 | R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
 | R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
-| R1.3 | IMPLEMENTADO_LOCAL; DESPLEGADO_STAGING, escrituras pendientes | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; docs/development/* |
+| R1.1 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | normalización SKU/códigos backend y frontend; tests; docs/development/R11_VALIDATION.md |
+| R1.2 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | backend escaneos/servicio/tests; frontend ScanBox/API/tests; docs/development/R12_VALIDATION.md |
+| R1.3 | VALIDADO_STAGING; no validado en producción | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; scripts de validación; docs/development/* |
+| R1.4 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración; tests PostgreSQL; docs/development/R14_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
-No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9, continuando cambios del chat anterior interrumpido. Reserva activa: validación staging R1.3 por Codex/01a0eef9, sin agentes adicionales. Alcance: scripts/test de smoke R1.3, docs/development/*, rama de publicación exclusiva y configuración de staging Render. No se modificó código frontend ni reglas de negocio en esta continuación.
+No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1, R1.2 y R1.4 quedaron completados y validados localmente por Codex/01a0f1e5 con D-B01/D-B02/D-B03 aprobadas. No se modificó staging ni producción durante R1.4.
 
 ## Despliegue real
 
@@ -32,13 +35,29 @@ No hay agentes delegados. Entrega staging completada por Codex/coordinador: serv
 
 ## Límites y siguiente acción
 
-R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. R1.3 implementado localmente el 29/09; próximo: validación de escrituras en staging y R1.4, sujeto a D-B02/B03. No volver a inicializar producción: ya tiene esquema.
+R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. R1.3 quedó VALIDADO_STAGING el 30/09/2026: 12/12 escenarios y 58 HTTP sobre SHA 520cd35, con campaña inactiva y 11 SKU TEST-R13 retenidos como evidencia en la base aislada. R1.4 quedó completada y validada solo localmente; falta publicar/migrar/validar en staging mediante autorización separada. No volver a inicializar producción: ya tiene esquema.
 
 - Render Free puede demorar más que los timeouts frontend al despertar/reiniciar. La recuperación en caliente está validada, no disponibilidad continua ni SLA para siete sucursales. Pendiente definir hosting/UX de arranque antes del piloto.
 - H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
 - GET/HEAD deadline 7000 ms; readiness 2000 ms y una query pendiente máxima; timeout no cancela DB. GET heredado con snapshot y mutaciones sin idempotencia siguen pendientes R1.
 - Node soportado, dependencias/CI, integración GitHub y despliegue de migraciones siguen R5. No afirmar seguridad ni preparación completa para piloto.
-- Auditoría histórica preservada. D-B01–D-B06 siguen pendientes; autorización operativa no aprueba sus reglas de negocio. R1.3 implementado localmente; otras entregas R1–R6 pendientes.
+- Auditoría histórica preservada. D-B01, D-B02 y D-B03 están aprobadas; D-B04–D-B06 siguen pendientes. R1.1/R1.2/R1.4 están completos localmente y R1.3 validado en staging; las demás entregas siguen pendientes.
+
+## Cierre R1.1 y R1.2 — 30/09/2026
+
+El usuario aprobó D-B01 y pidió aviso visible. Se implementó identidad SKU única: el primer `#`/`$` separa etiqueta, la base alfanumérica se usa en mayúsculas y el valor crudo se conserva. Escaneo e importación avisan la separación. Códigos de uno/dos dígitos se normalizan con cero inicial; formatos mayores/contaminados y valores fuera de diccionario se rechazan sin truncar y antes de escribir. Lookup, importación CSV/JSON, escaneo, revisión, desconocidos y exportación quedaron alineados. Detalle: R11_VALIDATION.md.
+
+R1.2 se repitió contra ese contrato definitivo. Backend 79/79 PASS con PostgreSQL real en `r12_isolated` y `r13_isolated`, cero omitidas; frontend 7/7, build 389 módulos, lint 0 errores/42 advertencias heredadas. `r12_isolated` terminó 0/0/0/0 en sus tablas operativas, se eliminó y el clúster se detuvo. No hubo acceso remoto, commit, push ni deploy. R1.1 y R1.2 quedan COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no VALIDADO_STAGING.
+
+R1.4 quedó completada después de la aprobación de D-B02/D-B03. Evidencia: R14_VALIDATION.md.
+
+## Entrega R1.4 — 30/09/2026
+
+El usuario aprobó D-B02/D-B03. Se implementó el ciclo `BORRADOR -> ACTIVA -> CERRANDO -> CERRADA`, una única campaña activa mediante restricción PostgreSQL, snapshot completo al activar y fechas informativas validadas. Las lecturas ya no completan snapshots ni escriben datos.
+
+Aceptar solo propone; confirmar habilita; el cierre Serializable aplica únicamente decisiones vigentes confirmadas y desconocidos aprobados. Los rechazos, fusiones y pendientes sin confirmar permanecen. El cierre repetido es idempotente, una campaña cerrada no se reactiva y la reversión crea un evento compensatorio enlazado sin alterar el original.
+
+Validación final: backend 90/90 PASS, 0 omitidas, en PostgreSQL 16.3 local con suites R1.2/R1.3/R1.4 completas; frontend 7/7, build 389 módulos y lint 0 errores/42 advertencias heredadas. Incluye rollback forzado, doble cierre y carrera cierre/escaneo. Bases R1.2/R1.4 sin fixtures y eliminadas; R1.3 preservada sin campañas activas; clúster detenido. Sin acceso remoto, commit, push o deploy; por eso el estado es `COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL`, no staging. Detalle: R14_VALIDATION.md.
 
 ## Entrega R1.3 — 29/09/2026
 
@@ -48,10 +67,26 @@ Pruebas: `npm test` con R13_TEST_DATABASE_URL apuntando exclusivamente a Postgre
 
 Archivos: src/services/actualizaciones.service.js; src/controllers/{actualizaciones,revisiones,workflow}.controller.js; src/middlewares/httpLifecycle.js; test/{actualizaciones,actualizaciones.postgres,http}.test.js; docs/development/{STATUS,CHANGELOG,DECISIONS,R13_VALIDATION}.md. El AGENTS.md no rastreado del frontend se preservó.
 
-Límites: no versión de pantalla ni detección ABA; cierre completo aún no atómico (R1.4); sin pruebas frontend/carga ni validación remota R1.3. Próximo: validar esta versión en staging tras publicación autorizada y abordar R1.4/D-B02/B03. Despliegue real sin cambios: SHA 487a0e9 en Render. Sin commit/PR/push/deploy de esta entrega.
+Límites registrados al cerrar R1.3: no versión de pantalla ni detección ABA; el cierre completo todavía pertenecía a R1.4; sin pruebas frontend/carga. El próximo paso de esa entrega era validar R1.3 en staging y abordar R1.4, pasos completados posteriormente como consta arriba. Sin commit/PR/push/deploy en aquella entrega.
 
 ## Continuación staging R1.3 — 29/09/2026
 
 Commit 520cd35d33a3be2e7ca1d90adc745880d0d53eff publicado en rama r13-atributos-staging y desplegado manualmente solo en srv-datd8aek1f9s73fqp9fg (dep-dau2pc97lnhs73f705eg, Live). Staging sigue esa rama con Auto-Deploy Off. main remoto conserva 487a0e9; producción no se modificó. Smoke 7/7 PASS con SHA exacto.
 
-Verificador de comportamiento preparado y validado localmente: 12 escenarios/58 HTTP más suite 57/57. Remoto: preflight del entorno navegador sin acceso de red, cero fixtures; ejecución CLI mediante IPC efímero bloqueada por auto-review antes de iniciar escrituras. Usuario consultado para autorización explícita de campaña inactiva y 11 artículos ficticios en base aislada. R1.3 aún NO VALIDADO_STAGING en comportamiento. Detalles y evidencia en STAGING.md. Cluster PostgreSQL local detenido; fixtures del nuevo smoke local conservados en base aislada.
+Verificador de comportamiento preparado y validado localmente: 12 escenarios/58 HTTP más suite 57/57. Al cierre del 29/09, el preflight del entorno navegador no tenía acceso de red y la ejecución CLI mediante IPC efímero había quedado bloqueada antes de escribir; esa situación fue resuelta con la validación loopback del 30/09 documentada debajo. Cluster PostgreSQL local detenido; fixtures del smoke local conservados en base aislada.
+
+## Cierre documental R1.3 e inicio de preparación R1.4 — 30/09/2026
+
+Usuario pidió finalizar R1.3, documentar todo y avanzar a la siguiente etapa. Se releyeron AGENTS, roadmap, estado, decisiones, changelog y auditoría; se preservó el AGENTS.md no rastreado del frontend y no se modificó frontend. `npm test` ejecutado sin R13_TEST_DATABASE_URL: 41/41 PASS y 1 integración PostgreSQL omitida por falta de base aislada activa; no valida staging ni carreras reales remotas. No hay cambios de código en esta continuación.
+
+R1.3 quedó VALIDADO_STAGING el 30/09/2026. Se recuperaron las credenciales mediante sesiones autorizadas de Neon y Render, se verificó el destino exacto `r02_prisma_validation` y se ejecutó la validación mediante un puente loopback efímero. Resultado: 12/12 escenarios PASS, 58 HTTP con estados esperados 200/409, SHA exacto 520cd35, campaña inactiva ID 1 y 11 SKU TEST-R13 retenidos. Evidencia sanitizada: `r13-staging-validation-20260930.json`; no contiene URL de conexión, token ni contraseña. Producción no fue consultada ni modificada.
+
+En ese momento R1.4 quedó reservado solo para preparación: faltaban R1.2 y D-B02/D-B03. Esas dependencias fueron resueltas después y la implementación final está documentada en la sección R1.4 superior.
+
+## Implementación técnica R1.2 — 30/09/2026
+
+Escaneo refactorizado a servicio con transacción Serializable única; clave idempotente obligatoria, replay por payload, 409 por reutilización conflictiva, resolución de carrera por índice único y etapas monotónicas. Frontend genera y conserva la clave durante reintentos y la rota al cambiar el intento o completarlo. Sin migración: se usa el índice existente. Archivos y límites completos en R12_VALIDATION.md.
+
+Validación: backend 54 PASS, 0 fallos, 1 omitida (integración R1.3 no activada); incluye PostgreSQL 16.3 real en base local nueva `r12_isolated`, dos solicitudes simultáneas, rollback forzado, desconocido idempotente, etapa consolidada y siete sucursales concurrentes con retry explícito. Frontend 6/6 PASS, build exitoso, lint 0 errores/42 advertencias heredadas. Fixtures en cero; base R1.2 eliminada y clúster detenido. Sin staging/producción, commit, push o deploy.
+
+Este era el estado al finalizar la implementación técnica. Fue superado por el cierre del 30/09 documentado arriba: D-B01 aprobada, R1.1 implementada y suite R1.2 repetida; R1.2 quedó COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL.

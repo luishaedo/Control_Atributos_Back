@@ -1,4 +1,4 @@
-import { pad2 } from '../utils/sku.js'
+import { parseCode } from '../utils/sku.js'
 
 const fields = ['categoria_cod', 'tipo_cod', 'clasif_cod']
 const isEmptyValue = value => value === undefined || value === null || String(value).trim() === ''
@@ -72,10 +72,51 @@ export function ActualizacionesService(prisma, transaction = null) {
     }
   }
 
-  const normalizeCode = value => isEmptyValue(value) ? '' : pad2(String(value).trim())
+  const normalizeCode = (value, field = 'código') => {
+    if (isEmptyValue(value)) return ''
+    const parsed = parseCode(value)
+    if (!parsed.valid) {
+      throw Object.assign(new Error(`${field} debe tener uno o dos dígitos; no se truncó el valor`), {
+        status: 422, code: 'INVALID_CODE_FORMAT', field,
+      })
+    }
+    return parsed.normalized
+  }
 
   const recordDecision = async ({ campaniaId, sku, propuesta, decision, decidedBy, notas, aplicarAhora }) => atomic(async tx => {
+    if (aplicarAhora) {
+      throw Object.assign(new Error('La aplicación anticipada está deshabilitada; confirmá y cerrá la campaña'), {
+        status: 409, code: 'APPLY_REQUIRES_CLOSE',
+      })
+    }
+    const campaign = await tx.campania.findUnique({ where: { id: campaniaId } })
+    if (!campaign?.activa || (campaign.estado && campaign.estado !== 'ACTIVA')) {
+      throw Object.assign(new Error('La campaña no está activa'), { status: 409, code: 'CAMPAIGN_NOT_ACTIVE' })
+    }
+    const currentStage = await tx.skuStage.findUnique({ where: { campaniaId_sku: { campaniaId, sku } } })
+    if (currentStage?.stage === 'consolidate') {
+      throw Object.assign(new Error('El SKU ya está consolidado y no admite nuevas decisiones'), {
+        status: 409, code: 'DECISION_ALREADY_CONFIRMED',
+      })
+    }
     const proposed = fields.filter(field => !isEmptyValue(propuesta?.[field]))
+    const normalizedProposal = Object.fromEntries(fields.map(field => [field, normalizeCode(propuesta?.[field], field)]))
+    const dictionaryModels = {
+      categoria_cod: tx.dicCategoria,
+      tipo_cod: tx.dicTipo,
+      clasif_cod: tx.dicClasif,
+    }
+    const invalidDomain = (await Promise.all(proposed.map(async field => ({
+      field,
+      exists: Boolean(await dictionaryModels[field].findUnique({ where: { cod: normalizedProposal[field] } })),
+    })))).filter(item => !item.exists)
+    if (invalidDomain.length) {
+      throw Object.assign(new Error('Uno o más códigos no existen en los diccionarios'), {
+        status: 422, code: 'INVALID_DICTIONARY', details: invalidDomain.map(({ field }) => ({
+          field, value: normalizedProposal[field],
+        })),
+      })
+    }
     const snapshot = await tx.campaniaMaestro.findUnique({ where: { campaniaId_sku: { campaniaId, sku } } })
     // A new review starts from the current master, not an immutable campaign snapshot.
     const master = await tx.maestro.findUnique({ where: { sku } })
@@ -107,21 +148,76 @@ export function ActualizacionesService(prisma, transaction = null) {
       decidedBy: decidedBy || null, decidedAt: new Date(), notas,
       ...Object.fromEntries(fields.flatMap(field => [
         [`old_${field}`, master?.[field] ?? snapshot?.[field] ?? null],
-        [`new_${field}`, normalizeCode(propuesta?.[field])],
+        [`new_${field}`, normalizedProposal[field]],
       ])),
     } })
     if (decision === 'aceptar') {
       await tx.skuStage.upsert({
         where: { campaniaId_sku: { campaniaId, sku } },
-        create: { campaniaId, sku, stage: 'confirm', updatedBy: decidedBy || null },
-        update: { stage: 'confirm', updatedBy: decidedBy || null, updatedAt: new Date() },
+        create: { campaniaId, sku, stage: 'evaluate', updatedBy: decidedBy || null },
+        update: { stage: 'evaluate', updatedBy: decidedBy || null, updatedAt: new Date() },
       })
-      if (aplicarAhora) {
-        await ActualizacionesService(prisma, tx).applyUpdates({ ids: [act.id], decidedBy })
-        return tx.actualizacion.findUnique({ where: { id: act.id } })
-      }
     }
     return act
   })
-  return { applyUpdates, normalizeCode, recordDecision }
+
+  const revertApplied = async ({ id, decidedBy = '', notas = '' } = {}) => {
+    if (!Number.isSafeInteger(id) || id < 1) {
+      throw Object.assign(new Error('id debe ser un entero positivo'), { status: 400, code: 'INVALID_ID' })
+    }
+    try {
+      return await atomic(async tx => {
+        const original = await tx.actualizacion.findUnique({ where: { id } })
+        if (!original) {
+          throw Object.assign(new Error('Actualización no encontrada'), { status: 404, code: 'UPDATE_NOT_FOUND' })
+        }
+        if (original.estado !== 'aplicada' || !original.appliedAt || original.archivada) {
+          throw Object.assign(new Error('Solo se puede revertir una actualización aplicada y vigente'), {
+            status: 409, code: 'REVERSAL_NOT_ALLOWED',
+          })
+        }
+        if (await tx.actualizacion.findUnique({ where: { reversalOfId: id } })) {
+          throw Object.assign(new Error('La actualización ya tiene una reversión compensatoria'), {
+            status: 409, code: 'REVERSAL_ALREADY_EXISTS',
+          })
+        }
+        const master = await tx.maestro.findUnique({ where: { sku: original.sku } })
+        if (!master) throw conflict()
+        const changedFields = fields.filter(field =>
+          !isEmptyValue(original[`new_${field}`]) && original[`new_${field}`] !== original[`old_${field}`])
+        if (!changedFields.length) {
+          throw Object.assign(new Error('La actualización no produjo cambios reversibles'), {
+            status: 409, code: 'REVERSAL_NOT_ALLOWED',
+          })
+        }
+        for (const field of changedFields) {
+          if (master[field] !== original[`new_${field}`] || isEmptyValue(original[`old_${field}`])) throw conflict()
+        }
+        const reversal = await tx.actualizacion.create({ data: {
+          campaniaId: original.campaniaId,
+          sku: original.sku,
+          estado: 'pendiente',
+          decidedBy: decidedBy || null,
+          decidedAt: new Date(),
+          notas: notas || `Reversión compensatoria de ${original.id}`,
+          reversalOfId: original.id,
+          ...Object.fromEntries(fields.flatMap(field => [
+            [`old_${field}`, master[field] ?? null],
+            [`new_${field}`, changedFields.includes(field) ? original[`old_${field}`] : ''],
+          ])),
+        } })
+        await ActualizacionesService(prisma, tx).applyUpdates({ ids: [reversal.id], decidedBy })
+        return tx.actualizacion.findUnique({ where: { id: reversal.id } })
+      })
+    } catch (error) {
+      if (error?.code === 'P2002') {
+        throw Object.assign(new Error('La actualización ya tiene una reversión compensatoria'), {
+          status: 409, code: 'REVERSAL_ALREADY_EXISTS',
+        })
+      }
+      throw error
+    }
+  }
+
+  return { applyUpdates, normalizeCode, recordDecision, revertApplied }
 }

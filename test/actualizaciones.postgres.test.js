@@ -43,11 +43,31 @@ test('R1.3 PostgreSQL aislado: conservación, atomicidad y carreras reales', { s
   assert.equal(parsed.pathname, '/r13_isolated')
   assert.equal(parsed.username, 'r13test')
   const db = new PrismaClient({ datasources: { db: { url } } })
-  const sku = `R13-${randomUUID()}`
-  const campaign = await db.campania.create({ data: { nombre: sku, inicia: new Date(), termina: new Date() } })
+  const sku = `R13${randomUUID().replaceAll('-', '')}`
+  const requiredCodes = {
+    dicCategoria: ['02', '03', '04'],
+    dicTipo: ['03'],
+    dicClasif: ['04'],
+  }
+  const createdCodes = {}
+  for (const [model, codes] of Object.entries(requiredCodes)) {
+    const existing = await db[model].findMany({ where: { cod: { in: codes } }, select: { cod: true } })
+    const existingSet = new Set(existing.map(item => item.cod))
+    createdCodes[model] = codes.filter(code => !existingSet.has(code))
+    if (createdCodes[model].length) {
+      await db[model].createMany({ data: createdCodes[model].map(cod => ({ cod, nombre: `Test ${cod}` })) })
+    }
+  }
+  const campaign = await db.campania.create({ data: {
+    nombre: sku, inicia: new Date(), termina: new Date(), activa: true,
+    activatedOnce: true, estado: 'ACTIVA', activatedAt: new Date(),
+  } })
   t.after(async () => {
     await db.campania.delete({ where: { id: campaign.id } })
     await db.maestro.deleteMany({ where: { sku } })
+    for (const [model, codes] of Object.entries(createdCodes)) {
+      if (codes.length) await db[model].deleteMany({ where: { cod: { in: codes } } })
+    }
     await db.$disconnect()
   })
   await db.maestro.create({ data: { sku, descripcion: 'fixture aislado', ...Object.fromEntries(fields.map(f => [f, '01'])) } })
@@ -141,23 +161,21 @@ test('R1.3 PostgreSQL aislado: conservación, atomicidad y carreras reales', { s
     assert.deepEqual(await master(), ['01', '99', '01'])
     assert.equal(await db.actualizacion.count({ where: { campaniaId: campaign.id, estado: 'aplicada' } }), 0)
   })
-  await t.test('revisión posterior a aplicación usa maestro actual y devuelve aplicada', async () => {
+  await t.test('aplicación anticipada se rechaza sin crear decisión ni tocar maestro', async () => {
     await reset()
-    await decide({ categoria_cod: '02' }, { aplicarAhora: true })
-    const next = await decide({ categoria_cod: '03' }, { aplicarAhora: true })
-    assert.equal(next.old_categoria_cod, '02')
-    assert.equal(next.estado, 'aplicada')
-    assert.deepEqual(await master(), ['03', '01', '01'])
+    await assert.rejects(decide({ categoria_cod: '02' }, { aplicarAhora: true }), {
+      code: 'APPLY_REQUIRES_CLOSE', status: 409,
+    })
+    assert.equal(await db.actualizacion.count({ where: { campaniaId: campaign.id } }), 0)
+    assert.deepEqual(await master(), ['01', '01', '01'])
   })
-  await t.test('fallo en aplicación inmediata revierte decisión, archivado y etapa', async () => {
+  await t.test('intento anticipado no archiva decisión ni cambia etapa existente', async () => {
     await reset()
     const original = await decide({ categoria_cod: '02' })
     await db.skuStage.update({ where: { campaniaId_sku: { campaniaId: campaign.id, sku } }, data: { stage: 'consolidate' } })
-    const failing = { $transaction: (fn, opts) => db.$transaction(tx => fn(new Proxy(tx, { get(target, key) {
-      if (key === 'maestro') return { findUnique: args => tx.maestro.findUnique(args), updateMany: async () => ({ count: 0 }) }
-      return target[key]
-    } })), opts) }
-    await assert.rejects(decide({ categoria_cod: '03' }, { aplicarAhora: true }, ActualizacionesService(failing)), { code: 'UPDATE_CONFLICT' })
+    await assert.rejects(decide({ categoria_cod: '03' }, { aplicarAhora: true }), {
+      code: 'APPLY_REQUIRES_CLOSE', status: 409,
+    })
     assert.equal(await db.actualizacion.count({ where: { campaniaId: campaign.id } }), 1)
     assert.equal((await db.actualizacion.findUnique({ where: { id: original.id } })).archivada, false)
     assert.equal((await db.skuStage.findUnique({ where: { campaniaId_sku: { campaniaId: campaign.id, sku } } })).stage, 'consolidate')

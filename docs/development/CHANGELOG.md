@@ -1,4 +1,36 @@
 # Historial de entregas
+## 30/09/2026 — R1.4 completada y validada localmente
+
+El usuario aprobó D-B02/D-B03. Se agregó ciclo explícito de campaña, restricción de una única activa, snapshot congelado al activar, validación de fechas, cierre atómico e idempotente, aplicación exclusiva de decisiones confirmadas, preservación de rechazos y reversión compensatoria trazable. GET y escaneo dejaron de completar snapshots. Editar, aprobar, rechazar o fusionar desconocidos exige campaña activa y actualiza estado/etapa atómicamente. El modal frontend usa el arreglo estable de estadísticas por usuario devuelto por el cierre.
+
+Nueva migración `20260930220000_r14_campaign_lifecycle`: estado y marcas de activación/cierre, vínculo único de reversión e índice parcial de campaña activa. La aplicación anticipada queda deshabilitada; confirmar y cerrar es el único camino normal de aplicación.
+
+Validación PostgreSQL 16.3 local: backend 90/90 PASS, cero omitidas, con suites R1.2/R1.3/R1.4 completas. Los diez escenarios R1.4 incluyen fechas/objetivos, snapshot/GET, segunda activa, cierre selectivo, rechazo, idempotencia, no reactivación, reversión, rollback forzado, doble cierre y carrera cierre/escaneo. Frontend 7/7, build 389 módulos y lint 0 errores/42 advertencias heredadas. Bases R1.2/R1.4 terminaron sin fixtures y se eliminaron; R1.3 quedó preservada sin campañas activas; clúster detenido. Sin staging/producción, commit, push o deploy. Estado: `COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL`; evidencia en R14_VALIDATION.md.
+
+## 30/09/2026 — R1.1 y R1.2 completados y validados localmente
+
+El usuario aprobó D-B01: `#`/`$` separan el sufijo de etiqueta y el sistema debe avisarlo; códigos fuera de formato/dominio se rechazan completos. Se unificó normalización backend/frontend para lookup, importación, escaneo, revisión y exportación. La base SKU alfanumérica se convierte a mayúsculas; el raw se conserva cuando el modelo lo permite. Códigos de uno/dos dígitos conservan ceros y ningún valor se limpia o trunca silenciosamente. Escaneo/importación muestran avisos y los errores identifican formato/dominio antes de escribir.
+
+R1.2 se repitió contra el contrato final: backend 79/79 PASS con PostgreSQL 16.3 real en bases locales aisladas R1.2/R1.3, 0 omitidas; incluye concurrencia con `#ETIQUETA`, rollback, idempotencia y regresión de aplicación. Frontend 7/7, build 389 módulos, lint 0 errores/42 advertencias heredadas. `r12_isolated` terminó sin fixtures, se eliminó y el clúster se detuvo; `r13_isolated` se preservó. Sin staging/producción, commit, push o deploy. Evidencia: R11_VALIDATION.md y R12_VALIDATION.md.
+
+Estado: R1.1 y R1.2 `COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL`. R1.4 queda bloqueada únicamente por D-B02/D-B03.
+
+## 30/09/2026 — R1.2 implementado y validado localmente; dependencia R1.1 pendiente
+
+El usuario pidió terminar R1.2 para avanzar. Se refactorizó `escaneos.controller.js` a `escaneos.service.js`: clave idempotente obligatoria, comparación de payload, replay sin nueva escritura, 409 por reutilización conflictiva, transacción Serializable única para snapshot/escaneo/desconocido/contador/etapa y preservación de etapas avanzadas. No se añadió migración; se reutiliza el índice único compuesto existente. El frontend ahora genera una clave por intento, la conserva tras error y la rota al cambiar/completar el payload.
+
+Pruebas: backend 54 PASS, 0 fallos y 1 omitida (integración R1.3 separada). PostgreSQL 16.3 real local, DB nueva `r12_isolated`, ocho migraciones existentes, sin seed/reset/db push: misma clave concurrente produce una fila; payload conflictivo 409; fallo de etapa revierte todo; replay desconocido no incrementa; consolidate no retrocede; siete sucursales convergen mediante retry explícito con la misma clave. Fixtures 0/0/0/0, DB R1.2 eliminada y clúster detenido. Frontend 6/6 PASS, build 389 módulos, lint 0 errores/42 advertencias heredadas. Primer Vitest sandbox bloqueado por acceso a vite.config; repetición autorizada pasó. Sin acceso remoto, commit, push ni deploy.
+
+Estado: IMPLEMENTADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL, todavía no COMPLETADO porque ROADMAP exige R1.1 y D-B01 no fue aprobada. No se cambió normalización SKU/códigos. Evidencia: R12_VALIDATION.md. Próximo: confirmar D-B01, implementar/validar R1.1 y repetir R1.2; luego R1.4 requiere además D-B02/D-B03.
+
+## 30/09/2026 — Cierre documental R1.3 y preparación de R1.4
+
+Pedido del usuario: finalizar R1.3, documentar todo y avanzar a la siguiente etapa. Se releyeron instrucciones de workspace/backend/frontend, roadmap, STATUS, DECISIONS, CHANGELOG y auditoría histórica. Repos revisados con `git -c safe.directory=...` por bloqueo de ownership; backend estaba limpio antes de documentar y frontend conserva `AGENTS.md` no rastreado. No se modificó frontend ni código de negocio.
+
+R1.3 quedó VALIDADO_STAGING de comportamiento. Las sesiones autorizadas de Neon y Render permitieron recuperar en memoria la `DATABASE_URL` exacta de `r02_prisma_validation` y el token independiente de staging. El primer traspaso desde el portapapeles aislado del navegador falló antes de parsear credenciales, sin conexión ni escrituras. Se agregó `scripts/run-r13-staging-loopback.mjs`: formulario loopback en `127.0.0.1`, ruta aleatoria, un solo uso, `no-store`, cierre inmediato y sin persistencia ni impresión de secretos.
+
+Validación remota final: `node scripts/run-r13-staging-loopback.mjs 520cd35d33a3be2e7ca1d90adc745880d0d53eff docs/development/r13-staging-validation-20260930.json`. Resultado 12/12 escenarios PASS y 58 HTTP, incluidos seis órdenes de atributos, sustitución parcial, doble aplicación paralela 200/409, rechazo posterior, rollback total por baseline y aplicación inmediata. Campaña inactiva ID 1 y 11 SKU TEST-R13 retenidos en la base aislada. Evidencia sanitizada sin secretos. Producción, frontend y reglas de negocio no se modificaron. La suite local de esta continuación fue 41/41 PASS con 1 integración PostgreSQL omitida; la evidencia previa real sigue 57/57. `node --check scripts/run-r13-staging-loopback.mjs` y `git diff --check` finalizaron correctamente; el escaneo de secretos solo encontró nombres de campos en el runner, ninguno en la evidencia. Próximo: R1.4 solo tras resolver R1.2 y D-B02/D-B03.
+
 ## 29/09/2026 — R1.3 publicada y desplegada exclusivamente en staging
 
 Commit 520cd35d33a3be2e7ca1d90adc745880d0d53eff en rama r13-atributos-staging, deploy dep-dau2pc97lnhs73f705eg Live tras 43,3 s. Render staging sigue esa rama con Auto-Deploy Off; main remoto permanece 487a0e9, sin despliegue productivo. Cambios de negocio de R1.3 publicados junto con evidencia local anterior.

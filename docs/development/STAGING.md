@@ -8,6 +8,16 @@ Smoke de disponibilidad: smoke-r13-staging.json, 7/7 PASS, SHA exacto y CORS/aut
 
 Validación de escrituras pendiente de autorización específica solicitada tras rechazo de revisión automática: crear campaña inactiva TEST-R13 y 11 SKUs únicos en r02_prisma_validation, conservar fixtures, no borrar datos existentes. El primer preflight desde el entorno del navegador no pudo acceder a la red (EACCES); ningún fixture creado, evidencia r13-staging-preflight-environment-failure.json. Se preparó scripts/run-r13-staging-memory.mjs para ejecutar por canal IPC local efímero sin persistir credenciales. Ejecución remota de ese runner bloqueada antes de comenzar. No se crearon archivos de credenciales.
 
+Seguimiento 30/09/2026: usuario autorizó completar el circuito. Se recuperaron mediante sesiones autenticadas la conexión exacta de Neon aislada y el token independiente de Render staging, siempre en memoria. El primer intento con `scripts/run-r13-staging-memory.mjs` no recibió el portapapeles aislado del navegador y terminó antes de parsear credenciales; no conectó ni creó fixtures.
+
+Se agregó un canal alternativo equivalente para sesiones de navegador aisladas:
+
+```powershell
+node scripts/run-r13-staging-loopback.mjs 520cd35d33a3be2e7ca1d90adc745880d0d53eff docs/development/r13-staging-validation-20260930.json
+```
+
+El runner abre solo en `127.0.0.1`, con ruta aleatoria de un uso, formulario `no-store` y vencimiento de 120 segundos; cierra el listener al recibir las credenciales y delega las restricciones al mismo `validate-r13-staging.mjs`. Resultado remoto: 12/12 escenarios PASS, 58 HTTP, estados esperados 200/409, SHA exacto, campaña inactiva ID 1 y 11 SKU TEST-R13 retenidos en `r02_prisma_validation`. Evidencia: `r13-staging-validation-20260930.json`, verificada sin URL de conexión, token, contraseña ni encabezados de autorización. Credenciales descartadas y pestañas temporales cerradas. R1.3 queda VALIDADO_STAGING; producción no fue consultada ni modificada.
+
 ## Configuración y validación inicial R0.2
 
 Preparación: 28/09/2026, Codex/coordinador. Autorización explícita del usuario para desplegar y verificar staging.

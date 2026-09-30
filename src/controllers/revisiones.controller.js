@@ -1,4 +1,4 @@
-import { pad2, cleanSku } from "../utils/sku.js";
+import { pad2, cleanSku, parseSku } from "../utils/sku.js";
 import { ActualizacionesService } from "../services/actualizaciones.service.js";
 import { sendAdminError } from "../utils/http.js";
 export function RevisionesController(prisma) {
@@ -39,7 +39,11 @@ export function RevisionesController(prisma) {
       if (!campaniaId)
         return sendAdminError(res, 400, "campaniaId requerido");
 
-      const buscarSku = (req.query.sku || "").trim().toUpperCase();
+      const rawFilterSku = String(req.query.sku || "").trim();
+      const parsedFilterSku = parseSku(rawFilterSku);
+      if (rawFilterSku && !parsedFilterSku.valid)
+        return sendAdminError(res, 400, "SKU de filtro inválido");
+      const buscarSku = parsedFilterSku.normalized;
       const filtroConsenso = req.query.consenso; // 'true' | 'false' | undefined
       const soloConDiferencias =
         (req.query.soloConDiferencias ?? "true") === "true";
@@ -245,7 +249,8 @@ export function RevisionesController(prisma) {
           aplicarAhora = false,
           notas = "",
         } = req.body || {};
-        if (!campaniaId || !sku || !decision)
+        const parsedSku = parseSku(sku || "");
+        if (!campaniaId || !parsedSku.valid || !decision)
           return sendAdminError(res, 400, "Faltan campos");
         if (!["aceptar", "rechazar"].includes(decision))
           return sendAdminError(res, 400, "decision inválida");
@@ -258,13 +263,20 @@ export function RevisionesController(prisma) {
         }
 
         const act = await recordDecision({
-          campaniaId: Number(campaniaId), sku, propuesta, decision,
+          campaniaId: Number(campaniaId), sku: parsedSku.normalized, propuesta, decision,
           decidedBy, aplicarAhora, notas,
         });
-        res.json({ ok: true, actualizacion: act });
+        res.json({
+          ok: true,
+          actualizacion: act,
+          warnings: parsedSku.hadSuffix ? [{ code: 'SKU_SUFFIX_IGNORED', skuNormalized: parsedSku.normalized }] : [],
+        });
       } catch (e) {
         if (e.code === 'UPDATE_CONFLICT') {
           return res.status(409).json({ error: e.message, code: e.code, requestId: req.id });
+        }
+        if (e.status) {
+          return res.status(e.status).json({ error: e.message, code: e.code, ...(e.details ? { errors: e.details } : {}), requestId: req.id });
         }
         console.error({ event: 'decision_error', code: e.code || 'INTERNAL_ERROR' });
         sendAdminError(res, 500, "Error al decidir revisión");
@@ -276,6 +288,8 @@ export function RevisionesController(prisma) {
       const minVotos = Math.max(1, Number(req.query.minVotos || 1));
       const campaniaId = Number(req.query.campaniaId);
       const filterSku = cleanSku(req.query.sku || "");
+      if (String(req.query.sku || '').trim() && !filterSku)
+        return sendAdminError(res, 400, "SKU de filtro inválido");
       if (!campaniaId)
         return sendAdminError(res, 400, "campaniaId requerido");
       const data = await prisma.escaneo.findMany({
@@ -349,6 +363,8 @@ export function RevisionesController(prisma) {
       const campaniaId = Number(req.query.campaniaId);
       const minSuc = Math.max(1, Number(req.query.minSucursales || 1));
       const filterSku = cleanSku(req.query.sku || "");
+      if (String(req.query.sku || '').trim() && !filterSku)
+        return sendAdminError(res, 400, "SKU de filtro inválido");
 
       if (!campaniaId)
         return sendAdminError(res, 400, "campaniaId requerido");

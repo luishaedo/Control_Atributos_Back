@@ -1,5 +1,5 @@
 import { MaestroService } from '../services/maestro.service.js'
-import { cleanSku, pad2 } from '../utils/sku.js'
+import { cleanSku, parseCode, parseSku } from '../utils/sku.js'
 import { toCSV } from '../utils/csv.js'
 import { sendAdminError } from '../utils/http.js'
 
@@ -10,7 +10,8 @@ export function MaestroController(prisma) {
     if (value === undefined || value === null) return null
     const trimmed = String(value).trim()
     if (!trimmed) return null
-    return pad2(trimmed)
+    const parsed = parseCode(trimmed)
+    return parsed.valid ? parsed.normalized : null
   }
   return {
     listar: async (req, res) => {
@@ -82,28 +83,6 @@ export function MaestroController(prisma) {
           where: { campaniaId_sku: { campaniaId, sku } },
         })
         if (!item) {
-          const maestroItem = await prisma.maestro.findUnique({ where: { sku } })
-          if (maestroItem) {
-            item = await prisma.campaniaMaestro.upsert({
-              where: { campaniaId_sku: { campaniaId, sku } },
-              create: {
-                campaniaId,
-                sku: maestroItem.sku,
-                descripcion: maestroItem.descripcion,
-                categoria_cod: maestroItem.categoria_cod,
-                tipo_cod: maestroItem.tipo_cod,
-                clasif_cod: maestroItem.clasif_cod,
-              },
-              update: {
-                descripcion: maestroItem.descripcion,
-                categoria_cod: maestroItem.categoria_cod,
-                tipo_cod: maestroItem.tipo_cod,
-                clasif_cod: maestroItem.clasif_cod,
-              },
-            })
-          }
-        }
-        if (!item) {
           return res.status(404).json({
             code: 'MAESTRO_NOT_FOUND',
             message: 'SKU no encontrado en Maestro de campaÃ±a',
@@ -122,23 +101,29 @@ export function MaestroController(prisma) {
       const { items = [] } = req.body || {}
       if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items vacío' })
       const invalidItems = []
+      const warnings = []
       const categories = new Set()
       const types = new Set()
       const classifications = new Set()
       const normalizedItems = []
 
       for (const item of items) {
-        const sku = cleanSku(item?.sku || '')
+        const parsedSku = parseSku(item?.sku || '')
+        const sku = parsedSku.normalized
         const categoriaCod = normalizeCode(item?.categoria_cod)
         const tipoCod = normalizeCode(item?.tipo_cod)
         const clasifCod = normalizeCode(item?.clasif_cod)
         if (!sku || !categoriaCod || !tipoCod || !clasifCod) {
           invalidItems.push({
             sku: sku || item?.sku || null,
-            reason: 'missing_fields',
+            reason: !parsedSku.valid ? 'invalid_sku_or_missing_fields' : 'invalid_code_or_missing_fields',
           })
           continue
         }
+        if (parsedSku.hadSuffix) warnings.push({
+          code: 'SKU_SUFFIX_IGNORED', skuRaw: String(item.sku), skuNormalized: sku,
+          separator: parsedSku.separator,
+        })
         categories.add(categoriaCod)
         types.add(tipoCod)
         classifications.add(clasifCod)
@@ -192,7 +177,9 @@ export function MaestroController(prisma) {
         count,
         skippedCount: skipped.length,
         skippedMessage,
-        skipped
+        skipped,
+        warningCount: warnings.length,
+        warnings,
       })
     },
      exportCSV: async (_req, res) => {

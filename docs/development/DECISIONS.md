@@ -16,17 +16,23 @@
 
 - D-T10 (29/09/2026): staging R1.3 sigue rama exclusiva r13-atributos-staging, Auto-Deploy Off. No publicar en main para evitar despliegue productivo involuntario. Verificador remoto restringe destino y SHA, crea fixtures nuevos identificables que conserva y usa credenciales solo en memoria; autorización específica de escrituras consultada tras rechazo automático.
 
+- D-T11 (30/09/2026, R1.2): un intento lógico de escaneo requiere clave idempotente por campaña. Misma clave/payload reproduce la respuesta persistida; mismo identificador con otro payload devuelve 409. Todo el flujo de escritura se ejecuta en una transacción Serializable, sin retry automático. Conflictos serializables se informan y el cliente reintenta con la misma clave. Las etapas de escaneo solo avanzan según `unknown → evaluate → confirm → consolidate`; el índice compuesto existente basta, sin migración. La identidad autenticada confiable sigue perteneciendo a R2.1.
+- D-T12 (30/09/2026, R1.4): representar el ciclo de campaña explícitamente y reforzar una única activa con índice parcial PostgreSQL. Crear el snapshot completo al activar y eliminar escrituras desde GET/escaneo. Reclamar el cierre con `CERRANDO` y ejecutar selección, aplicación y estado final dentro de una transacción Serializable; repetir un cierre finalizado es lectura idempotente. La reversión se modela como evento aplicado con `reversalOfId` único y verificación del maestro vigente.
+
+## Decisiones de negocio aprobadas
+
+- D-B01 (30/09/2026, aprobada por el usuario): el primer `#` o `$` separa el sufijo de etiqueta del SKU base y debe informarse al operador. La base se normaliza a mayúsculas y es alfanumérica. Los códigos admiten uno o dos dígitos y cero inicial canónico; todo formato distinto o código fuera de su diccionario se rechaza sin quitar caracteres ni truncar. Mantener el valor crudo para auditoría donde el modelo lo permite.
+- D-B02 (30/09/2026, aprobada por el usuario): aceptar registra una propuesta; confirmar la habilita; cerrar aplica atómicamente solo decisiones vigentes confirmadas. Rechazos y anulaciones se preservan. Una reversión es una nueva decisión compensatoria trazable y nunca reescribe ni borra el evento original.
+- D-B03 (30/09/2026, aprobada por el usuario): solo una campaña puede estar activa; el snapshot se congela al activar; una campaña cerrada no se reactiva por el flujo normal. `inicia` y `termina` deben ser fechas válidas con `inicia <= termina`; en R1.4 son informativas y no abren/cierran automáticamente ni bloquean escaneos.
+
 ## Decisiones de negocio pendientes
 
-Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esta autorización no decide por sí sola D-B01–D-B06.
+Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esa autorización no decidió por sí sola D-B01–D-B06. D-B01, D-B02 y D-B03 fueron aprobadas después, el 30/09.
 
 | ID | Tema | Propuesta para discutir | Bloquea |
 |---|---|---|---|
-| D-B01 | SKU/códigos | Sufijo #/$ de etiqueta separado; rechazo sin truncado de códigos fuera de dominio | R1.1 |
-| D-B02 | Aplicación/cierre | Aprobar propone, confirmar habilita, cerrar aplica solo vigentes; reversión compensatoria | R1.4 |
-| D-B03 | Campaña/snapshot/fechas | Una activa, snapshot al activar, cierre permanente; definir fechas informativas u obligatorias | R1.4 |
 | D-B04 | Identidad | Cuenta individual, sucursal asignada, operador/revisor/admin | R2.1 |
 | D-B05 | Sistema externo | Contrato de import/export, encoding, altas y cambios netos o absolutos | R3.1/R3.2 |
 | D-B06 | Consenso | Última observación por sucursal/SKU/atributo; conservar eventos | R3.3 |
 
-El usuario autorizó roadmap y primer paso, no aprobó aún estas propuestas. No bloquean R0.1.
+El usuario autorizó roadmap y primer paso; D-B01, D-B02 y D-B03 ya fueron aprobadas. D-B04–D-B06 continúan como propuestas pendientes.

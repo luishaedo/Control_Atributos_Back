@@ -21,8 +21,28 @@ export function ImportService(prisma) {
     async importarMaestroDesdeBuffer(maestroBuf) {
       if (!maestroBuf) return { count: 0, skipped: [] }
       const items = parseMaestroCSV(maestroBuf) // normaliza 01/02, encabes, delimitador, etc.
+      const warnings = items.flatMap(item => item.skuWarning ? [item.skuWarning] : [])
+      const [categorias, tipos, clasif] = await Promise.all([
+        prisma.dicCategoria.findMany({ where: { cod: { in: [...new Set(items.map(item => item.categoria_cod))] } } }),
+        prisma.dicTipo.findMany({ where: { cod: { in: [...new Set(items.map(item => item.tipo_cod))] } } }),
+        prisma.dicClasif.findMany({ where: { cod: { in: [...new Set(items.map(item => item.clasif_cod))] } } }),
+      ])
+      const domains = {
+        categoria_cod: new Set(categorias.map(item => item.cod)),
+        tipo_cod: new Set(tipos.map(item => item.cod)),
+        clasif_cod: new Set(clasif.map(item => item.cod)),
+      }
+      const invalid = items.flatMap(item => Object.entries(domains)
+        .filter(([field, domain]) => !domain.has(item[field]))
+        .map(([field]) => ({ sku: item.sku, field, value: item[field] })))
+      if (invalid.length) {
+        throw Object.assign(new Error(
+          `El maestro contiene ${invalid.length} código(s) fuera de los diccionarios; no se importó ningún registro`), {
+          status: 400, code: 'INVALID_DICTIONARY', details: invalid,
+        })
+      }
       const { count, skipped } = await maestroSvc.upsertMaestro(items)
-      return { count, skipped }
+      return { count, skipped, warningCount: warnings.length, warnings }
     }
   }
 }
