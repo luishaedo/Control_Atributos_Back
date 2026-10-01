@@ -1,4 +1,12 @@
 # Historial de entregas
+## 01/10/2026 — R3.3 consenso y métricas completado localmente
+
+D-B06 quedó aprobada: el consenso cuenta la última observación válida por sucursal, SKU y atributo; cada sucursal pesa una vez por atributo; todos los eventos se conservan para auditoría; el porcentaje se calcula sobre sucursales observantes con máximo 100 y estados separados para sin observación, conflicto y empate.
+
+Código: nuevo `src/services/consenso.service.js`, uso compartido desde revisiones, discrepancias, exportes CSV y resumen de auditoría. `consensoPct` permanece como ratio para compatibilidad con el frontend actual y se agrega `consensoPorcentaje` como porcentaje 0..100. Las propuestas históricas de revisión se mantienen, pero sus conteos ahora representan sucursales observantes, no cantidad cruda de escaneos.
+
+Validación local: `npm.cmd test` 71 tests, 68 PASS, 3 SKIP; `npx.cmd prisma validate --schema prisma\schema.prisma` OK. No se ejecutó PostgreSQL aislado ni despliegue Render en esta entrega. Evidencia: R33_VALIDATION.md.
+
 ## 01/10/2026 — R3.2 exportación final publicada en producción
 
 Las exportaciones TXT finales ahora requieren campaña cerrada y se vuelven repetibles por cierre: los nombres de archivo usan `closedAt`, no el instante de descarga. `scope=applied` exporta solo decisiones aplicadas con `appliedAt` y último evento por SKU/atributo; `scope=unknown` exporta solo desconocidos aprobados y aplicados al maestro. El resumen TXT informa campaña, cierre, aplicados, altas aplicadas, pendientes, rechazos y desconocidos rechazados/fusionados.

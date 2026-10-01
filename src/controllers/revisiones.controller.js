@@ -1,5 +1,6 @@
 import { pad2, cleanSku, parseSku } from "../utils/sku.js";
 import { ActualizacionesService } from "../services/actualizaciones.service.js";
+import { CONSENSUS_FIELDS, buildConsensusReport } from "../services/consenso.service.js";
 import { sendAdminError } from "../utils/http.js";
 export function RevisionesController(prisma) {
   const { recordDecision } = ActualizacionesService(prisma);
@@ -153,86 +154,48 @@ export function RevisionesController(prisma) {
         return best ? formatDecision(best) : null;
       };
 
-      const porSku = new Map();
-      for (const e of escaneos) {
-        if (buscarSku && !String(e.sku).toUpperCase().includes(buscarSku))
-          continue;
-        const snap = snapBySku.get(e.sku) || maestroBySku.get(e.sku) || null;
-        const dif =
-          !snap ||
-          e.asum_categoria_cod !== (snap?.categoria_cod || null) ||
-          e.asum_tipo_cod !== (snap?.tipo_cod || null) ||
-          e.asum_clasif_cod !== (snap?.clasif_cod || null);
-        if (soloConDiferencias && !dif) continue;
-
-        const grp = porSku.get(e.sku) || {
-          sku: e.sku,
-          maestro: snap
-            ? {
-                categoria_cod: snap.categoria_cod,
-                tipo_cod: snap.tipo_cod,
-                clasif_cod: snap.clasif_cod,
-              }
-            : {
-                categoria_cod: "",
-                tipo_cod: "",
-                clasif_cod: "",
-              },
-          propuestas: new Map(),
-        };
-        const cat = e.asum_categoria_cod || "";
-        const tip = e.asum_tipo_cod || "";
-        const cla = e.asum_clasif_cod || "";
-        const key = `${cat}|${tip}|${cla}`;
-        const p = grp.propuestas.get(key) || {
-          categoria_cod: cat,
-          tipo_cod: tip,
-          clasif_cod: cla,
-          count: 0,
-          usuarios: new Set(),
-          sucursales: new Set(),
-        };
-        p.count += 1;
-        if (e.email) p.usuarios.add(e.email);
-        if (e.sucursal) p.sucursales.add(e.sucursal);
-        grp.propuestas.set(key, p);
-        porSku.set(e.sku, grp);
-      }
-
+      const filteredEscaneos = buscarSku
+        ? escaneos.filter((e) => String(e.sku).toUpperCase().includes(buscarSku))
+        : escaneos;
+      const filteredSkus = new Set(filteredEscaneos.map((e) => e.sku));
+      const consensus = buildConsensusReport({
+        escaneos: filteredEscaneos,
+        snapshots: Array.from(snapBySku.values()).filter((row) => filteredSkus.has(row.sku)),
+        maestro: Array.from(maestroBySku.values()).filter((row) => filteredSkus.has(row.sku)),
+      });
       const items = [];
-      for (const grp of porSku.values()) {
-        const unknown = unknownBySku.get(grp.sku) || null;
-        const propuestasArr = Array.from(grp.propuestas.values())
-          .map((p) => ({
-            ...p,
-            usuarios: Array.from(p.usuarios),
-            sucursales: Array.from(p.sucursales),
-            decision: findDecision(grp.sku, p),
-          }))
-          .sort((a, b) => b.count - a.count);
+      for (const item of consensus.items) {
+        if (soloConDiferencias && !item.hayDiferencias) continue;
+        if (!item.propuestas.length && !snapBySku.has(item.sku)) continue;
+        const unknown = unknownBySku.get(item.sku) || null;
+        const propuestasArr = item.propuestas.map((p) => ({
+          ...p,
+          decision: findDecision(item.sku, p),
+        }));
 
-        const total = propuestasArr.reduce((s, p) => s + p.count, 0);
-        const top = propuestasArr[0];
-        const consenso = top ? top.count / Math.max(1, total) : 0;
-        const hayConsenso = top
-          ? top.count >= 2 && top.count > (propuestasArr[1]?.count || 0)
-          : false;
-
-        if (filtroConsenso === "true" && !hayConsenso) continue;
-        if (filtroConsenso === "false" && hayConsenso) continue;
+        if (filtroConsenso === "true" && !item.hayConsenso) continue;
+        if (filtroConsenso === "false" && item.hayConsenso) continue;
 
         items.push({
-          sku: grp.sku,
-          maestro: grp.maestro,
+          sku: item.sku,
+          maestro: item.maestro,
           skuType: unknown ? "UNKNOWN" : "KNOWN",
           unknownId: unknown?.id || null,
           unknownStatus: unknown?.status || null,
-          stage: stageBySku.get(grp.sku) || null,
-          decisionsByField: decisionesByField.get(grp.sku) || null,
+          stage: stageBySku.get(item.sku) || null,
+          decisionsByField: decisionesByField.get(item.sku) || null,
+          consensoAtributos: item.consensoAtributos,
+          atributosConsenso: item.atributosConsenso,
+          estadoConsenso: item.estadoConsenso,
+          hayConflicto: item.hayConflicto,
+          hayEmpate: item.hayEmpate,
+          sinObservacion: item.sinObservacion,
           propuestas: propuestasArr,
-          totalVotos: total,
-          consensoPct: Number(consenso.toFixed(2)),
-          hayConsenso,
+          totalVotos: item.totalVotos,
+          totalObservantes: item.totalObservantes,
+          consensoPct: item.consensoPct,
+          consensoPorcentaje: item.consensoPorcentaje,
+          hayConsenso: item.hayConsenso,
         });
       }
       res.json({ items });
@@ -299,58 +262,34 @@ export function RevisionesController(prisma) {
       const snaps = await prisma.campaniaMaestro.findMany({
         where: { campaniaId },
       });
-      const snapBySku = new Map(snaps.map((s) => [s.sku, s]));
-
-      const porSku = new Map();
-      for (const e of data) {
-        if (filterSku && e.sku !== filterSku) continue;
-        const g = porSku.get(e.sku) || {
-          sku: e.sku,
-          maestro: null,
-          propuestas: new Map(),
-          total: 0,
-          updatedAt: null,
-          sucursales: new Set(),
-        };
-        const snap = snapBySku.get(e.sku) || null;
-        g.maestro = snap
-          ? {
-              categoria_cod: snap.categoria_cod,
-              tipo_cod: snap.tipo_cod,
-              clasif_cod: snap.clasif_cod,
-            }
-          : null;
-        const key = `${e.asum_categoria_cod || ""}|${e.asum_tipo_cod || ""}|${
-          e.asum_clasif_cod || ""
-        }`;
-        const p = g.propuestas.get(key) || {
-          categoria_cod: e.asum_categoria_cod || "",
-          tipo_cod: e.asum_tipo_cod || "",
-          clasif_cod: e.asum_clasif_cod || "",
-          count: 0,
-        };
-        p.count += 1;
-        g.propuestas.set(key, p);
-        if (e.sucursal) g.sucursales.add(e.sucursal);
-        g.total += 1;
-        g.updatedAt = !g.updatedAt || e.ts > g.updatedAt ? e.ts : g.updatedAt;
-        porSku.set(e.sku, g);
-      }
-
-      const items = Array.from(porSku.values())
-        .map((g) => {
-          const arr = Array.from(g.propuestas.values())
-            .filter((p) => p.count >= minVotos)
-            .sort((a, b) => b.count - a.count);
-          if (arr.length === 0) return null;
+      const consensus = buildConsensusReport({ escaneos: data, snapshots: snaps, filterSku });
+      const items = consensus.items
+        .map((item) => {
+          const atributos = item.atributosConsenso
+            .filter((attr) => attr.votosGanador >= minVotos && (attr.difiereMaestro || attr.hayConflicto))
+            .map((attr) => ({ ...attr }));
+          if (atributos.length === 0) return null;
+          const topPropuesta = Object.fromEntries(
+            atributos.map((attr) => [attr.atributo, attr.ganador])
+          );
           return {
-            sku: g.sku,
-            maestro: g.maestro,
-            topPropuesta: arr[0] || null,
-            totalVotos: g.total,
-            consensoVotos: arr[0]?.count || 0,
-            sucursales: Array.from(g.sucursales),
-            updatedAt: g.updatedAt,
+            sku: item.sku,
+            maestro: item.maestro,
+            topPropuesta,
+            atributos,
+            totalVotos: item.totalVotos,
+            totalObservantes: item.totalObservantes,
+            consensoVotos: Math.max(0, ...atributos.map((attr) => attr.votosGanador)),
+            consensoPct: item.consensoPct,
+            consensoPorcentaje: item.consensoPorcentaje,
+            estadoConsenso: item.estadoConsenso,
+            sucursales: Array.from(
+              new Set(atributos.flatMap((attr) => attr.valores.flatMap((v) => v.sucursales)))
+            ).sort(),
+            updatedAt: atributos
+              .flatMap((attr) => attr.valores.map((v) => v.latestAt).filter(Boolean))
+              .sort()
+              .at(-1) || null,
           };
         })
         .filter(Boolean);
@@ -369,37 +308,26 @@ export function RevisionesController(prisma) {
       if (!campaniaId)
         return sendAdminError(res, 400, "campaniaId requerido");
       const esc = await prisma.escaneo.findMany({ where: { campaniaId } });
-      const bySku = new Map();
-      for (const e of esc) {
-        if (filterSku && e.sku !== filterSku) continue;
-        const key = `${e.asum_categoria_cod || ""}|${e.asum_tipo_cod || ""}|${
-          e.asum_clasif_cod || ""
-        }`;
-        const grp = bySku.get(e.sku) || { sku: e.sku, firmas: new Map() };
-        const f = grp.firmas.get(key) || {
-          categoria_cod: e.asum_categoria_cod || "",
-          tipo_cod: e.asum_tipo_cod || "",
-          clasif_cod: e.asum_clasif_cod || "",
-          sucursales: new Set(),
-        };
-        if (e.sucursal) f.sucursales.add(e.sucursal);
-        grp.firmas.set(key, f);
-        bySku.set(e.sku, grp);
-      }
-      const items = [];
-      for (const { sku, firmas } of bySku.values()) {
-        const arr = Array.from(firmas.values())
-          .map((f) => ({ ...f, sucursales: Array.from(f.sucursales) }))
-          .filter((f) => f.sucursales.length >= minSuc)
-          .sort((a, b) => b.sucursales.length - a.sucursales.length);
-        if (arr.length === 0) continue;
-        items.push({
-          sku,
-          conflicto: arr.length > 1,
-          mayoritaria: arr[0] || null,
-          variantes: arr.slice(1),
-        });
-      }
+      const consensus = buildConsensusReport({ escaneos: esc, filterSku });
+      const items = consensus.items
+        .map((item) => {
+          const conflictos = item.atributosConsenso.filter(
+            (attr) => attr.totalObservantes >= minSuc && (attr.hayConflicto || attr.hayEmpate)
+          );
+          if (!conflictos.length) return null;
+          const mayoritaria = Object.fromEntries(
+            conflictos.map((attr) => [attr.atributo, attr.ganador])
+          );
+          return {
+            sku: item.sku,
+            conflicto: conflictos.some((attr) => attr.hayConflicto),
+            empate: conflictos.some((attr) => attr.hayEmpate),
+            atributos: conflictos,
+            mayoritaria,
+            variantes: conflictos.flatMap((attr) => attr.valores.slice(1)),
+          };
+        })
+        .filter(Boolean);
       res.json({ items });
     },
 
@@ -416,64 +344,35 @@ export function RevisionesController(prisma) {
       const snaps = await prisma.campaniaMaestro.findMany({
         where: { campaniaId },
       });
-      const snapBySku = new Map(snaps.map((s) => [s.sku, s]));
-
-      const porSku = new Map();
-      for (const e of escs) {
-        const g = porSku.get(e.sku) || {
-          sku: e.sku,
-          maestro: snapBySku.get(e.sku) || null,
-          propuestas: new Map(),
-        };
-        const key = `${e.asum_categoria_cod || ""}|${e.asum_tipo_cod || ""}|${
-          e.asum_clasif_cod || ""
-        }`;
-        const p = g.propuestas.get(key) || {
-          categoria_cod: e.asum_categoria_cod || "",
-          tipo_cod: e.asum_tipo_cod || "",
-          clasif_cod: e.asum_clasif_cod || "",
-          count: 0,
-        };
-        p.count += 1;
-        g.propuestas.set(key, p);
-        porSku.set(e.sku, g);
-      }
-
+      const consensus = buildConsensusReport({ escaneos: escs, snapshots: snaps });
       const rows = [
         [
           "sku",
-          "maestro_cat",
-          "maestro_tipo",
-          "maestro_clasif",
-          "top_cat",
-          "top_tipo",
-          "top_clasif",
-          "votos_top",
-          "total_votos",
+          "atributo",
+          "maestro",
+          "ganador",
+          "votos_ganador",
+          "total_observantes",
+          "consenso_pct",
+          "estado",
+          "alternativas",
         ],
       ];
-      for (const { sku, maestro, propuestas } of porSku.values()) {
-        const arr = Array.from(propuestas.values()).sort(
-          (a, b) => b.count - a.count
-        );
-        const top = arr[0] || {
-          categoria_cod: "",
-          tipo_cod: "",
-          clasif_cod: "",
-          count: 0,
-        };
-        const tot = arr.reduce((s, p) => s + p.count, 0);
-        rows.push([
-          sku,
-          maestro?.categoria_cod || "",
-          maestro?.tipo_cod || "",
-          maestro?.clasif_cod || "",
-          top.categoria_cod,
-          top.tipo_cod,
-          top.clasif_cod,
-          top.count,
-          tot,
-        ]);
+      for (const item of consensus.items) {
+        for (const attr of item.atributosConsenso) {
+          if (attr.sinObservacion) continue;
+          rows.push([
+            item.sku,
+            attr.atributo,
+            attr.maestro,
+            attr.ganador,
+            attr.votosGanador,
+            attr.totalObservantes,
+            attr.consensoPorcentaje,
+            attr.estado,
+            attr.valores.map((v) => `${v.value}:${v.count}`).join("|"),
+          ]);
+        }
       }
 
       const { toCSV } = await import("../utils/csv.js");
@@ -494,60 +393,32 @@ export function RevisionesController(prisma) {
         return sendAdminError(res, 400, "campaniaId requerido");
 
       const esc = await prisma.escaneo.findMany({ where: { campaniaId } });
-      const bySku = new Map();
-      for (const e of esc) {
-        const key = `${e.asum_categoria_cod || ""}|${e.asum_tipo_cod || ""}|${
-          e.asum_clasif_cod || ""
-        }`;
-        const grp = bySku.get(e.sku) || { sku: e.sku, firmas: new Map() };
-        const f = grp.firmas.get(key) || {
-          categoria_cod: e.asum_categoria_cod || "",
-          tipo_cod: e.asum_tipo_cod || "",
-          clasif_cod: e.asum_clasif_cod || "",
-          sucursales: new Set(),
-        };
-        if (e.sucursal) f.sucursales.add(e.sucursal);
-        grp.firmas.set(key, f);
-        bySku.set(e.sku, grp);
-      }
-
+      const consensus = buildConsensusReport({ escaneos: esc });
       const rows = [
         [
           "sku",
-          "conflicto",
-          "mayoritaria",
+          "atributo",
+          "estado",
+          "ganador",
+          "sucursales_ganador",
           "variantes_count",
-          "sucursales_count",
+          "sucursales_observantes",
         ],
       ];
 
-      for (const { sku, firmas } of bySku.values()) {
-        const arr = Array.from(firmas.values())
-          .map((f) => ({ ...f, sucursales: Array.from(f.sucursales) }))
-          .filter((f) => f.sucursales.length >= minSuc)
-          .sort((a, b) => b.sucursales.length - a.sucursales.length);
-        if (arr.length === 0) continue;
-        const conflicto = arr.length > 1 ? "true" : "false";
-        const variantesCount = Math.max(0, arr.length - 1);
-        const mayoritaria = arr[0];
-        const sucursalesSet = new Set();
-        for (const row of arr) {
-          for (const sucursal of row.sucursales) sucursalesSet.add(sucursal);
+      for (const item of consensus.items) {
+        for (const attr of item.atributosConsenso) {
+          if (attr.totalObservantes < minSuc || (!attr.hayConflicto && !attr.hayEmpate)) continue;
+          rows.push([
+            item.sku,
+            attr.atributo,
+            attr.estado,
+            attr.ganador,
+            attr.valores[0]?.sucursales.length || 0,
+            Math.max(0, attr.valores.length - 1),
+            attr.totalObservantes,
+          ]);
         }
-        const mayoritariaLabel = [
-          mayoritaria.categoria_cod,
-          mayoritaria.tipo_cod,
-          mayoritaria.clasif_cod,
-        ]
-          .filter((v) => v !== undefined && v !== null)
-          .join("|");
-        rows.push([
-          sku,
-          conflicto,
-          mayoritariaLabel,
-          variantesCount,
-          sucursalesSet.size,
-        ]);
       }
 
       const { toCSV } = await import("../utils/csv.js");
@@ -579,8 +450,7 @@ export function RevisionesController(prisma) {
         }),
       ]);
 
-      const snapBySku = new Map(snapshots.map((s) => [s.sku, s]));
-      const skuStats = new Map();
+      const consensus = buildConsensusReport({ escaneos, snapshots });
       const scansByUser = new Map();
       const suggestionsByUser = new Map();
 
@@ -600,55 +470,33 @@ export function RevisionesController(prisma) {
       const acceptedByUser = new Map(); // user => Set<sku|field>
 
       for (const e of escaneos) {
-        const sku = e.sku;
-        const snap = snapBySku.get(sku) || null;
-        const hasMaestro = Boolean(snap);
-        const diff =
-          !snap ||
-          String(e.asum_categoria_cod || "") !== String(snap?.categoria_cod || "") ||
-          String(e.asum_tipo_cod || "") !== String(snap?.tipo_cod || "") ||
-          String(e.asum_clasif_cod || "") !== String(snap?.clasif_cod || "");
-
-        const stat = skuStats.get(sku) || { hasMaestro: false, hasDiff: false };
-        stat.hasMaestro = stat.hasMaestro || hasMaestro;
-        stat.hasDiff = stat.hasDiff || diff;
-        skuStats.set(sku, stat);
-
         const user = e.email || "";
         if (user) {
           scansByUser.set(user, (scansByUser.get(user) || 0) + 1);
-          if (diff) {
-            suggestionsByUser.set(user, (suggestionsByUser.get(user) || 0) + 1);
-          }
-          const accepted = acceptedBySku.get(sku);
-          if (accepted) {
-            const set = acceptedByUser.get(user) || new Set();
-            if (
-              accepted.categoria_cod &&
-              String(e.asum_categoria_cod || "") === String(accepted.categoria_cod)
-            ) {
-              set.add(`${sku}|categoria_cod`);
-            }
-            if (
-              accepted.tipo_cod &&
-              String(e.asum_tipo_cod || "") === String(accepted.tipo_cod)
-            ) {
-              set.add(`${sku}|tipo_cod`);
-            }
-            if (
-              accepted.clasif_cod &&
-              String(e.asum_clasif_cod || "") === String(accepted.clasif_cod)
-            ) {
-              set.add(`${sku}|clasif_cod`);
-            }
-            acceptedByUser.set(user, set);
-          }
         }
       }
 
-      const skuEscaneados = skuStats.size;
-      const skuConSugerencias = Array.from(skuStats.values()).filter((s) => s.hasDiff).length;
-      const skuVerificados = Array.from(skuStats.values()).filter((s) => s.hasMaestro && !s.hasDiff).length;
+      for (const obs of consensus.latestObservations) {
+        const user = obs.email || "";
+        if (!user) continue;
+        const item = consensus.bySku.get(obs.sku);
+        const attr = item?.consensoAtributos?.[obs.field];
+        if (attr?.difiereMaestro) {
+          suggestionsByUser.set(user, (suggestionsByUser.get(user) || 0) + 1);
+        }
+        const accepted = acceptedBySku.get(obs.sku);
+        if (accepted && accepted[obs.field] && String(obs.value) === String(accepted[obs.field])) {
+          const set = acceptedByUser.get(user) || new Set();
+          set.add(`${obs.sku}|${obs.field}`);
+          acceptedByUser.set(user, set);
+        }
+      }
+
+      const observedItems = consensus.items.filter((item) => item.totalObservantes > 0);
+      const skuEscaneados = observedItems.length;
+      const skuConSugerencias = observedItems.filter((item) => item.hayDiferencias).length;
+      const skuVerificados = observedItems.filter((item) => !item.hayDiferencias && !item.sinObservacion).length;
+      const atributosResumen = consensus.items.flatMap((item) => item.atributosConsenso);
 
       let atributosAceptados = 0;
       for (const act of actualizaciones) {
@@ -681,7 +529,19 @@ export function RevisionesController(prisma) {
           escaneos: toTopList(scansByUser, 5),
           sugerencias: toTopList(suggestionsByUser, 5),
           aceptadas: toTopList(acceptedCountByUser, 5),
-          tasaAceptacion: acceptanceRateByUser,
+          tasaAceptacion: acceptanceRateByUser.map((entry) => ({
+            ...entry,
+            rate: Number(Math.min(1, entry.rate).toFixed(4)),
+            ratePct: Number((Math.min(1, entry.rate) * 100).toFixed(2)),
+          })),
+        },
+        consenso: {
+          eventosAuditados: consensus.eventosAuditados,
+          atributosObservados: atributosResumen.filter((attr) => !attr.sinObservacion).length,
+          atributosSinObservacion: atributosResumen.filter((attr) => attr.sinObservacion).length,
+          atributosConConsenso: atributosResumen.filter((attr) => attr.hayConsenso).length,
+          atributosConConflicto: atributosResumen.filter((attr) => attr.hayConflicto).length,
+          atributosConEmpate: atributosResumen.filter((attr) => attr.hayEmpate).length,
         },
       });
     },

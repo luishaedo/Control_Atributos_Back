@@ -15,6 +15,7 @@ Actualizado: 01/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R2.1 | VALIDADO_PRODUCCION parcial: usuarios iniciales y login real | Codex/01a0f1e5, sin agentes delegados | identidad, usuarios, sucursales, roles, sesiones, frontend sesión real, logout/revocación, 401/403; docs/development/R21_VALIDATION.md |
 | R3.1 | PUBLICADO_PRODUCCION; smoke remoto 7/7 | Codex/01a0f1e5, sin agentes delegados | importación maestro/diccionarios atómica, prevalidada y round-trip CSV/JSON; docs/development/R31_VALIDATION.md |
 | R3.2 | PUBLICADO_PRODUCCION; smoke remoto 7/7 | Codex/01a0f1e5, sin agentes delegados | exportación final por campaña cerrada, TXT repetibles y resumen de conciliación; docs/development/R32_VALIDATION.md |
+| R3.3 | COMPLETADO_LOCAL; pendiente publicar/validar remoto | Codex/01a0f1e5, sin agentes delegados | consenso por última observación válida por sucursal/SKU/atributo, métricas y CSV; docs/development/R33_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
@@ -46,7 +47,7 @@ R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atribut
 - H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
 - GET/HEAD deadline 7000 ms; readiness 2000 ms y una query pendiente máxima; timeout no cancela DB. GET heredado con snapshot y mutaciones sin idempotencia siguen pendientes R1.
 - Node soportado, dependencias/CI, integración GitHub y despliegue de migraciones siguen R5. No afirmar seguridad ni preparación completa para piloto.
-- Auditoría histórica preservada. D-B01, D-B02, D-B03 y D-B04 están aprobadas; D-B05–D-B06 siguen pendientes. R1.1/R1.2/R1.4 están completos localmente y R1.3/R1.4 validados en staging; R2.1 queda completo localmente, pendiente de PostgreSQL aislado y staging.
+- Auditoría histórica preservada. D-B01, D-B02, D-B03, D-B04, D-B05 y D-B06 están aprobadas. R1.1/R1.2/R1.4 están completos localmente y R1.3/R1.4 validados en staging; R2.1 queda completo localmente, pendiente de PostgreSQL aislado y staging.
 
 ## Inicio R2.1 — 01/10/2026
 
@@ -65,6 +66,12 @@ R3.1 quedó completado y publicado en producción con D-B05 aprobada: importaci�
 ## Inicio R3.2 — 01/10/2026
 
 R3.2 quedó completado y publicado en producción: las exportaciones TXT finales exigen campaña cerrada, usan `closedAt` para nombres repetibles, separan cambios aplicados (`scope=applied`) de altas desconocidas aprobadas y aplicadas (`scope=unknown`), y el resumen diferencia aplicados, altas, pendientes, rechazos y desconocidos rechazados/fusionados. Validación local: `npx prisma validate --schema prisma\schema.prisma` OK, `npm test` 68 tests, 65 PASS, 3 SKIP, y `git diff --check` OK. Publicación Render manual del código `348c40f72e6965fadd5235764709136f24b0b98c`, deploy `dep-davd0ifpn0mc73cicqe0`, sin migraciones pendientes y smoke remoto 7/7 PASS. No se ejecutó PostgreSQL aislado. Detalle: R32_VALIDATION.md.
+
+## Inicio R3.3 — 01/10/2026
+
+R3.3 quedó completado localmente con D-B06 aprobada: consenso y métricas usan la última observación válida por sucursal, SKU y atributo; cada sucursal pesa una vez por atributo; los eventos crudos se conservan para auditoría; el consenso se informa por atributo con porcentaje acotado a 100 y estados `sin_observacion`, `consenso`, `conflicto` o `empate`. La decisión final sigue siendo del revisor/admin.
+
+Implementación: nuevo `src/services/consenso.service.js`, integración en revisiones, discrepancias, exportes CSV y resumen de auditoría. `consensoPct` se conserva como ratio por compatibilidad frontend y se agrega `consensoPorcentaje` para consumidores nuevos. Validación local: `npm.cmd test` 71 tests, 68 PASS, 3 SKIP; `npx.cmd prisma validate --schema prisma\schema.prisma` OK. No se ejecutó PostgreSQL aislado ni se publicó Render todavía. Detalle: R33_VALIDATION.md.
 
 ## Cierre R1.1 y R1.2 — 30/09/2026
 
