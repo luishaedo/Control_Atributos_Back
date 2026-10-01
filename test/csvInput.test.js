@@ -21,3 +21,18 @@ test('R1.1 CSV rechaza códigos largos o contaminados sin truncarlos', () => {
     'Codigo,Descripcion,Categoria,Tipo,Clasificacion\nABC1,Prueba,A-9,02,03\n')), error =>
     error.status === 400 && /Categoría/.test(error.message))
 })
+
+test('R3.1 CSV acepta encabezados canónicos exportables para round-trip', () => {
+  const [dic] = parseDicCSV(Buffer.from('cod,nombre\n1,Categoría\n'))
+  assert.deepEqual(dic, { cod: '01', nombre: 'Categoría' })
+
+  const [item] = parseMaestroCSV(Buffer.from(
+    'sku,descripcion,categoria_cod,tipo_cod,clasif_cod\nABC1,Prueba,1,02,3\n'))
+  assert.deepEqual(item, {
+    sku: 'ABC1',
+    descripcion: 'Prueba',
+    categoria_cod: '01',
+    tipo_cod: '02',
+    clasif_cod: '03',
+  })
+})

@@ -63,8 +63,8 @@ export function parseDicCSV(buffer) {
   const { rows, delimiter, encoding } = parseWithAutoDelimiter(buffer)
   const headerKeys = Object.keys(rows[0] || {})
   return rows.map((r,i) => {
-    const codigo = val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO '])
-    const desc   = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION','Descripción ','Descripcion ','descripcion ','DESCRIPCION '])
+    const codigo = val(r, ['Código','Codigo','codigo','CODIGO','cod','COD'])
+    const desc   = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION','nombre','Nombre','NOMBRE'])
     const parsedCode = parseCode(codigo)
     if (!parsedCode.valid) {
       throw validationError(
@@ -81,13 +81,13 @@ export function parseDicCSV(buffer) {
 export function parseMaestroCSV(buffer) {
   const { rows } = parseWithAutoDelimiter(buffer)
   return rows.map((r,i) => {
-    const skuRaw = norm(val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO ']) || '')
+    const skuRaw = norm(val(r, ['SKU','sku','Código','Codigo','codigo','CODIGO']) || '')
     const parsedSku = parseSku(skuRaw)
     if (!parsedSku.valid) throw validationError(`Fila ${i+2}: SKU inválido; se admite una base alfanumérica y sufijo opcional #/$`)
-    const desc = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION','Descripción ','Descripcion ','descripcion ','DESCRIPCION ']) || ''
-    const cat  = val(r, ['Categoría','Categoria','categoria','CATEGORIA','Categoría ','Categoria ','categoria ','CATEGORIA '])
-    const tip  = val(r, ['Tipo','tipo','TIPO','Tipo ','tipo ','TIPO '])
-    const cla  = val(r, ['Clasificación','Clasificacion','clasificacion','CLASIFICACION','Clasificación ','Clasificacion ','clasificacion ','CLASIFICACION '])
+    const desc = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION']) || ''
+    const cat  = val(r, ['categoria_cod','Categoría','Categoria','categoria','CATEGORIA'])
+    const tip  = val(r, ['tipo_cod','Tipo','tipo','TIPO'])
+    const cla  = val(r, ['clasif_cod','Clasificación','Clasificacion','clasificacion','CLASIFICACION'])
 
     const parsedCodes = [
       ['Categoría', parseCode(cat)],

@@ -26,6 +26,7 @@
 - D-B02 (30/09/2026, aprobada por el usuario): aceptar registra una propuesta; confirmar la habilita; cerrar aplica atómicamente solo decisiones vigentes confirmadas. Rechazos y anulaciones se preservan. Una reversión es una nueva decisión compensatoria trazable y nunca reescribe ni borra el evento original.
 - D-B03 (30/09/2026, aprobada por el usuario): solo una campaña puede estar activa; el snapshot se congela al activar; una campaña cerrada no se reactiva por el flujo normal. `inicia` y `termina` deben ser fechas válidas con `inicia <= termina`; en R1.4 son informativas y no abren/cierran automáticamente ni bloquean escaneos.
 - D-B04 (01/10/2026, aprobada por el usuario): cada persona usa una cuenta individual, con identificador único, nombre visible, rol y estado activo/inactivo. Todo usuario pertenece a una sucursal asignada; `OPERADOR` solo registra observaciones para su sucursal, mientras `REVISOR` y `ADMIN` pueden revisar globalmente según permisos. Roles mínimos: `OPERADOR` escanea y consulta lo necesario de campañas/diccionarios/maestro; `REVISOR` decide, confirma, rechaza y gestiona desconocidos; `ADMIN` administra campañas, catálogos, importaciones, cierres, exportaciones y usuarios. El actor, rol y sucursal siempre se derivan de la sesión del servidor; el cliente no puede suplantarlos por body/query. Logout revoca la sesión actual, las sesiones vencen y las mutaciones protegidas responden `401` sin sesión válida o `403` sin permiso. Para el primer administrador se permite un mecanismo de bootstrap explícito solo en entornos controlados, sin convertir tokens compartidos en identidad operativa normal.
+- D-B05 (01/10/2026, aprobada por continuidad operativa del usuario): el maestro externo se importa como foto absoluta por SKU mediante upsert, sin borrar artículos ausentes en el archivo. CSV y JSON son equivalentes y deben pasar la misma validación; los encabezados canónicos son `sku`, `descripcion`, `categoria_cod`, `tipo_cod`, `clasif_cod`, y se aceptan variantes legibles existentes. Los diccionarios usan `cod,nombre` y variantes `Código/Descripción`. El encoding de salida es CSV UTF-8 con BOM para Excel; se aceptan entrada UTF-8/UTF-8 BOM/Latin-1 y delimitadores coma, punto y coma o tab. Cualquier SKU duplicado, código inválido, código fuera de diccionario o fila incompleta rechaza el lote completo sin escritura parcial. Los códigos conservan ceros iniciales canónicos de dos dígitos. Altas/cambios se resuelven por upsert; bajas del sistema externo no se infieren por ausencia. La exportación final para el receptor queda en R3.2 como paquete de cierre repetible basado en campaña cerrada/snapshot.
 
 ## Decisiones de negocio pendientes
 
@@ -34,7 +35,6 @@ El 01/10/2026 el usuario pidió avanzar con la definición/aprobación de D-B04 
 
 | ID | Tema | Propuesta para discutir | Bloquea |
 |---|---|---|---|
-| D-B05 | Sistema externo | Contrato de import/export, encoding, altas y cambios netos o absolutos | R3.1/R3.2 |
 | D-B06 | Consenso | Última observación por sucursal/SKU/atributo; conservar eventos | R3.3 |
 
-El usuario autorizó roadmap y primer paso; D-B01, D-B02, D-B03 y D-B04 ya fueron aprobadas. D-B05–D-B06 continúan como propuestas pendientes.
+El usuario autorizó roadmap y primer paso; D-B01, D-B02, D-B03, D-B04 y D-B05 ya fueron aprobadas. D-B06 continúa como propuesta pendiente.

@@ -1,6 +1,6 @@
 # Validación R3.1
 
-Fecha: 01/10/2026. Estado: `INICIADO_LOCAL`; D-B05 sigue pendiente y no se validó PostgreSQL real, staging ni producción.
+Fecha: 01/10/2026. Estado: `COMPLETADO_LOCAL`; D-B05 aprobada en continuidad operativa. No se validó PostgreSQL real aislado, staging ni producción en esta continuación.
 
 ## Alcance implementado
 
@@ -14,6 +14,8 @@ Fecha: 01/10/2026. Estado: `INICIADO_LOCAL`; D-B05 sigue pendiente y no se valid
 - Las escrituras del maestro se ejecutan dentro de transacción Serializable cuando Prisma la ofrece.
 - La importación de diccionarios también queda agrupada en transacción para evitar parciales entre categorías/tipos/clasificaciones.
 - Los avisos de sufijo de SKU se preservan en CSV y JSON.
+- El contrato D-B05 define importación absoluta por upsert, sin borrar artículos ausentes, CSV UTF-8 con BOM para exportación, entrada UTF-8/UTF-8 BOM/Latin-1, delimitador coma/punto y coma/tab, y equivalencia CSV/JSON.
+- El parser CSV acepta los encabezados canónicos exportables `sku`, `descripcion`, `categoria_cod`, `tipo_cod`, `clasif_cod` y `cod,nombre` para diccionarios, además de variantes legibles existentes.
 
 ## Pruebas
 
@@ -29,8 +31,9 @@ Resultado backend: **64 tests, 61 PASS, 3 SKIP**.
 Nuevas regresiones R3.1:
 
 - un lote con una fila válida y otra con código fuera de diccionario responde 400 y no escribe la válida;
-- un lote con SKU duplicado tras normalización/sufijo responde 400 y no escribe nada.
+- un lote con SKU duplicado tras normalización/sufijo responde 400 y no escribe nada;
+- round-trip CSV con encabezados canónicos exportables conserva SKU y códigos normalizados.
 
 ## Límites
 
-No se aprobó D-B05. Por eso R3.1 todavía no decide si el sistema externo espera importación absoluta, cambios netos, altas/bajas explícitas, encoding definitivo, nombres finales de columnas, ni formato final de exportación R3.2. Tampoco se ejecutó PostgreSQL aislado ni staging.
+D-B05 resuelve el contrato de importación y deja explícito que las bajas no se infieren por ausencia. El formato final de exportación al receptor queda para R3.2 como paquete de cierre repetible. No se ejecutó PostgreSQL aislado ni staging en esta continuación.
