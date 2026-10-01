@@ -25,15 +25,16 @@
 - D-B01 (30/09/2026, aprobada por el usuario): el primer `#` o `$` separa el sufijo de etiqueta del SKU base y debe informarse al operador. La base se normaliza a mayúsculas y es alfanumérica. Los códigos admiten uno o dos dígitos y cero inicial canónico; todo formato distinto o código fuera de su diccionario se rechaza sin quitar caracteres ni truncar. Mantener el valor crudo para auditoría donde el modelo lo permite.
 - D-B02 (30/09/2026, aprobada por el usuario): aceptar registra una propuesta; confirmar la habilita; cerrar aplica atómicamente solo decisiones vigentes confirmadas. Rechazos y anulaciones se preservan. Una reversión es una nueva decisión compensatoria trazable y nunca reescribe ni borra el evento original.
 - D-B03 (30/09/2026, aprobada por el usuario): solo una campaña puede estar activa; el snapshot se congela al activar; una campaña cerrada no se reactiva por el flujo normal. `inicia` y `termina` deben ser fechas válidas con `inicia <= termina`; en R1.4 son informativas y no abren/cierran automáticamente ni bloquean escaneos.
+- D-B04 (01/10/2026, aprobada por el usuario): cada persona usa una cuenta individual, con identificador único, nombre visible, rol y estado activo/inactivo. Todo usuario pertenece a una sucursal asignada; `OPERADOR` solo registra observaciones para su sucursal, mientras `REVISOR` y `ADMIN` pueden revisar globalmente según permisos. Roles mínimos: `OPERADOR` escanea y consulta lo necesario de campañas/diccionarios/maestro; `REVISOR` decide, confirma, rechaza y gestiona desconocidos; `ADMIN` administra campañas, catálogos, importaciones, cierres, exportaciones y usuarios. El actor, rol y sucursal siempre se derivan de la sesión del servidor; el cliente no puede suplantarlos por body/query. Logout revoca la sesión actual, las sesiones vencen y las mutaciones protegidas responden `401` sin sesión válida o `403` sin permiso. Para el primer administrador se permite un mecanismo de bootstrap explícito solo en entornos controlados, sin convertir tokens compartidos en identidad operativa normal.
 
 ## Decisiones de negocio pendientes
 
 Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esa autorización no decidió por sí sola D-B01–D-B06. D-B01, D-B02 y D-B03 fueron aprobadas después, el 30/09.
+El 01/10/2026 el usuario pidió avanzar con la definición/aprobación de D-B04 para habilitar R2.1; D-B04 quedó aprobada con el contrato de identidad detallado arriba.
 
 | ID | Tema | Propuesta para discutir | Bloquea |
 |---|---|---|---|
-| D-B04 | Identidad | Cuenta individual, sucursal asignada, operador/revisor/admin | R2.1 |
 | D-B05 | Sistema externo | Contrato de import/export, encoding, altas y cambios netos o absolutos | R3.1/R3.2 |
 | D-B06 | Consenso | Última observación por sucursal/SKU/atributo; conservar eventos | R3.3 |
 
-El usuario autorizó roadmap y primer paso; D-B01, D-B02 y D-B03 ya fueron aprobadas. D-B04–D-B06 continúan como propuestas pendientes.
+El usuario autorizó roadmap y primer paso; D-B01, D-B02, D-B03 y D-B04 ya fueron aprobadas. D-B05–D-B06 continúan como propuestas pendientes.

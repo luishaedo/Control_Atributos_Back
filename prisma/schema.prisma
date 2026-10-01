@@ -30,6 +30,52 @@ model Maestro {
   clasif_cod    String
 }
 
+model Sucursal {
+  id        String   @id @default(uuid())
+  codigo    String   @unique
+  nombre    String
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios Usuario[]
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  nombre       String
+  rol          String
+  activo       Boolean  @default(true)
+  passwordHash String
+  sucursalId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sucursal Sucursal? @relation(fields: [sucursalId], references: [id])
+  sesiones Sesion[]
+
+  @@index([rol])
+  @@index([sucursalId])
+}
+
+model Sesion {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  usuarioId String
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
 model Campania {
   id                     Int      @id @default(autoincrement())
   nombre                 String

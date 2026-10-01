@@ -64,7 +64,7 @@ export function createApp({ prisma, env = process.env, logger = console } = {}) 
   }))
 
   app.use('/api', readDeadline(readTimeoutMs))
-  app.use('/api', publicRouter(prisma))
+  app.use('/api', publicRouter(prisma, env))
   app.use('/api/admin', adminRouter(prisma, env))
   app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada', code: 'NOT_FOUND' }))
   app.use(errorHandler(logger))

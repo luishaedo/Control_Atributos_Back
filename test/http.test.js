@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createApp } from '../src/app.js'
+import { hashPassword } from '../src/services/identity.service.js'
 
 const token = 'test-token-not-a-real-secret'
 const origin = 'https://stockeador-client-1nll.vercel.app'
@@ -185,6 +186,83 @@ test('login cookie still authorizes administrative requests', async t => {
   assert.equal((await f.request('/api/admin/ping', { headers: { Cookie: cookie.split(';')[0] } })).status, 200)
 })
 
+test('R2.1 user login creates a revocable session cookie with server-side identity', async t => {
+  let sessionRecord
+  const passwordHash = await hashPassword('operativo123')
+  const user = {
+    id: 'u-admin',
+    username: 'ana',
+    nombre: 'Ana Admin',
+    rol: 'ADMIN',
+    activo: true,
+    passwordHash,
+    sucursal: { id: 's1', codigo: 'SUC1', nombre: 'Sucursal 1', activa: true },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => {
+        sessionRecord = { id: 'sess-1', ...data }
+        return sessionRecord
+      },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+      updateMany: async ({ data }) => { sessionRecord.revokedAt = data.revokedAt; return { count: 1 } },
+    },
+  } })
+  const login = await f.request('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'ana', password: 'operativo123' }),
+  })
+  assert.equal(login.status, 200)
+  assert.equal(login.body.user.username, 'ana')
+  assert.equal(login.body.user.rol, 'ADMIN')
+  const cookie = login.headers.get('set-cookie')
+  assert.match(cookie, /cc_session=/)
+  const ping = await f.request('/api/admin/ping', { headers: { Cookie: cookie.split(';')[0] } })
+  assert.equal(ping.status, 200)
+  assert.equal(ping.body.user.username, 'ana')
+  const logout = await f.request('/api/admin/logout', {
+    method: 'POST',
+    headers: { Cookie: cookie.split(';')[0] },
+  })
+  assert.equal(logout.status, 200)
+  assert.ok(sessionRecord.revokedAt)
+})
+
+test('R2.1 reviewer session cannot use admin-only user management routes', async t => {
+  let sessionRecord
+  const passwordHash = await hashPassword('revisor123')
+  const user = {
+    id: 'u-reviewer',
+    username: 'revisor',
+    nombre: 'Rita Revisora',
+    rol: 'REVISOR',
+    activo: true,
+    passwordHash,
+    sucursal: { id: 's1', codigo: 'SUC1', nombre: 'Sucursal 1', activa: true },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => { sessionRecord = { id: 'sess-2', ...data }; return sessionRecord },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+    },
+  } })
+  const login = await f.request('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'revisor', password: 'revisor123' }),
+  })
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  assert.equal((await f.request('/api/admin/ping', { headers: { Cookie: cookie } })).status, 200)
+  const denied = await f.request('/api/admin/usuarios', { headers: { Cookie: cookie } })
+  assert.equal(denied.status, 403)
+  assert.equal(denied.body.code, 'FORBIDDEN')
+})
+
 test('CORS retains configured aliases, credentials and rejects other origins', async t => {
   const f = await fixture(t, { env: { CORS_ORIGIN: origin, FRONTEND_URL: 'https://other.example' } })
   for (const allowed of [origin, 'https://other.example']) {
@@ -215,7 +293,7 @@ test('R1.2 scan requires an idempotency key before database access', async t => 
     $transaction: async () => assert.fail('invalid scan must not open a transaction'),
   } })
   const res = await f.request('/api/escaneos', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ campaniaId: 1, skuRaw: 'SKU1' }),
   })
   assert.equal(res.status, 400)

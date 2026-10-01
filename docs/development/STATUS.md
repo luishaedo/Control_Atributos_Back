@@ -12,6 +12,7 @@ Actualizado: 30/09/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R1.2 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | backend escaneos/servicio/tests; frontend ScanBox/API/tests; docs/development/R12_VALIDATION.md |
 | R1.3 | VALIDADO_STAGING; no validado en producción | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; scripts de validación; docs/development/* |
 | R1.4 | VALIDADO_STAGING; no validado en producción | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración; staging Render/Neon; tests PostgreSQL; docs/development/R14_VALIDATION.md |
+| R2.1 | IMPLEMENTADO_LOCAL; falta VALIDADO_LOCAL_POSTGRESQL y staging | Codex/01a0f1e5, sin agentes delegados | identidad, usuarios, sucursales, roles, sesiones, logout/revocación, 401/403; docs/development/R21_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
@@ -41,7 +42,15 @@ R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atribut
 - H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
 - GET/HEAD deadline 7000 ms; readiness 2000 ms y una query pendiente máxima; timeout no cancela DB. GET heredado con snapshot y mutaciones sin idempotencia siguen pendientes R1.
 - Node soportado, dependencias/CI, integración GitHub y despliegue de migraciones siguen R5. No afirmar seguridad ni preparación completa para piloto.
-- Auditoría histórica preservada. D-B01, D-B02 y D-B03 están aprobadas; D-B04–D-B06 siguen pendientes. R1.1/R1.2/R1.4 están completos localmente y R1.3 validado en staging; las demás entregas siguen pendientes.
+- Auditoría histórica preservada. D-B01, D-B02, D-B03 y D-B04 están aprobadas; D-B05–D-B06 siguen pendientes. R1.1/R1.2/R1.4 están completos localmente y R1.3/R1.4 validados en staging; R2.1 queda iniciado para implementar identidad/sesiones.
+
+## Inicio R2.1 — 01/10/2026
+
+El usuario pidió avanzar con D-B04 para habilitar usuarios, sucursales, roles y sesiones. D-B04 quedó aprobada: cuentas individuales, sucursal asignada, roles `OPERADOR`, `REVISOR` y `ADMIN`, actor/rol/sucursal derivados exclusivamente de la sesión del servidor, logout con revocación, vencimiento de sesión y respuestas `401`/`403` consistentes.
+
+Implementación local backend: nuevos modelos `Sucursal`, `Usuario` y `Sesion`; migración `20261001010000_r21_identity_sessions`; login usuario/password con cookie `cc_session`; logout revocable; administración básica de usuarios/sucursales; permisos por rol; escaneo autenticado con actor/sucursal derivados del servidor; mutaciones protegidas sobrescriben `decidedBy`, `updatedBy` y `closedBy` desde la sesión. El token `ADMIN_TOKEN` queda solo como bootstrap/compatibilidad controlada.
+
+Validación: `npx prisma validate` OK y `npm test` 61 tests, 58 PASS, 3 SKIP. No se ejecutó migración en PostgreSQL aislado ni se publicó staging/producción. Próximo paso: validar R2.1 en PostgreSQL aislado, adaptar frontend a login/sesión/roles y luego publicar staging con autorización separada.
 
 ## Cierre R1.1 y R1.2 — 30/09/2026
 

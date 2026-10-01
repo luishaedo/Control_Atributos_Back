@@ -5,7 +5,7 @@ export function EscaneosController(prisma) {
   return {
     crear: async (req, res) => {
       try {
-        res.json(await service.crear(req.body || {}))
+        res.json(await service.crear(req.body || {}, req.auth))
       } catch (error) {
         if (!error?.status) throw error
         res.status(error.status).json({

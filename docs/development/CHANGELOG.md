@@ -1,4 +1,12 @@
 # Historial de entregas
+## 01/10/2026 — D-B04 aprobada e inicio R2.1
+
+El usuario pidió avanzar con el paso natural posterior a R1.4: definir/aprobar D-B04 para entrar en R2.1. Se aprobó el contrato de identidad: cuenta individual por persona, sucursal asignada, roles `OPERADOR`, `REVISOR` y `ADMIN`, actor/rol/sucursal derivados desde la sesión del servidor, logout con revocación, sesiones con vencimiento y respuestas `401`/`403` consistentes. El cliente no podrá suplantar actor o sucursal mediante body/query. Se admite bootstrap inicial de administrador solo en entornos controlados; los tokens compartidos no quedan como identidad operativa normal.
+
+Se implementó R2.1 local backend: modelos `Sucursal`, `Usuario` y `Sesion`; migración `20261001010000_r21_identity_sessions`; servicio de identidad con `scrypt` y tokens de sesión hasheados; login por usuario/password; logout revocable; administración básica de sucursales y usuarios; roles por ruta; escaneo autenticado; actor/sucursal derivados del servidor; y sobrescritura server-side de `decidedBy`, `updatedBy` y `closedBy`.
+
+Validación local: `npx prisma validate` OK; `npm test` 61 tests, 58 PASS, 3 SKIP. Estado: `IMPLEMENTADO_LOCAL`. No se ejecutó migración en PostgreSQL aislado, no se modificó staging ni producción y el frontend todavía debe adaptarse al nuevo login/sesión/roles. Evidencia: R21_VALIDATION.md.
+
 ## 30/09/2026 — R1.4 publicado y validado en staging
 
 Se publicó R1.4 únicamente en staging: rama `r13-atributos-staging`, commit `594ce7aa4c01402b147f52383d0b7b733a1c974b`, deploy manual Render `dep-daupn7c9v7es73ag7le0` Live. Auto-Deploy sigue Off. Producción, main productivo y Vercel no fueron modificados.

@@ -1,4 +1,5 @@
 import { parseCode, parseSku, cumpleObjetivos } from '../utils/sku.js'
+import { actorFromAuth } from './identity.service.js'
 
 const stageRank = new Map([
   ['unknown', 0],
@@ -23,7 +24,7 @@ function nextStage(current, proposed) {
   return stageRank.get(current) >= stageRank.get(proposed) ? current : proposed
 }
 
-function normalizedInput(payload = {}) {
+function normalizedInput(payload = {}, auth = null) {
   const idempotencyKey = String(payload.idempotencyKey || '').trim()
   const campaniaId = Number(payload.campaniaId)
   const skuRaw = String(payload.skuRaw || '').trim()
@@ -55,8 +56,8 @@ function normalizedInput(payload = {}) {
     idempotencyKey,
     skuRaw,
     skuNormalized,
-    email: String(payload.email || '').trim(),
-    sucursal: String(payload.sucursal || '').trim(),
+    email: actorFromAuth(auth) || String(payload.email || '').trim(),
+    sucursal: auth?.user?.sucursal?.codigo || String(payload.sucursal || '').trim(),
     sugeridos: {
       categoria_cod: code('categoria_cod', payload.sugeridos?.categoria_cod),
       tipo_cod: code('tipo_cod', payload.sugeridos?.tipo_cod),
@@ -252,8 +253,12 @@ export function EscaneosService(prisma) {
   }
 
   return {
-    async crear(payload) {
-      const input = normalizedInput(payload)
+    async crear(payload, auth = null) {
+      const input = normalizedInput(payload, auth)
+      if (!input.email || !input.sucursal) {
+        throw appError('SESSION_BRANCH_REQUIRED', 403,
+          'La sesión debe tener actor y sucursal asignados para escanear')
+      }
       try {
         return await prisma.$transaction(tx => createInTransaction(tx, input), {
           isolationLevel: 'Serializable',
