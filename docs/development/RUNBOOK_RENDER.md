@@ -13,7 +13,7 @@ Hace siete GET, máximo tres concurrentes, sin credenciales/reintentos; comprueb
 ## Antes de desplegar
 
 1. Revisar diff y ejecutar `npm test` desde backend. La entrega R0.1 no agrega migraciones ni dependencias.
-2. Registrar SHA del backend y frontend publicados, versión Node, plan de servicio, comando build/start y configuración del health check. No copiar valores secretos al registro.
+2. Registrar SHA del backend y frontend publicados, versión Node, plan de servicio, comando build/start y configuración del health check. El start publicado ejecuta `prisma migrate deploy && node src/server.js` para mantener esquema y código sincronizados dentro de la red interna de Render. No copiar valores secretos al registro.
 3. En Render, consultar logs de la petición `/api/campanias` y errores Prisma/conexión. Verificar que PostgreSQL pertenece al ambiente esperado, está disponible y sus migraciones coinciden. No ejecutar seed/reset para reparar un timeout.
 4. Comprobar `DATABASE_URL` mediante el panel seguro sin imprimirla, `NODE_ENV=production`, token admin configurado y CORS con el origen Vercel. En el repositorio actual `CORS_ALLOW_ALL` todavía existe por compatibilidad: mantenerlo desactivado.
 5. El proyecto todavía declara Node >=18 <21. La migración a runtime soportado es R5.1; no cambiar el runtime a ciegas dentro del diagnóstico.
