@@ -1,4 +1,12 @@
 # Historial de entregas
+## 01/10/2026 — Main publicado y producción actualizada
+
+Se mergeó el trabajo acumulado de `r13-atributos-staging` a `main`, se publicó backend `86d4bc57798f3b5b9bbd5338cdf2efbffcc38b19` y frontend `ecdda7ea70752c8f4b675106502703f0bd5d5985`. Render productivo se desplegó manualmente desde Dashboard en `dep-dav7ji60tbcc73e0ucdg`.
+
+El start productivo ahora ejecuta `prisma migrate deploy && node src/server.js`. En el deploy productivo se aplicaron correctamente las migraciones `20260930220000_r14_campaign_lifecycle` y `20261001010000_r21_identity_sessions`; luego la API levantó en puerto 10000. Smoke remoto `smoke-main-20261001-after-deploy.json`: 7/7 PASS, SHA exacto, readiness DB up, CORS correcto y admin 401. Frontend Vercel responde 200 y el bundle publicado contiene las rutas nuevas `session/login` y `session/logout`.
+
+No se crearon cuentas iniciales: el intento fue detenido por revisión automática porque crear/rotar usuarios productivos con contraseña persistente requiere aprobación explícita separada. Próximo paso operativo: aprobar credenciales iniciales o proveer usuario/password de arranque; luego validar login/escaneo/admin sobre la app publicada.
+
 ## 01/10/2026 — Inicio R3.1 importación validada
 
 Se avanzó con una base técnica segura de R3.1 sin cerrar D-B05: la importación JSON y CSV de maestro ahora comparte una ruta estricta, prevalidada y transaccional. Se rechazan lotes con SKU inválido, códigos inválidos/fuera de diccionario o SKU duplicado tras normalización; ante cualquier error no se escribe ningún registro. La importación de diccionarios también queda en transacción. Validación: `npx prisma validate --schema prisma\schema.prisma` OK y `npm test` 64 tests, 61 PASS, 3 SKIP. Estado: `INICIADO_LOCAL`; pendiente definir D-B05, PostgreSQL aislado y staging.

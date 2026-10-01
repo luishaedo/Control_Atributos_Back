@@ -1,0 +1,84 @@
+{
+  "checkedAt": "2026-10-01T15:19:46.672Z",
+  "base": "https://control-atributos-back.onrender.com",
+  "origin": "https://stockeador-client-1nll.vercel.app",
+  "expectedVersion": "86d4bc57798f3b5b9bbd5338cdf2efbffcc38b19",
+  "timeoutMs": 60000,
+  "passed": true,
+  "results": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 695,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "e7f81e93-88fa-49f9-87ea-9e1064ccebf1",
+      "passed": true
+    },
+    {
+      "path": "/api/health/live",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 658,
+      "contractOK": true,
+      "corsOK": true,
+      "version": "86d4bc57798f3b5b9bbd5338cdf2efbffcc38b19",
+      "versionOK": true,
+      "requestId": "b4e1ba99-1659-41ca-a6ad-9003d7ae76a0",
+      "passed": true
+    },
+    {
+      "path": "/api/health/ready",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 451,
+      "contractOK": true,
+      "corsOK": true,
+      "version": "86d4bc57798f3b5b9bbd5338cdf2efbffcc38b19",
+      "versionOK": true,
+      "requestId": "d3abeb90-37ac-4c1d-8681-786d7e69fd68",
+      "passed": true
+    },
+    {
+      "path": "/api/campanias",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 330,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "bb10dc46-7f30-4e4d-9732-7cd94a705669",
+      "passed": true
+    },
+    {
+      "path": "/api/diccionarios",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 800,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "c972d57c-a5be-4721-b0d7-40b7afc13c09",
+      "passed": true
+    },
+    {
+      "path": "/api/maestro?page=1&pageSize=1",
+      "status": 200,
+      "expectedStatus": 200,
+      "durationMs": 754,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "6617cf86-26ee-438c-ae84-bbee371c027b",
+      "passed": true
+    },
+    {
+      "path": "/api/admin/ping",
+      "status": 401,
+      "expectedStatus": 401,
+      "durationMs": 201,
+      "contractOK": true,
+      "corsOK": true,
+      "requestId": "b380a130-b7ad-415e-b877-94fc90d2844b",
+      "passed": true
+    }
+  ]
+}

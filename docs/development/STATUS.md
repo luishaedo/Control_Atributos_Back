@@ -10,13 +10,15 @@ Actualizado: 01/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
 | R1.1 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | normalización SKU/códigos backend y frontend; tests; docs/development/R11_VALIDATION.md |
 | R1.2 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | backend escaneos/servicio/tests; frontend ScanBox/API/tests; docs/development/R12_VALIDATION.md |
-| R1.3 | VALIDADO_STAGING; no validado en producción | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; scripts de validación; docs/development/* |
-| R1.4 | VALIDADO_STAGING; no validado en producción | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración; staging Render/Neon; tests PostgreSQL; docs/development/R14_VALIDATION.md |
-| R2.1 | COMPLETADO_LOCAL; falta VALIDADO_LOCAL_POSTGRESQL y staging | Codex/01a0f1e5, sin agentes delegados | identidad, usuarios, sucursales, roles, sesiones, frontend sesión real, logout/revocación, 401/403; docs/development/R21_VALIDATION.md |
+| R1.3 | PUBLICADO_PRODUCCION; validado staging previamente | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; scripts de validación; docs/development/* |
+| R1.4 | PUBLICADO_PRODUCCION; validado staging previamente | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración aplicada en producción; docs/development/R14_VALIDATION.md |
+| R2.1 | PUBLICADO_PRODUCCION; falta validación funcional con usuarios reales | Codex/01a0f1e5, sin agentes delegados | identidad, usuarios, sucursales, roles, sesiones, frontend sesión real, logout/revocación, 401/403; docs/development/R21_VALIDATION.md |
 | R3.1 | INICIADO_LOCAL; D-B05 pendiente | Codex/01a0f1e5, sin agentes delegados | importación maestro/diccionarios atómica y prevalidada; docs/development/R31_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
+
+Publicación main 01/10/2026: backend `86d4bc57798f3b5b9bbd5338cdf2efbffcc38b19` desplegado manualmente en Render producción (`dep-dav7ji60tbcc73e0ucdg`) y frontend `ecdda7ea70752c8f4b675106502703f0bd5d5985` publicado en Vercel. Render aplicó `20260930220000_r14_campaign_lifecycle` y `20261001010000_r21_identity_sessions` mediante `prisma migrate deploy` durante el start. Smoke remoto `smoke-main-20261001-after-deploy.json`: 7/7 PASS. Pendiente: crear/aprobar cuentas iniciales para validar login/escaneo/admin; no se hizo por requerir aprobación explícita de credenciales persistentes.
 
 ## Despliegue real
 
