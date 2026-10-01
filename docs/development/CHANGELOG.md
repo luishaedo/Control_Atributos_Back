@@ -5,7 +5,7 @@ Frontend: el escáner mantiene foco al cambiar campaña y tras registrar una obs
 
 Build/config: se agregó `scripts/validate-env.mjs` y `prebuild`; el build falla temprano si `VITE_API_URL` falta, no es HTTP(S), incluye credenciales o termina en `/api`.
 
-Validación local: frontend `npm.cmd test` 7/7 PASS; `npm.cmd run lint` 0 errores/41 advertencias heredadas; `npm.cmd run build` sin `VITE_API_URL` falla temprano como se espera; `VITE_API_URL=https://control-atributos-back.onrender.com npm.cmd run build` OK. No se publicó Vercel ni se hizo prueba visual móvil/pistola física todavía. Evidencia: R41_VALIDATION.md.
+Validación local: frontend `npm.cmd test` 7/7 PASS; `npm.cmd run lint` 0 errores/41 advertencias heredadas; `npm.cmd run build` sin `VITE_API_URL` falla temprano como se espera; `VITE_API_URL=https://control-atributos-back.onrender.com npm.cmd run build` OK. Publicación: frontend `f4014d3` en `origin/main`; Vercel sirve `/assets/index-gsCTPEJn.js`, el bundle generado por el build local. No se hizo prueba visual móvil/pistola física todavía. Evidencia: R41_VALIDATION.md.
 
 ## 01/10/2026 — R3.3 consenso y métricas completado localmente
 

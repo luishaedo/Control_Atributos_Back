@@ -1,6 +1,6 @@
 # R4.1 - UX operativa y accesibilidad
 
-Fecha: 01/10/2026. Responsable: Codex/01a0f1e5. Estado: COMPLETADO_LOCAL.
+Fecha: 01/10/2026. Responsable: Codex/01a0f1e5. Estado: PUBLICADO_PRODUCCION.
 
 ## Alcance
 
@@ -30,9 +30,15 @@ Resultados:
 - `npm.cmd run build` sin `VITE_API_URL`: falla temprano en `prebuild`, comportamiento esperado para H18.
 - `npm.cmd run build` con `VITE_API_URL=https://control-atributos-back.onrender.com`: OK, 388 modulos transformados.
 
+## Publicacion
+
+- Frontend commit: `f4014d3` (`Implement R4.1 operational UX guards`), publicado en `origin/main`.
+- Backend docs commit: `6591c23` (`Document R4.1 local validation`), publicado en `origin/main`.
+- Vercel publicado: https://stockeador-client-1nll.vercel.app/
+- Evidencia remota: el HTML productivo referencia `/assets/index-gsCTPEJn.js`, mismo bundle generado por el build local R4.1.
+
 ## Limites
 
 - No se completo una auditoria visual con navegador/pantallas 360-390 px en esta entrega.
 - No se probo pistola fisica ni lector de codigo de barras real.
 - Quedan advertencias heredadas de lint en `Revisiones.jsx`, `Catalogo.jsx` y `ui.jsx`; no bloquean build.
-- No se publico todavia en Vercel desde este commit.
