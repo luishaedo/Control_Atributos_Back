@@ -1,6 +1,6 @@
 # R3.3 - Consenso y metricas
 
-Fecha: 01/10/2026. Responsable: Codex/01a0f1e5. Estado: COMPLETADO_LOCAL.
+Fecha: 01/10/2026. Responsable: Codex/01a0f1e5. Estado: PUBLICADO_PRODUCCION.
 
 ## Decision aprobada
 
@@ -43,8 +43,16 @@ Cobertura nueva:
 - Conflicto sin empate se informa separado y el porcentaje queda acotado a 100.
 - Atributos sin valor valido quedan como `sin_observacion` sin inventar votos.
 
+## Publicacion
+
+- Commit: `98431bb842e3378ad91efed441286c6b503f16dd`.
+- Push: `main -> origin/main`.
+- Render: deploy manual `dep-davdbue7bikc73dkdrmg`, estado `Deploy succeeded | Live`, duracion 41,3 s.
+- Start productivo: `prisma migrate deploy && node src/server.js`.
+- Migraciones: 10 encontradas, sin pendientes.
+- Smoke remoto read-only: `docs/development/smoke-r33-production-20261001.json`, 7/7 PASS contra SHA esperado.
+
 ## Limites
 
 - No se ejecuto PostgreSQL aislado ni staging en esta entrega.
-- No se publico en Render todavia desde este commit.
 - El frontend sigue mostrando el badge historico con `consensoPct * 100`; por compatibilidad se mantuvo `consensoPct` como ratio y se agrego `consensoPorcentaje` para consumidores nuevos.

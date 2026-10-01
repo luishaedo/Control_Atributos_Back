@@ -5,7 +5,7 @@ D-B06 quedó aprobada: el consenso cuenta la última observación válida por su
 
 Código: nuevo `src/services/consenso.service.js`, uso compartido desde revisiones, discrepancias, exportes CSV y resumen de auditoría. `consensoPct` permanece como ratio para compatibilidad con el frontend actual y se agrega `consensoPorcentaje` como porcentaje 0..100. Las propuestas históricas de revisión se mantienen, pero sus conteos ahora representan sucursales observantes, no cantidad cruda de escaneos.
 
-Validación local: `npm.cmd test` 71 tests, 68 PASS, 3 SKIP; `npx.cmd prisma validate --schema prisma\schema.prisma` OK. No se ejecutó PostgreSQL aislado ni despliegue Render en esta entrega. Evidencia: R33_VALIDATION.md.
+Validación local: `npm.cmd test` 71 tests, 68 PASS, 3 SKIP; `npx.cmd prisma validate --schema prisma\schema.prisma` OK. Publicación: commit `98431bb842e3378ad91efed441286c6b503f16dd` desplegado manualmente en Render (`dep-davdbue7bikc73dkdrmg`), sin migraciones pendientes, API viva y smoke remoto 7/7 PASS contra el SHA esperado. No se ejecutó PostgreSQL aislado. Evidencia: R33_VALIDATION.md y smoke-r33-production-20261001.json.
 
 ## 01/10/2026 — R3.2 exportación final publicada en producción
 
