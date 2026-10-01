@@ -1,4 +1,10 @@
 # Historial de entregas
+## 01/10/2026 — Bootstrap de usuarios iniciales en producción
+
+Con aprobación explícita del usuario, se creó la sucursal `CENTRO` y los usuarios iniciales `admin`, `revisor` y `operador` en la API publicada de Render. Se usó el token bootstrap en memoria, sin escribir credenciales ni volcarlas a evidencias. No se ejecutaron seeds, resets ni migraciones en esta operación.
+
+Validación: `/api/health/live` confirmó backend `86c2fff6701c9500329ad3141c8459fc7338041c`; login real por `/api/session/login` exitoso para `admin` (`ADMIN`), `revisor` (`REVISOR`) y `operador` (`OPERADOR`, sucursal `CENTRO`). Pendiente: rotar la contraseña temporal antes de uso operativo real y completar pruebas funcionales de escaneo/admin desde frontend publicado.
+
 ## 01/10/2026 — Main publicado y producción actualizada
 
 Se mergeó el trabajo acumulado de `r13-atributos-staging` a `main`, se publicó backend `86d4bc57798f3b5b9bbd5338cdf2efbffcc38b19` y frontend `ecdda7ea70752c8f4b675106502703f0bd5d5985`. Render productivo se desplegó manualmente desde Dashboard en `dep-dav7ji60tbcc73e0ucdg`.
