@@ -1,4 +1,8 @@
 # Historial de entregas
+## 01/10/2026 — Inicio R3.1 importación validada
+
+Se avanzó con una base técnica segura de R3.1 sin cerrar D-B05: la importación JSON y CSV de maestro ahora comparte una ruta estricta, prevalidada y transaccional. Se rechazan lotes con SKU inválido, códigos inválidos/fuera de diccionario o SKU duplicado tras normalización; ante cualquier error no se escribe ningún registro. La importación de diccionarios también queda en transacción. Validación: `npx prisma validate --schema prisma\schema.prisma` OK y `npm test` 64 tests, 61 PASS, 3 SKIP. Estado: `INICIADO_LOCAL`; pendiente definir D-B05, PostgreSQL aislado y staging.
+
 ## 01/10/2026 — D-B04 aprobada e inicio R2.1
 
 El usuario pidió avanzar con el paso natural posterior a R1.4: definir/aprobar D-B04 para entrar en R2.1. Se aprobó el contrato de identidad: cuenta individual por persona, sucursal asignada, roles `OPERADOR`, `REVISOR` y `ADMIN`, actor/rol/sucursal derivados desde la sesión del servidor, logout con revocación, sesiones con vencimiento y respuestas `401`/`403` consistentes. El cliente no podrá suplantar actor o sucursal mediante body/query. Se admite bootstrap inicial de administrador solo en entornos controlados; los tokens compartidos no quedan como identidad operativa normal.
@@ -6,6 +10,8 @@ El usuario pidió avanzar con el paso natural posterior a R1.4: definir/aprobar 
 Se implementó R2.1 local backend: modelos `Sucursal`, `Usuario` y `Sesion`; migración `20261001010000_r21_identity_sessions`; servicio de identidad con `scrypt` y tokens de sesión hasheados; login por usuario/password; logout revocable; administración básica de sucursales y usuarios; roles por ruta; escaneo autenticado; actor/sucursal derivados del servidor; y sobrescritura server-side de `decidedBy`, `updatedBy` y `closedBy`.
 
 Validación local: `npx prisma validate` OK; `npm test` 61 tests, 58 PASS, 3 SKIP. Estado: `IMPLEMENTADO_LOCAL`. No se ejecutó migración en PostgreSQL aislado, no se modificó staging ni producción y el frontend todavía debe adaptarse al nuevo login/sesión/roles. Evidencia: R21_VALIDATION.md.
+
+Continuación R2.1: se agregó sesión pública para operadores (`/api/session/login`, `/api/session`, `/api/session/logout`) y se adaptó el frontend a sesión real por usuario/password. El escáner usa cookie `HttpOnly`, no envía `email`/`sucursal` desde el body y la idempotencia ya no depende de identidad editable local; el panel admin también usa usuario/password. Validación actual: backend 62 tests, 59 PASS, 3 SKIP y Prisma válido; frontend 7/7 PASS, build Vite correcto y lint 0 errores/42 advertencias heredadas. Estado: `COMPLETADO_LOCAL`; pendiente `VALIDADO_LOCAL_POSTGRESQL` porque `psql` no está disponible en PATH, y pendiente staging con autorización separada.
 
 ## 30/09/2026 — R1.4 publicado y validado en staging
 

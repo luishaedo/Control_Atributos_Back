@@ -263,6 +263,44 @@ test('R2.1 reviewer session cannot use admin-only user management routes', async
   assert.equal(denied.body.code, 'FORBIDDEN')
 })
 
+test('R2.1 public session endpoints authenticate operators and revoke logout', async t => {
+  let sessionRecord
+  const passwordHash = await hashPassword('operador123')
+  const user = {
+    id: 'u-operator',
+    username: 'operador',
+    nombre: 'Olga Operadora',
+    rol: 'OPERADOR',
+    activo: true,
+    passwordHash,
+    sucursal: { id: 's2', codigo: 'SUC2', nombre: 'Sucursal 2', activa: true },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => { sessionRecord = { id: 'sess-3', ...data }; return sessionRecord },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+      updateMany: async ({ data }) => { sessionRecord.revokedAt = data.revokedAt; return { count: 1 } },
+    },
+  } })
+  const login = await f.request('/api/session/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'operador', password: 'operador123' }),
+  })
+  assert.equal(login.status, 200)
+  assert.equal(login.body.user.rol, 'OPERADOR')
+  assert.equal(login.body.user.sucursal.codigo, 'SUC2')
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  const current = await f.request('/api/session', { headers: { Cookie: cookie } })
+  assert.equal(current.status, 200)
+  assert.equal(current.body.user.username, 'operador')
+  const logout = await f.request('/api/session/logout', { method: 'POST', headers: { Cookie: cookie } })
+  assert.equal(logout.status, 200)
+  assert.ok(sessionRecord.revokedAt)
+})
+
 test('CORS retains configured aliases, credentials and rejects other origins', async t => {
   const f = await fixture(t, { env: { CORS_ORIGIN: origin, FRONTEND_URL: 'https://other.example' } })
   for (const allowed of [origin, 'https://other.example']) {

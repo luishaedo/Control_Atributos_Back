@@ -14,6 +14,7 @@ function fixture() {
     return requested ? items.filter(item => requested.includes(item.cod)) : items
   }
   const prisma = {
+    $transaction: async fn => fn(prisma),
     ...Object.fromEntries(Object.entries(dictionaries).map(([model, items]) => [model, {
       findMany: async args => filterCodes(items, args),
       upsert: async () => assert.fail(`upsert inesperado en ${model}`),
@@ -73,5 +74,31 @@ test('R1.1 importación rechaza código inválido sin truncar ni escribir', asyn
   }] } }, result)
   assert.equal(result.statusCode, 400)
   assert.equal(result.body.invalidItems[0].reason, 'invalid_code_or_missing_fields')
+  assert.equal(rows.size, 0)
+})
+
+test('R3.1 importación de maestro rechaza lote completo antes de escribir parcialmente', async () => {
+  const { controller, response, rows } = fixture()
+  const result = response()
+  await controller.importar({ body: { items: [
+    { sku: 'ABC1', descripcion: 'Válido', categoria_cod: '01', tipo_cod: '02', clasif_cod: '03' },
+    { sku: 'ABC2', descripcion: 'Inválido', categoria_cod: '99', tipo_cod: '02', clasif_cod: '03' },
+  ] } }, result)
+  assert.equal(result.statusCode, 400)
+  assert.equal(result.body.code, 'INVALID_DICTIONARY')
+  assert.equal(result.body.invalidCount, 1)
+  assert.equal(rows.size, 0)
+})
+
+test('R3.1 importación de maestro rechaza SKUs duplicados del mismo lote', async () => {
+  const { controller, response, rows } = fixture()
+  const result = response()
+  await controller.importar({ body: { items: [
+    { sku: 'ABC1', descripcion: 'Primero', categoria_cod: '01', tipo_cod: '02', clasif_cod: '03' },
+    { sku: 'abc1#etiqueta', descripcion: 'Duplicado', categoria_cod: '01', tipo_cod: '02', clasif_cod: '03' },
+  ] } }, result)
+  assert.equal(result.statusCode, 400)
+  assert.equal(result.body.code, 'INVALID_IMPORT_DATA')
+  assert.equal(result.body.invalidItems[0].reason, 'duplicate_sku_in_batch')
   assert.equal(rows.size, 0)
 })

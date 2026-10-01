@@ -1,18 +1,11 @@
 import { MaestroService } from '../services/maestro.service.js'
-import { cleanSku, parseCode, parseSku } from '../utils/sku.js'
+import { cleanSku } from '../utils/sku.js'
 import { toCSV } from '../utils/csv.js'
 import { sendAdminError } from '../utils/http.js'
 
 
 export function MaestroController(prisma) {
   const svc = MaestroService(prisma)
-  const normalizeCode = (value) => {
-    if (value === undefined || value === null) return null
-    const trimmed = String(value).trim()
-    if (!trimmed) return null
-    const parsed = parseCode(trimmed)
-    return parsed.valid ? parsed.normalized : null
-  }
   return {
     listar: async (req, res) => {
       const q = String(req.query.q || '').trim().toUpperCase()
@@ -100,77 +93,18 @@ export function MaestroController(prisma) {
     importar: async (req, res) => {
       const { items = [] } = req.body || {}
       if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items vacío' })
-      const invalidItems = []
-      const warnings = []
-      const categories = new Set()
-      const types = new Set()
-      const classifications = new Set()
-      const normalizedItems = []
-
-      for (const item of items) {
-        const parsedSku = parseSku(item?.sku || '')
-        const sku = parsedSku.normalized
-        const categoriaCod = normalizeCode(item?.categoria_cod)
-        const tipoCod = normalizeCode(item?.tipo_cod)
-        const clasifCod = normalizeCode(item?.clasif_cod)
-        if (!sku || !categoriaCod || !tipoCod || !clasifCod) {
-          invalidItems.push({
-            sku: sku || item?.sku || null,
-            reason: !parsedSku.valid ? 'invalid_sku_or_missing_fields' : 'invalid_code_or_missing_fields',
-          })
-          continue
-        }
-        if (parsedSku.hadSuffix) warnings.push({
-          code: 'SKU_SUFFIX_IGNORED', skuRaw: String(item.sku), skuNormalized: sku,
-          separator: parsedSku.separator,
-        })
-        categories.add(categoriaCod)
-        types.add(tipoCod)
-        classifications.add(clasifCod)
-        normalizedItems.push({
-          ...item,
-          sku,
-          categoria_cod: categoriaCod,
-          tipo_cod: tipoCod,
-          clasif_cod: clasifCod,
+      let result
+      try {
+        result = await svc.importMaestroItems(items)
+      } catch (error) {
+        return res.status(error.status || 500).json({
+          error: error.message || 'Error importando maestro',
+          code: error.code || 'INTERNAL_ERROR',
+          invalidCount: error.details?.length || 0,
+          invalidItems: error.details || [],
         })
       }
-
-      const [dicCats, dicTypes, dicClasif] = await Promise.all([
-        prisma.dicCategoria.findMany({ where: { cod: { in: Array.from(categories) } } }),
-        prisma.dicTipo.findMany({ where: { cod: { in: Array.from(types) } } }),
-        prisma.dicClasif.findMany({ where: { cod: { in: Array.from(classifications) } } }),
-      ])
-      const dicCatSet = new Set(dicCats.map((c) => c.cod))
-      const dicTypeSet = new Set(dicTypes.map((t) => t.cod))
-      const dicClasifSet = new Set(dicClasif.map((c) => c.cod))
-
-      const validItems = []
-      for (const item of normalizedItems) {
-        if (!dicCatSet.has(item.categoria_cod)) {
-          invalidItems.push({ sku: item.sku, reason: 'invalid_categoria' })
-          continue
-        }
-        if (!dicTypeSet.has(item.tipo_cod)) {
-          invalidItems.push({ sku: item.sku, reason: 'invalid_tipo' })
-          continue
-        }
-        if (!dicClasifSet.has(item.clasif_cod)) {
-          invalidItems.push({ sku: item.sku, reason: 'invalid_clasif' })
-          continue
-        }
-        validItems.push(item)
-      }
-
-      if (invalidItems.length) {
-        return res.status(400).json({
-          error: 'items inválidos',
-          invalidCount: invalidItems.length,
-          invalidItems,
-        })
-      }
-
-      const { count, skipped } = await svc.upsertMaestro(validItems)
+      const { count, skipped = [], warnings = [] } = result
       const skippedMessage = skipped.length ? 'Artículos omitidos por datos vacíos' : null
       res.json({
         ok: true,
@@ -178,7 +112,7 @@ export function MaestroController(prisma) {
         skippedCount: skipped.length,
         skippedMessage,
         skipped,
-        warningCount: warnings.length,
+        warningCount: result.warningCount ?? warnings.length,
         warnings,
       })
     },
