@@ -1,6 +1,6 @@
 # Validación R1.4
 
-Fecha: 30/09/2026. Estado: `COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL`.
+Fecha: 30/09/2026. Estado: `VALIDADO_STAGING`; no validado en producción.
 
 ## Contrato implementado
 
@@ -44,6 +44,22 @@ También se repitieron completas las suites PostgreSQL R1.2 y R1.3. Las bases nu
 
 Frontend: 7/7 tests PASS, build Vite de 389 módulos exitoso y lint con 0 errores/42 advertencias heredadas. La primera ejecución test/build dentro del sandbox no pudo leer `vite.config.js`; la repetición autorizada fuera de ese límite pasó.
 
+## Validación staging
+
+Publicación y validación remota completadas el 30/09/2026 en el servicio aislado `control-atributos-staging`.
+
+- Rama: `r13-atributos-staging`.
+- Commit publicado: `594ce7aa4c01402b147f52383d0b7b733a1c974b`.
+- Deploy Render: `dep-daupn7c9v7es73ag7le0`, Live, 1m00s.
+- Base Neon: rama `r02-migration-validation`, DB `r02_prisma_validation`.
+- Migración aplicada manualmente: `20260930220000_r14_campaign_lifecycle`, historial Prisma 9/9.
+- Smoke remoto read-only: `smoke-r14-staging.json`, 7/7 PASS, SHA exacto, readiness DB up y auth/CORS correctos.
+- Validación funcional: `r14-staging-validation-20260930.json`, 9/9 checks PASS y 32 requests HTTP.
+
+La validación funcional ejecutó el flujo completo con fixtures `TEST-R14`/`TESTR14`: borrador, activación con snapshot congelado, rechazo de segunda activa, GET sin escritura, aceptación sin aplicación anticipada, confirmación, desconocidos aprobado/rechazado, cierre selectivo, cierre repetido, no reactivación, reversión compensatoria única y doble cierre concurrente con una sola aplicación. Los fixtures quedan retenidos en la base aislada como evidencia: campañas 7, 8 y 9; SKUs `TESTR147EE8387FCA*`.
+
+El runner `scripts/run-r14-staging-loopback.mjs` usa una ruta local aleatoria de un solo uso y credenciales en memoria. La evidencia fue revisada sin `DATABASE_URL`, token, contraseña ni encabezados de autorización. Para hacer la prueba autosuficiente en la base aislada, el validador asegura diccionarios `01/02/03` con `skipDuplicates` si faltan.
+
 ## Archivos principales
 
 - `prisma/schema.prisma` y `prisma/migrations/20260930220000_r14_campaign_lifecycle/migration.sql`
@@ -60,4 +76,4 @@ Frontend: 7/7 tests PASS, build Vite de 389 módulos exitoso y lint con 0 errore
 
 ## Límites y próximo paso
 
-No hubo commit, push, despliegue ni acceso a staging/producción. R1.4 no está `VALIDADO_STAGING`. La migración debe ensayarse y desplegarse mediante el proceso autorizado antes de validar el flujo remoto. R2.1 sigue dependiendo de D-B04; R3.1/R3.2 de D-B05 y R3.3 de D-B06.
+No hubo despliegue productivo ni cambios en Vercel/frontend productivo. Staging API quedó validado; producción sigue pendiente de autorización separada. R2.1 sigue dependiendo de D-B04; R3.1/R3.2 de D-B05 y R3.3 de D-B06.

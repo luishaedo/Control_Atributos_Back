@@ -1,5 +1,17 @@
 # Staging R0.2 — Render + Neon
 
+## R1.4 — publicación y validación 30/09/2026
+
+Rama exclusiva `r13-atributos-staging`, commit `594ce7aa4c01402b147f52383d0b7b733a1c974b`, deploy manual Render `dep-daupn7c9v7es73ag7le0`, Live tras 1m00s. Auto-Deploy permanece Off. Producción, main productivo y Vercel no fueron modificados.
+
+Neon aislado `r02-migration-validation` / `r02_prisma_validation`: migración `20260930220000_r14_campaign_lifecycle` aplicada manualmente y registrada en `_prisma_migrations` con historial 9/9. Verificación posterior: columnas R1.4, índice parcial de campaña activa, `reversalOfId` único y migración finalizada.
+
+Smoke remoto read-only: `smoke-r14-staging.json`, 7/7 PASS, SHA exacto, readiness DB up, CORS/auth correctos y latencias 217–784 ms.
+
+Validación funcional: `scripts/run-r14-staging-loopback.mjs 594ce7aa4c01402b147f52383d0b7b733a1c974b docs/development/r14-staging-validation-20260930.json`, con credenciales en memoria y ruta `127.0.0.1` de un uso. Resultado: 9/9 checks PASS, 32 requests HTTP, campañas 7/8/9 y SKUs `TESTR147EE8387FCA*` retenidos en la base aislada. Se probaron borrador, activación/snapshot, GET sin escritura, segunda activa 409, aplicación anticipada bloqueada, desconocidos aprobado/rechazado, cierre selectivo, cierre repetido, no reactivación, reversión compensatoria única y cierre concurrente con una sola aplicación. Evidencia revisada sin secretos.
+
+R1.4 queda `VALIDADO_STAGING`; no validado en producción.
+
 ## R1.3 — despliegue 29/09/2026
 
 Rama exclusiva `r13-atributos-staging`, commit `520cd35d33a3be2e7ca1d90adc745880d0d53eff`, deploy manual `dep-dau2pc97lnhs73f705eg`, Live tras 43,3 s. Auto-Deploy permanece Off; build/start/DB/CORS/token sin cambio. No se publicó main ni se desplegó producción. Evidencia: r13-staging-deployed.png.

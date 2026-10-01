@@ -11,10 +11,10 @@ Actualizado: 30/09/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R1.1 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | normalización SKU/códigos backend y frontend; tests; docs/development/R11_VALIDATION.md |
 | R1.2 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | backend escaneos/servicio/tests; frontend ScanBox/API/tests; docs/development/R12_VALIDATION.md |
 | R1.3 | VALIDADO_STAGING; no validado en producción | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; scripts de validación; docs/development/* |
-| R1.4 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración; tests PostgreSQL; docs/development/R14_VALIDATION.md |
+| R1.4 | VALIDADO_STAGING; no validado en producción | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración; staging Render/Neon; tests PostgreSQL; docs/development/R14_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
-No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1, R1.2 y R1.4 quedaron completados y validados localmente por Codex/01a0f1e5 con D-B01/D-B02/D-B03 aprobadas. No se modificó staging ni producción durante R1.4.
+No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
 
 ## Despliegue real
 
@@ -35,7 +35,7 @@ No hay agentes delegados. Entrega staging completada por Codex/coordinador: serv
 
 ## Límites y siguiente acción
 
-R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. R1.3 quedó VALIDADO_STAGING el 30/09/2026: 12/12 escenarios y 58 HTTP sobre SHA 520cd35, con campaña inactiva y 11 SKU TEST-R13 retenidos como evidencia en la base aislada. R1.4 quedó completada y validada solo localmente; falta publicar/migrar/validar en staging mediante autorización separada. No volver a inicializar producción: ya tiene esquema.
+R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. R1.3 quedó VALIDADO_STAGING el 30/09/2026: 12/12 escenarios y 58 HTTP sobre SHA 520cd35, con campaña inactiva y 11 SKU TEST-R13 retenidos como evidencia en la base aislada. R1.4 quedó VALIDADO_STAGING el 30/09/2026: commit 594ce7a, deploy dep-daupn7c9v7es73ag7le0, migración 9/9, smoke 7/7 y validación funcional 9/9 checks con 32 HTTP. No volver a inicializar producción: ya tiene esquema.
 
 - Render Free puede demorar más que los timeouts frontend al despertar/reiniciar. La recuperación en caliente está validada, no disponibilidad continua ni SLA para siete sucursales. Pendiente definir hosting/UX de arranque antes del piloto.
 - H01 (tablas ausentes) resuelto en destino confirmado. H02: wrapper async probado localmente y publicado; no se indujeron errores DB deliberados en producción.
@@ -58,6 +58,8 @@ El usuario aprobó D-B02/D-B03. Se implementó el ciclo `BORRADOR -> ACTIVA -> C
 Aceptar solo propone; confirmar habilita; el cierre Serializable aplica únicamente decisiones vigentes confirmadas y desconocidos aprobados. Los rechazos, fusiones y pendientes sin confirmar permanecen. El cierre repetido es idempotente, una campaña cerrada no se reactiva y la reversión crea un evento compensatorio enlazado sin alterar el original.
 
 Validación final: backend 90/90 PASS, 0 omitidas, en PostgreSQL 16.3 local con suites R1.2/R1.3/R1.4 completas; frontend 7/7, build 389 módulos y lint 0 errores/42 advertencias heredadas. Incluye rollback forzado, doble cierre y carrera cierre/escaneo. Bases R1.2/R1.4 sin fixtures y eliminadas; R1.3 preservada sin campañas activas; clúster detenido. Sin acceso remoto, commit, push o deploy; por eso el estado es `COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL`, no staging. Detalle: R14_VALIDATION.md.
+
+Continuación staging: commit `594ce7aa4c01402b147f52383d0b7b733a1c974b` publicado en `r13-atributos-staging` y deploy manual `dep-daupn7c9v7es73ag7le0` Live. En Neon aislado se aplicó la migración R1.4 y el historial quedó 9/9. Smoke remoto 7/7 PASS. Validación funcional remota: 9/9 checks PASS, 32 HTTP, campañas 7/8/9 y SKUs `TESTR147EE8387FCA*` retenidos. Evidencia sanitizada: `r14-staging-validation-20260930.json`. Producción y Vercel no fueron consultados ni modificados. R1.4 queda `VALIDADO_STAGING`; no producción.
 
 ## Entrega R1.3 — 29/09/2026
 

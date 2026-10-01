@@ -1,4 +1,12 @@
 # Historial de entregas
+## 30/09/2026 — R1.4 publicado y validado en staging
+
+Se publicó R1.4 únicamente en staging: rama `r13-atributos-staging`, commit `594ce7aa4c01402b147f52383d0b7b733a1c974b`, deploy manual Render `dep-daupn7c9v7es73ag7le0` Live. Auto-Deploy sigue Off. Producción, main productivo y Vercel no fueron modificados.
+
+En Neon aislado `r02-migration-validation` / `r02_prisma_validation` se aplicó manualmente la migración `20260930220000_r14_campaign_lifecycle`; el historial quedó 9/9. Smoke remoto `smoke-r14-staging.json`: 7/7 PASS con SHA exacto, readiness DB up y auth/CORS correctos.
+
+Validación funcional remota: `scripts/run-r14-staging-loopback.mjs` con credenciales solo en memoria y evidencia `r14-staging-validation-20260930.json`. Resultado: 9/9 checks PASS y 32 requests HTTP. Se probaron borrador, activación/snapshot, GET sin escritura, segunda activa 409, aplicación anticipada bloqueada, desconocidos aprobado/rechazado, cierre selectivo, cierre repetido, no reactivación, reversión compensatoria única y doble cierre concurrente con una sola aplicación. Campañas 7/8/9 y SKUs `TESTR147EE8387FCA*` quedan retenidos en la base aislada. La evidencia fue revisada sin URL de conexión, token, contraseña ni encabezados de autorización. Estado: R1.4 `VALIDADO_STAGING`; no producción.
+
 ## 30/09/2026 — R1.4 completada y validada localmente
 
 El usuario aprobó D-B02/D-B03. Se agregó ciclo explícito de campaña, restricción de una única activa, snapshot congelado al activar, validación de fechas, cierre atómico e idempotente, aplicación exclusiva de decisiones confirmadas, preservación de rechazos y reversión compensatoria trazable. GET y escaneo dejaron de completar snapshots. Editar, aprobar, rechazar o fusionar desconocidos exige campaña activa y actualiza estado/etapa atómicamente. El modal frontend usa el arreglo estable de estadísticas por usuario devuelto por el cierre.
