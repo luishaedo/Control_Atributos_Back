@@ -1,9 +1,9 @@
 # Historial de entregas
-## 01/10/2026 — R3.1 completado localmente
+## 01/10/2026 — R3.1 completado y publicado en producción
 
 D-B05 quedó definida para importación externa: foto absoluta por SKU mediante upsert, sin borrar ausentes; CSV y JSON equivalentes; CSV UTF-8 con BOM para salida; entrada UTF-8/UTF-8 BOM/Latin-1 con coma, punto y coma o tab; encabezados canónicos `sku`, `descripcion`, `categoria_cod`, `tipo_cod`, `clasif_cod` y diccionarios `cod,nombre`. Cualquier fila inválida, duplicada o fuera de diccionario rechaza el lote completo sin escritura parcial.
 
-Código: `csvInput` ahora acepta encabezados canónicos exportables para round-trip y mantiene variantes legibles previas. Pruebas nuevas cubren reimportación CSV de maestro/diccionarios. Validación: `npx prisma validate --schema prisma\schema.prisma` OK; `npm test` 65 tests, 62 PASS, 3 SKIP. No se ejecutó PostgreSQL aislado, staging ni producción.
+Código: `csvInput` ahora acepta encabezados canónicos exportables para round-trip y mantiene variantes legibles previas. Pruebas nuevas cubren reimportación CSV de maestro/diccionarios. Validación local: `npx prisma validate --schema prisma\schema.prisma` OK; `npm test` 65 tests, 62 PASS, 3 SKIP. Publicación: commit funcional `bea43bd6b940f1eb23c1343d3d507f2e5150e773` desplegado manualmente en Render (`dep-dav7u2o473hc73e1npa0`), sin migraciones pendientes, API viva y smoke remoto 7/7 PASS contra el SHA esperado. No se ejecutó PostgreSQL aislado.
 
 ## 01/10/2026 — Bootstrap de usuarios iniciales en producción
 

@@ -13,7 +13,7 @@ Actualizado: 01/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R1.3 | PUBLICADO_PRODUCCION; validado staging previamente | Codex/coordinador, sin agentes delegados | src/services/actualizaciones.service.js; controladores actualizaciones/revisiones/workflow; middleware de errores; test/*; scripts de validación; docs/development/* |
 | R1.4 | PUBLICADO_PRODUCCION; validado staging previamente | Codex/01a0f1e5, sin agentes delegados | campañas/cierre/reversión/workflow; esquema/migración aplicada en producción; docs/development/R14_VALIDATION.md |
 | R2.1 | VALIDADO_PRODUCCION parcial: usuarios iniciales y login real | Codex/01a0f1e5, sin agentes delegados | identidad, usuarios, sucursales, roles, sesiones, frontend sesión real, logout/revocación, 401/403; docs/development/R21_VALIDATION.md |
-| R3.1 | COMPLETADO_LOCAL; D-B05 aprobada | Codex/01a0f1e5, sin agentes delegados | importación maestro/diccionarios atómica, prevalidada y round-trip CSV/JSON; docs/development/R31_VALIDATION.md |
+| R3.1 | PUBLICADO_PRODUCCION; smoke remoto 7/7 | Codex/01a0f1e5, sin agentes delegados | importación maestro/diccionarios atómica, prevalidada y round-trip CSV/JSON; docs/development/R31_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
@@ -59,7 +59,7 @@ Continuación local: se agregó sesión pública `/api/session` para operación,
 
 ## Inicio R3.1 — 01/10/2026
 
-R3.1 quedó completado localmente con D-B05 aprobada: importación absoluta por upsert sin borrar ausentes, CSV/JSON equivalentes, encabezados canónicos exportables, códigos normalizados, rechazo total del lote ante errores y transacciones Serializable cuando Prisma las ofrece. Se corrigió el round-trip CSV para aceptar `sku`, `descripcion`, `categoria_cod`, `tipo_cod`, `clasif_cod` y `cod,nombre`. Validación: `npx prisma validate --schema prisma\schema.prisma` OK y `npm test` 65 tests, 62 PASS, 3 SKIP. No se ejecutó PostgreSQL aislado, staging ni producción. Detalle: R31_VALIDATION.md.
+R3.1 quedó completado y publicado en producción con D-B05 aprobada: importación absoluta por upsert sin borrar ausentes, CSV/JSON equivalentes, encabezados canónicos exportables, códigos normalizados, rechazo total del lote ante errores y transacciones Serializable cuando Prisma las ofrece. Se corrigió el round-trip CSV para aceptar `sku`, `descripcion`, `categoria_cod`, `tipo_cod`, `clasif_cod` y `cod,nombre`. Validación local: `npx prisma validate --schema prisma\schema.prisma` OK y `npm test` 65 tests, 62 PASS, 3 SKIP. Publicación Render manual del código `bea43bd6b940f1eb23c1343d3d507f2e5150e773`, deploy `dep-dav7u2o473hc73e1npa0`, sin migraciones pendientes y smoke remoto 7/7 PASS. No se ejecutó PostgreSQL aislado. Detalle: R31_VALIDATION.md.
 
 ## Cierre R1.1 y R1.2 — 30/09/2026
 
