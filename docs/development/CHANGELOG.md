@@ -1,9 +1,9 @@
 # Historial de entregas
-## 01/10/2026 — R3.2 exportación final completada localmente
+## 01/10/2026 — R3.2 exportación final publicada en producción
 
 Las exportaciones TXT finales ahora requieren campaña cerrada y se vuelven repetibles por cierre: los nombres de archivo usan `closedAt`, no el instante de descarga. `scope=applied` exporta solo decisiones aplicadas con `appliedAt` y último evento por SKU/atributo; `scope=unknown` exporta solo desconocidos aprobados y aplicados al maestro. El resumen TXT informa campaña, cierre, aplicados, altas aplicadas, pendientes, rechazos y desconocidos rechazados/fusionados.
 
-Validación: `npx prisma validate --schema prisma\schema.prisma` OK; `npm test` 68 tests, 65 PASS, 3 SKIP; `git diff --check` OK. No se ejecutó PostgreSQL aislado, staging ni producción. Evidencia: R32_VALIDATION.md.
+Validación local: `npx prisma validate --schema prisma\schema.prisma` OK; `npm test` 68 tests, 65 PASS, 3 SKIP; `git diff --check` OK. Publicación: commit funcional `348c40f72e6965fadd5235764709136f24b0b98c` desplegado manualmente en Render (`dep-davd0ifpn0mc73cicqe0`), sin migraciones pendientes, API viva y smoke remoto 7/7 PASS contra el SHA esperado. No se ejecutó PostgreSQL aislado. Evidencia: R32_VALIDATION.md.
 
 ## 01/10/2026 — R3.1 completado y publicado en producción
 

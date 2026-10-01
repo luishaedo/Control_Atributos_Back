@@ -1,6 +1,6 @@
 # Validación R3.2
 
-Fecha: 01/10/2026. Estado: `COMPLETADO_LOCAL`; no publicado ni validado en producción en esta continuación.
+Fecha: 01/10/2026. Estado: `PUBLICADO_PRODUCCION`; smoke remoto 7/7. No se ejecutó PostgreSQL real aislado en esta continuación.
 
 ## Alcance implementado
 
@@ -19,9 +19,12 @@ Comandos ejecutados:
 npx prisma validate --schema prisma\schema.prisma
 npm test
 git diff --check
+node scripts/smoke.mjs --base https://control-atributos-back.onrender.com --origin https://stockeador-client-1nll.vercel.app --expected-version 348c40f72e6965fadd5235764709136f24b0b98c
 ```
 
 Resultado backend: **68 tests, 65 PASS, 3 SKIP**.
+
+Publicación: commit funcional `348c40f72e6965fadd5235764709136f24b0b98c`, deploy Render `dep-davd0ifpn0mc73cicqe0`, `prisma migrate deploy` sin migraciones pendientes, API escuchando y smoke remoto **7/7 PASS**.
 
 Nuevas regresiones R3.2:
 
@@ -32,4 +35,4 @@ Nuevas regresiones R3.2:
 
 ## Límites
 
-No se ejecutó PostgreSQL aislado ni staging en esta continuación. La exportación se mantiene en tres TXT separados más resumen; un archivo comprimido único queda pendiente si se decide agregar dependencias o un empaquetado binario en una etapa posterior.
+No se ejecutó PostgreSQL aislado en esta continuación. La exportación se mantiene en tres TXT separados más resumen; un archivo comprimido único queda pendiente si se decide agregar dependencias o un empaquetado binario en una etapa posterior.
