@@ -1,0 +1,101 @@
+{
+  "generatedAt": "2026-10-01T22:17:12.091Z",
+  "scope": "R4.2 local in-memory benchmark; no real DB, no secrets, no remote writes",
+  "node": "v24.20.0",
+  "platform": "win32",
+  "dataset": {
+    "skus": 7594,
+    "branches": 7,
+    "scanEvents": 53158,
+    "snapshots": 7594,
+    "decisions": 584,
+    "attributesPerScan": 3
+  },
+  "thresholdMs": 2000,
+  "expected": {
+    "scanEvents": 53158,
+    "latestObservations": 159474,
+    "items": 7594
+  },
+  "logicalChecks": {
+    "scanEvents": 53158,
+    "latestObservations": 159474,
+    "items": 7594,
+    "consensusPctWithinRange": true
+  },
+  "checksPass": true,
+  "directConsensus": {
+    "elapsedMs": 507.53
+  },
+  "endpoints": [
+    {
+      "name": "revisiones.listar",
+      "runs": 20,
+      "minMs": 415.36,
+      "medianMs": 474.1,
+      "p95Ms": 693.35,
+      "maxMs": 781.54,
+      "responseShape": {
+        "items": 7594
+      },
+      "passP95": true
+    },
+    {
+      "name": "revisiones.discrepancias",
+      "runs": 20,
+      "minMs": 695.31,
+      "medianMs": 802.57,
+      "p95Ms": 970.38,
+      "maxMs": 1318.19,
+      "responseShape": {
+        "items": 7594
+      },
+      "passP95": true
+    },
+    {
+      "name": "revisiones.discrepanciasSuc",
+      "runs": 20,
+      "minMs": 390.55,
+      "medianMs": 458.41,
+      "p95Ms": 591.59,
+      "maxMs": 681.3,
+      "responseShape": {
+        "items": 7594
+      },
+      "passP95": true
+    },
+    {
+      "name": "revisiones.resumenAuditoria",
+      "runs": 20,
+      "minMs": 453.58,
+      "medianMs": 565.82,
+      "p95Ms": 663.82,
+      "maxMs": 714.32,
+      "responseShape": {
+        "kpis": {
+          "skuEscaneados": 7594,
+          "skuVerificados": 7594,
+          "skuConSugerencias": 0,
+          "atributosAceptados": 584
+        },
+        "consenso": {
+          "eventosAuditados": 53158,
+          "atributosObservados": 22782,
+          "atributosSinObservacion": 0,
+          "atributosConConsenso": 2764,
+          "atributosConConflicto": 20018,
+          "atributosConEmpate": 0
+        }
+      },
+      "passP95": true
+    }
+  ],
+  "concurrentHotAudit": {
+    "sessions": 21,
+    "endpoint": "revisiones.resumenAuditoria",
+    "wallMs": 14057.32,
+    "averageWallPerSessionMs": 669.4,
+    "passAverageUnderThreshold": true
+  },
+  "pass": true
+}

@@ -1,4 +1,12 @@
 # Historial de entregas
+## 01/10/2026 — R4.2 rendimiento medido completado localmente
+
+Se agrego `scripts/benchmark-r42.mjs` y el comando `npm run benchmark:r42` para medir localmente los puntos marcados por H14 sin usar DB real, `.env`, secretos ni datos productivos. El runner genera un dataset ficticio `TEST-R42` de 7.594 SKUs x 7 sucursales, 53.158 escaneos, 7.594 snapshots y 584 decisiones, invoca los controladores reales de revisiones con Prisma falso en memoria y mide p95 en caliente.
+
+Resultado completo guardado en `docs/development/r42-benchmark-20261001.json`: `revisiones.listar` p95 693,35 ms, `revisiones.discrepancias` p95 970,38 ms, `revisiones.discrepanciasSuc` p95 591,59 ms y `revisiones.resumenAuditoria` p95 663,82 ms. La rafaga simulada de 21 sesiones sobre `resumenAuditoria` tardo 14.057,32 ms de pared, promedio 669,40 ms por sesion. Chequeos logicos: 53.158 escaneos, 159.474 observaciones logicas, 7.594 items y porcentajes de consenso dentro de 0..100; todo PASS.
+
+Documentacion nueva: `docs/development/R42_VALIDATION.md`. Estado: `COMPLETADO_LOCAL`; no se publico Render/Vercel ni se ejecuto prueba contra PostgreSQL/Neon real. Limite registrado: esta evidencia mide agregacion/controladores en proceso local; antes del piloto conviene repetir con staging/PostgreSQL real y datos ficticios si se desea validar latencia completa de red/DB.
+
 ## 01/10/2026 — R4.1 UX operativa completada localmente
 
 Frontend: el escáner mantiene foco al cambiar campaña y tras registrar una observación, ignora respuestas obsoletas de lookup y corrige mensajes para describir el efecto real: registrar observación, no aplicar cambios al maestro. Revisiones ahora descarta respuestas obsoletas al cambiar filtros/campaña en evaluación, cola, faltantes, confirmación y consolidación.

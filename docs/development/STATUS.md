@@ -17,6 +17,7 @@ Actualizado: 01/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R3.2 | PUBLICADO_PRODUCCION; smoke remoto 7/7 | Codex/01a0f1e5, sin agentes delegados | exportación final por campaña cerrada, TXT repetibles y resumen de conciliación; docs/development/R32_VALIDATION.md |
 | R3.3 | PUBLICADO_PRODUCCION; smoke remoto 7/7 | Codex/01a0f1e5, sin agentes delegados | consenso por última observación válida por sucursal/SKU/atributo, métricas y CSV; docs/development/R33_VALIDATION.md |
 | R4.1 | PUBLICADO_PRODUCCION; verificación bundle Vercel | Codex/01a0f1e5, sin agentes delegados | UX operativa frontend: foco escáner, respuestas obsoletas, mensajes fieles, validación build config; docs/development/R41_VALIDATION.md |
+| R4.2 | COMPLETADO_LOCAL; benchmark PASS | Codex/01a0f1e5, sin agentes delegados | benchmark reproducible backend con dataset ficticio 7.594 SKUs x 7 sucursales, p95 local <2s y cero pérdida lógica; docs/development/R42_VALIDATION.md |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
