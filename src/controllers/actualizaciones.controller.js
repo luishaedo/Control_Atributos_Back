@@ -41,12 +41,30 @@ export function ActualizacionesController(prisma) {
       .toLowerCase() || 'campania'
   }
 
+  const ensureClosedCampaign = async (campaniaId, res) => {
+    const camp = await prisma.campania.findUnique({
+      where: { id: campaniaId },
+      select: { id: true, nombre: true, estado: true, closedAt: true },
+    })
+    if (!camp) {
+      sendAdminError(res, 404, 'Campaña no encontrada')
+      return null
+    }
+    if (camp.estado !== 'CERRADA' || !camp.closedAt) {
+      sendAdminError(res, 409, 'La exportación final requiere una campaña cerrada')
+      return null
+    }
+    return camp
+  }
+
   const buildTxtResponse = async ({
     campaniaId,
     attributeKey,
     filename,
     scope = 'applied',
   }, res) => {
+    const camp = await ensureClosedCampaign(campaniaId, res)
+    if (!camp) return
     const fieldMap = {
       categoria: { newKey: 'new_categoria_cod', oldKey: 'old_categoria_cod' },
       tipo: { newKey: 'new_tipo_cod', oldKey: 'old_tipo_cod' },
@@ -57,22 +75,22 @@ export function ActualizacionesController(prisma) {
       return sendAdminError(res, 400, 'atributo inválido')
     }
     const lines = []
-    if (scope !== 'applied' && scope !== 'unknown' && scope !== 'pending') {
+    if (scope !== 'applied' && scope !== 'unknown') {
       return sendAdminError(res, 400, 'scope inválido')
     }
-    if (scope === 'applied' || scope === 'pending') {
-      const estadoFiltro = scope === 'pending' ? 'pendiente' : 'aplicada'
+    if (scope === 'applied') {
       const actualizaciones = await prisma.actualizacion.findMany({
-        where: { campaniaId, estado: estadoFiltro },
-        orderBy: { ts: 'desc' },
+        where: { campaniaId, estado: 'aplicada', appliedAt: { not: null } },
+        orderBy: [{ appliedAt: 'desc' }, { id: 'desc' }],
       })
       const seen = new Set()
       for (const act of actualizaciones) {
-        if (seen.has(act.sku)) continue
+        const key = `${act.sku}:${attributeKey}`
+        if (seen.has(key)) continue
         const newValue = act[fields.newKey]
         const oldValue = act[fields.oldKey] ?? ''
         if (!newValue || String(newValue) === String(oldValue)) continue
-        seen.add(act.sku)
+        seen.add(key)
         lines.push(`${act.sku}\t${newValue}`)
       }
     } else if (scope === 'unknown') {
@@ -95,14 +113,10 @@ export function ActualizacionesController(prisma) {
           where: {
             campaniaId,
             sku: { in: skuList },
-            OR: [
-              { status: 'APPROVED' },
-              { status: 'PENDING' },
-              { status: 'confirmed' },
-              { status: 'CONFIRMED' },
-            ],
+            status: 'APPROVED',
+            appliedToMaestroAt: { not: null },
           },
-          orderBy: { updatedAt: 'desc' },
+          orderBy: [{ appliedToMaestroAt: 'desc' }, { id: 'desc' }],
         })
         for (const item of unknowns) {
           const value = unknownField ? item[unknownField] : ''
@@ -111,12 +125,8 @@ export function ActualizacionesController(prisma) {
         }
       }
     }
-    const camp = await prisma.campania.findUnique({
-      where: { id: campaniaId },
-      select: { nombre: true },
-    })
     const safeName = sanitizeFilenamePart(camp?.nombre || `campania_${campaniaId}`)
-    const timestamp = formatTimestamp(new Date())
+    const timestamp = formatTimestamp(new Date(camp.closedAt))
     const exportName = `${safeName}_${attributeKey}_${timestamp}.txt`
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader(
@@ -127,8 +137,16 @@ export function ActualizacionesController(prisma) {
   }
 
   const buildSummaryTxt = async ({ campaniaId }, res) => {
+    const camp = await ensureClosedCampaign(campaniaId, res)
+    if (!camp) return
     const appliedCount = await prisma.actualizacion.count({
-      where: { campaniaId, estado: 'aplicada' },
+      where: { campaniaId, estado: 'aplicada', appliedAt: { not: null } },
+    })
+    const pendingCount = await prisma.actualizacion.count({
+      where: { campaniaId, estado: 'pendiente', archivada: false, appliedAt: null },
+    })
+    const rejectedCount = await prisma.actualizacion.count({
+      where: { campaniaId, estado: 'rechazada' },
     })
     const skuStage = ensureModel(prisma.skuStage, 'skuStage', res)
     const unknownSku = ensureModel(prisma.unknownSku, 'unknownSku', res)
@@ -143,24 +161,26 @@ export function ActualizacionesController(prisma) {
           where: {
             campaniaId,
             sku: { in: skuList },
-            OR: [
-              { status: 'APPROVED' },
-              { status: 'confirmed' },
-              { status: 'CONFIRMED' },
-            ],
+            status: 'APPROVED',
+            appliedToMaestroAt: { not: null },
           },
         })
       : 0
+    const unknownRejectedCount = await unknownSku.count({
+      where: { campaniaId, status: { in: ['REJECTED', 'MERGED'] } },
+    })
     const lines = [
+      `campania_id\t${campaniaId}`,
+      `estado\t${camp.estado}`,
+      `closed_at\t${new Date(camp.closedAt).toISOString()}`,
       `applied_count\t${appliedCount}`,
       `unknown_count\t${unknownCount}`,
+      `pending_count\t${pendingCount}`,
+      `rejected_count\t${rejectedCount}`,
+      `unknown_rejected_or_merged_count\t${unknownRejectedCount}`,
     ]
-    const camp = await prisma.campania.findUnique({
-      where: { id: campaniaId },
-      select: { nombre: true },
-    })
     const safeName = sanitizeFilenamePart(camp?.nombre || `campania_${campaniaId}`)
-    const timestamp = formatTimestamp(new Date())
+    const timestamp = formatTimestamp(new Date(camp.closedAt))
     const exportName = `${safeName}_summary_${timestamp}.txt`
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader(

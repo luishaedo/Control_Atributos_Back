@@ -113,3 +113,160 @@ test('R1.4 controller disables direct application and preserves correlation ID',
   assert.equal(response.body.code, 'APPLY_REQUIRES_CLOSE')
   assert.equal(response.body.requestId, 'correlation')
 })
+
+function exportResponse() {
+  return {
+    statusCode: 200,
+    headers: {},
+    body: null,
+    status(code) { this.statusCode = code; return this },
+    json(body) { this.body = body; return this },
+    setHeader(name, value) { this.headers[name] = value },
+    send(body) { this.body = body; return this },
+  }
+}
+
+function exportFixture({ closed = true } = {}) {
+  const closedAt = new Date('2026-10-01T12:34:00Z')
+  const campania = {
+    id: 7,
+    nombre: 'Campaña Final',
+    estado: closed ? 'CERRADA' : 'ACTIVA',
+    closedAt: closed ? closedAt : null,
+  }
+  const actualizaciones = [
+    {
+      id: 1,
+      campaniaId: 7,
+      sku: 'SKU1',
+      estado: 'aplicada',
+      appliedAt: new Date('2026-10-01T12:31:00Z'),
+      old_categoria_cod: '01',
+      new_categoria_cod: '02',
+      old_tipo_cod: '03',
+      new_tipo_cod: '',
+      old_clasif_cod: '04',
+      new_clasif_cod: '',
+    },
+    {
+      id: 2,
+      campaniaId: 7,
+      sku: 'SKU2',
+      estado: 'pendiente',
+      archivada: false,
+      appliedAt: null,
+      old_categoria_cod: '01',
+      new_categoria_cod: '09',
+    },
+    {
+      id: 3,
+      campaniaId: 7,
+      sku: 'SKU3',
+      estado: 'rechazada',
+      appliedAt: null,
+      old_categoria_cod: '01',
+      new_categoria_cod: '08',
+    },
+  ]
+  const stages = [
+    { campaniaId: 7, sku: 'NEW1', stage: 'consolidate' },
+    { campaniaId: 7, sku: 'NEW2', stage: 'consolidate' },
+  ]
+  const unknowns = [
+    {
+      id: 10,
+      campaniaId: 7,
+      sku: 'NEW1',
+      status: 'APPROVED',
+      appliedToMaestroAt: new Date('2026-10-01T12:32:00Z'),
+      categoria_cod: '05',
+      tipo_cod: '06',
+      clasif_cod: '07',
+    },
+    {
+      id: 11,
+      campaniaId: 7,
+      sku: 'NEW2',
+      status: 'REJECTED',
+      appliedToMaestroAt: null,
+      categoria_cod: '09',
+      tipo_cod: '09',
+      clasif_cod: '09',
+    },
+  ]
+  const matches = (row, where = {}) => Object.entries(where).every(([key, value]) => {
+    if (value && typeof value === 'object') {
+      if ('not' in value) return row[key] !== value.not && row[key] != null
+      if ('in' in value) return value.in.includes(row[key])
+    }
+    return row[key] === value
+  })
+  const sortRows = (rows, orderBy = []) => {
+    const rules = Array.isArray(orderBy) ? orderBy : [orderBy]
+    return [...rows].sort((a, b) => {
+      for (const rule of rules) {
+        const [[field, direction]] = Object.entries(rule)
+        const av = a[field] instanceof Date ? a[field].getTime() : a[field]
+        const bv = b[field] instanceof Date ? b[field].getTime() : b[field]
+        if (av === bv) continue
+        return (direction === 'desc' ? -1 : 1) * (av > bv ? 1 : -1)
+      }
+      return 0
+    })
+  }
+  return {
+    campania,
+    prisma: {
+      campania: { findUnique: async () => campania },
+      actualizacion: {
+        findMany: async ({ where, orderBy }) => sortRows(actualizaciones.filter(row => matches(row, where)), orderBy),
+        count: async ({ where }) => actualizaciones.filter(row => matches(row, where)).length,
+      },
+      skuStage: {
+        findMany: async ({ where, select }) => stages
+          .filter(row => matches(row, where))
+          .map(row => (select?.sku ? { sku: row.sku } : row)),
+      },
+      unknownSku: {
+        findMany: async ({ where, orderBy }) => sortRows(unknowns.filter(row => matches(row, where)), orderBy),
+        count: async ({ where }) => unknowns.filter(row => matches(row, where)).length,
+      },
+    },
+  }
+}
+
+test('R3.2 exportación TXT exige campaña cerrada', async () => {
+  const { prisma } = exportFixture({ closed: false })
+  const response = exportResponse()
+  await ActualizacionesController(prisma).exportTxtCategoria({
+    query: { campaniaId: 7 },
+  }, response)
+  assert.equal(response.statusCode, 409)
+  assert.match(response.body.error, /campaña cerrada/i)
+})
+
+test('R3.2 exportación final separa aplicados y altas aprobadas con nombre repetible', async () => {
+  const { prisma } = exportFixture()
+  const controller = ActualizacionesController(prisma)
+  const applied = exportResponse()
+  await controller.exportTxtCategoria({ query: { campaniaId: 7, scope: 'applied' } }, applied)
+  assert.equal(applied.statusCode, 200)
+  assert.equal(applied.body, 'SKU1\t02')
+  assert.match(applied.headers['Content-Disposition'], /campana_final_categoria_20261001_0934\.txt/)
+
+  const unknown = exportResponse()
+  await controller.exportTxtCategoria({ query: { campaniaId: 7, scope: 'unknown' } }, unknown)
+  assert.equal(unknown.body, 'NEW1\t05')
+  assert.doesNotMatch(unknown.body, /NEW2/)
+})
+
+test('R3.2 resumen diferencia aplicados, pendientes y rechazados', async () => {
+  const { prisma } = exportFixture()
+  const response = exportResponse()
+  await ActualizacionesController(prisma).exportTxtSummary({ query: { campaniaId: 7 } }, response)
+  assert.match(response.body, /applied_count\t1/)
+  assert.match(response.body, /unknown_count\t1/)
+  assert.match(response.body, /pending_count\t1/)
+  assert.match(response.body, /rejected_count\t1/)
+  assert.match(response.body, /unknown_rejected_or_merged_count\t1/)
+})

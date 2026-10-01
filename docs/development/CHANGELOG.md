@@ -1,4 +1,10 @@
 # Historial de entregas
+## 01/10/2026 — R3.2 exportación final completada localmente
+
+Las exportaciones TXT finales ahora requieren campaña cerrada y se vuelven repetibles por cierre: los nombres de archivo usan `closedAt`, no el instante de descarga. `scope=applied` exporta solo decisiones aplicadas con `appliedAt` y último evento por SKU/atributo; `scope=unknown` exporta solo desconocidos aprobados y aplicados al maestro. El resumen TXT informa campaña, cierre, aplicados, altas aplicadas, pendientes, rechazos y desconocidos rechazados/fusionados.
+
+Validación: `npx prisma validate --schema prisma\schema.prisma` OK; `npm test` 68 tests, 65 PASS, 3 SKIP; `git diff --check` OK. No se ejecutó PostgreSQL aislado, staging ni producción. Evidencia: R32_VALIDATION.md.
+
 ## 01/10/2026 — R3.1 completado y publicado en producción
 
 D-B05 quedó definida para importación externa: foto absoluta por SKU mediante upsert, sin borrar ausentes; CSV y JSON equivalentes; CSV UTF-8 con BOM para salida; entrada UTF-8/UTF-8 BOM/Latin-1 con coma, punto y coma o tab; encabezados canónicos `sku`, `descripcion`, `categoria_cod`, `tipo_cod`, `clasif_cod` y diccionarios `cod,nombre`. Cualquier fila inválida, duplicada o fuera de diccionario rechaza el lote completo sin escritura parcial.
