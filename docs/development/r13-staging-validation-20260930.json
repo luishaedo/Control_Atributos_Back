@@ -1,0 +1,421 @@
+{
+  "checkedAt": "2026-09-30T11:11:55.523Z",
+  "base": "https://control-atributos-staging.onrender.com",
+  "expectedVersion": "520cd35d33a3be2e7ca1d90adc745880d0d53eff",
+  "passed": true,
+  "fixturesRetained": true,
+  "campaignId": 1,
+  "skus": [
+    "R13-CD9A215BD01A-0",
+    "R13-CD9A215BD01A-1",
+    "R13-CD9A215BD01A-2",
+    "R13-CD9A215BD01A-3",
+    "R13-CD9A215BD01A-4",
+    "R13-CD9A215BD01A-5",
+    "R13-CD9A215BD01A-6",
+    "R13-CD9A215BD01A-7",
+    "R13-CD9A215BD01A-8",
+    "R13-CD9A215BD01A-9",
+    "R13-CD9A215BD01A-10"
+  ],
+  "checks": [
+    {
+      "name": "versión exacta y DB disponible antes de escribir",
+      "passed": true
+    },
+    {
+      "name": "conserva tres atributos: 0-1-2",
+      "passed": true
+    },
+    {
+      "name": "conserva tres atributos: 0-2-1",
+      "passed": true
+    },
+    {
+      "name": "conserva tres atributos: 1-0-2",
+      "passed": true
+    },
+    {
+      "name": "conserva tres atributos: 1-2-0",
+      "passed": true
+    },
+    {
+      "name": "conserva tres atributos: 2-0-1",
+      "passed": true
+    },
+    {
+      "name": "conserva tres atributos: 2-1-0",
+      "passed": true
+    },
+    {
+      "name": "sustitución parcial conserva otro atributo",
+      "passed": true
+    },
+    {
+      "name": "doble aplicación HTTP paralela: 200 y 409, una aplicación",
+      "passed": true
+    },
+    {
+      "name": "rechazo nuevo invalida aceptación anterior",
+      "passed": true
+    },
+    {
+      "name": "baseline cambiado: rollback total del lote",
+      "passed": true
+    },
+    {
+      "name": "aplicación inmediata devuelve estado persistido",
+      "passed": true
+    }
+  ],
+  "requests": [
+    {
+      "path": "/api/health/ready",
+      "status": 200,
+      "durationMs": 1386,
+      "requestId": "b8c7b9ec-ba11-4e0e-b470-e3f2f34d874e"
+    },
+    {
+      "path": "/api/admin/ping",
+      "status": 200,
+      "durationMs": 218,
+      "requestId": "82b96bf3-b8cd-4d72-b4b7-97ba7abf2fb9"
+    },
+    {
+      "path": "/api/maestro/R13-CD9A215BD01A-0",
+      "status": 200,
+      "durationMs": 365,
+      "requestId": "714e12ab-0d59-4d9f-a6f6-d185bd3225c2"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 955,
+      "requestId": "25cf0574-04da-4663-b504-fad8eb2e954c"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 678,
+      "requestId": "1b38f0d8-b467-4dd3-81ac-f266032adf07"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 674,
+      "requestId": "97bdbf3b-1508-47fa-a5cb-eecd8d4f09f7"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 793,
+      "requestId": "f57d0426-08ec-48f5-8e42-780f3bd7044e"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 1099,
+      "requestId": "058961b7-1e25-4d0b-9cf2-917a7893945c"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 662,
+      "requestId": "343b481e-c074-4b00-931d-6d86a7cc8887"
+    },
+    {
+      "path": "/api/maestro/R13-CD9A215BD01A-1",
+      "status": 200,
+      "durationMs": 271,
+      "requestId": "9fb779cf-64ec-4c10-80eb-74484795d680"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 669,
+      "requestId": "275ccfd9-dec7-44f0-81d8-7f16649b8c1e"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 709,
+      "requestId": "3f3571c4-8a43-4e95-a28f-e66284219c63"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 704,
+      "requestId": "e02e0f27-9af6-49cb-9ac9-e4ac863c20e5"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 626,
+      "requestId": "a7e93df8-4017-49fd-9c97-f6e89c3bf595"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 610,
+      "requestId": "a44c5d1b-bcf9-4a51-8baf-056db6c66a7e"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 616,
+      "requestId": "f0584ef7-1728-428e-b728-90586b508e1d"
+    },
+    {
+      "path": "/api/maestro/R13-CD9A215BD01A-2",
+      "status": 200,
+      "durationMs": 296,
+      "requestId": "13e45f27-56b6-418a-80a8-3a0bcc4ae778"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 678,
+      "requestId": "e059cf51-ded0-409f-a3fd-5ba6a964ba93"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 706,
+      "requestId": "a46ca17b-16d5-4b04-9d6f-95865786e1d5"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 701,
+      "requestId": "e888d851-4d35-4aed-826b-98115d6b5270"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 677,
+      "requestId": "1aa60769-8cc4-4106-a2a8-9fa294bc6308"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 618,
+      "requestId": "95d9757f-3b19-4312-928d-3ae76827ba3d"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 648,
+      "requestId": "83aab337-6e37-4695-ae11-4e7333ac312f"
+    },
+    {
+      "path": "/api/maestro/R13-CD9A215BD01A-3",
+      "status": 200,
+      "durationMs": 307,
+      "requestId": "f0ccafa2-9271-49cf-90c7-150e4d4c255b"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 676,
+      "requestId": "3dff69b4-7ae8-48a2-8ae3-1cb207b9fb3f"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 679,
+      "requestId": "97fe06fc-66bf-4ea2-87fd-7a364b6ae8bb"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 670,
+      "requestId": "3736ab7a-638b-42d0-82db-1eba9dfa8d04"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 647,
+      "requestId": "7a4d6e8e-703a-4eba-a3c1-c9b639ebeb62"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 645,
+      "requestId": "35954837-fbf3-46a2-be27-f50f56524975"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 608,
+      "requestId": "bddf0a23-36a3-4841-b727-39a72c870968"
+    },
+    {
+      "path": "/api/maestro/R13-CD9A215BD01A-4",
+      "status": 200,
+      "durationMs": 304,
+      "requestId": "3d5fc318-1e88-402c-bd39-f363b2e45e5d"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 669,
+      "requestId": "0163106f-da4c-4346-8b86-75c032fe78d8"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 681,
+      "requestId": "dc651c1a-f7b6-4b83-a17b-51d3af220f52"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 706,
+      "requestId": "51bc680a-957b-457f-96bc-31d1a93c2217"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 630,
+      "requestId": "0a01744a-7668-4780-bfab-38b40d3d157a"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 642,
+      "requestId": "291f3bee-ddb3-4a62-b5ff-1d8b7d0ad6c7"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 631,
+      "requestId": "57cae044-8c3e-473c-b1ea-29730b3876b8"
+    },
+    {
+      "path": "/api/maestro/R13-CD9A215BD01A-5",
+      "status": 200,
+      "durationMs": 305,
+      "requestId": "9a3a1889-998d-4a80-aec1-01c9164c1921"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 706,
+      "requestId": "99d4f1a6-91a1-43d0-94c7-ba955a465ba0"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 692,
+      "requestId": "df588997-8306-4ea6-82cf-c17234b55452"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 665,
+      "requestId": "2fb08723-ece9-4069-8ea5-c6f151b3e8cd"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 726,
+      "requestId": "3a65c733-9b39-4ea3-9f35-902269faab98"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 663,
+      "requestId": "22dafc74-9dac-4286-8047-9d4dda4a7e3d"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 720,
+      "requestId": "242ac755-1296-47e8-8ee0-0c0958370f5d"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 709,
+      "requestId": "bdc384b9-c13b-4f5b-a395-54ed853c9949"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 867,
+      "requestId": "c5cab68a-1969-4a19-86b4-6be584d671bd"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 877,
+      "requestId": "919376e6-0ee6-4ae2-9eb5-4bda8d72090a"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 700,
+      "requestId": "0b288ec2-2455-40b7-8ba0-de89407ab4f1"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 200,
+      "durationMs": 603,
+      "requestId": "64e551cc-eb0f-40cc-8264-4b4c8c4c3211"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 409,
+      "durationMs": 906,
+      "requestId": "46e9e28d-db5c-4bfb-8c7d-7dbef840cbca"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 985,
+      "requestId": "cd885414-9821-40ab-871f-d9ea0188d574"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 751,
+      "requestId": "c17ef887-a4bf-45dc-82ed-7fbfdd39dfab"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 409,
+      "durationMs": 447,
+      "requestId": "4dfb0039-3868-4136-9ace-abe357705e0a"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 682,
+      "requestId": "7e972adc-9986-4d6a-9895-bff2acdc7080"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 678,
+      "requestId": "c770d0a8-761c-4b6a-bfab-715ec1c13ab0"
+    },
+    {
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 409,
+      "durationMs": 979,
+      "requestId": "2ac2e358-ede9-46b1-a04d-517fb7628a6f"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 1445,
+      "requestId": "36d9f826-d047-4918-8577-c7f18a653479"
+    },
+    {
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 965,
+      "requestId": "521e3115-49d6-431a-b896-d10e351f2990"
+    }
+  ]
+}

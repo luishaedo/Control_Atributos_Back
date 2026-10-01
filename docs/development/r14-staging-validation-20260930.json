@@ -1,0 +1,293 @@
+{
+  "checkedAt": "2026-10-01T00:13:20.503Z",
+  "base": "https://control-atributos-staging.onrender.com",
+  "expectedVersion": "594ce7aa4c01402b147f52383d0b7b733a1c974b",
+  "passed": true,
+  "fixturesRetained": true,
+  "campaignIds": [
+    7,
+    8,
+    9
+  ],
+  "skus": [
+    "TESTR147EE8387FCACONF",
+    "TESTR147EE8387FCAPEND",
+    "TESTR147EE8387FCAREJ",
+    "TESTR147EE8387FCALATE",
+    "TESTR147EE8387FCADOUBLE",
+    "TESTR147EE8387FCAUNKNOWNOK",
+    "TESTR147EE8387FCAUNKNOWNREJ",
+    "TESTR147EE8387FCAAFTERSNAPSHOT"
+  ],
+  "checks": [
+    {
+      "name": "versión, DB y migración R1.4 exactas",
+      "passed": true
+    },
+    {
+      "name": "borrador sin snapshot y objetivos inválidos sin escritura",
+      "passed": true
+    },
+    {
+      "name": "activación única congela snapshot y GET no escribe",
+      "passed": true
+    },
+    {
+      "name": "aceptar propone, confirmar habilita y aplicación directa se bloquea",
+      "passed": true
+    },
+    {
+      "name": "desconocidos aprobados y rechazados quedan diferenciados",
+      "passed": true
+    },
+    {
+      "name": "cierre aplica solo confirmados y conserva snapshot/rechazos",
+      "passed": true
+    },
+    {
+      "name": "cierre repetido y no reactivación",
+      "passed": true
+    },
+    {
+      "name": "reversión compensatoria única conserva original",
+      "passed": true
+    },
+    {
+      "name": "dos cierres concurrentes producen una aplicación",
+      "passed": true
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/health/ready",
+      "status": 200,
+      "durationMs": 479,
+      "requestId": "bc81dc0b-2665-47ef-8f9c-104fb0943fd9"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ping",
+      "status": 200,
+      "durationMs": 199,
+      "requestId": "b45135ff-f28f-414b-8d0d-677cec36ad50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias",
+      "status": 422,
+      "responseCode": "INVALID_CODE_FORMAT",
+      "durationMs": 1270,
+      "requestId": "5dd5d0aa-57e1-4d93-8add-2e55bca3c58d"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias",
+      "status": 200,
+      "durationMs": 558,
+      "requestId": "5fde7aa7-40fe-4a39-847c-bda44d4c96a4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/7/activar",
+      "status": 200,
+      "durationMs": 1212,
+      "requestId": "06ea90cf-4543-4c0b-a10c-e6670b6424a2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campanias/7/maestro/TESTR147EE8387FCAAFTERSNAPSHOT",
+      "status": 404,
+      "responseCode": "MAESTRO_NOT_FOUND",
+      "durationMs": 355,
+      "requestId": "60594950-87ee-409a-8ec3-837e5d7412b3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias",
+      "status": 200,
+      "durationMs": 506,
+      "requestId": "93fcb2b7-98a1-4b46-a5df-4213e12cea7f"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/8/activar",
+      "status": 409,
+      "responseCode": "ACTIVE_CAMPAIGN_EXISTS",
+      "durationMs": 565,
+      "requestId": "a27c3234-360f-49dd-a2a7-ad1631116b11"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 1392,
+      "requestId": "6316438a-1390-4a4b-9840-9089a7ed1c86"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/etapas/mover",
+      "status": 200,
+      "durationMs": 742,
+      "requestId": "c3b010fc-a6de-4fe4-9821-8a090128a784"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/etapas/mover",
+      "status": 200,
+      "durationMs": 682,
+      "requestId": "f7ff40f0-a364-4bad-9d88-9b231d5299dc"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 939,
+      "requestId": "ca67b7df-7ea0-4917-a842-c1d301922cde"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 952,
+      "requestId": "cfc5b95f-1031-4e98-86d3-680bc4dd4d9a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 994,
+      "requestId": "26c15c27-a839-4176-8751-b52aa00223fa"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/etapas/mover",
+      "status": 200,
+      "durationMs": 687,
+      "requestId": "6ca3bab2-265b-487e-a90c-759c83afa373"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/etapas/mover",
+      "status": 200,
+      "durationMs": 689,
+      "requestId": "df093aff-c3cd-468d-acfd-ab91f76d7bbd"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/actualizaciones/aplicar",
+      "status": 409,
+      "responseCode": "APPLY_REQUIRES_CLOSE",
+      "durationMs": 227,
+      "requestId": "757a06bc-e8d7-45cf-95f6-1d18c81d890d"
+    },
+    {
+      "method": "POST",
+      "path": "/api/escaneos",
+      "status": 200,
+      "durationMs": 1493,
+      "requestId": "9e18a83f-77e4-4048-9ad5-2ccca2de3f0d"
+    },
+    {
+      "method": "POST",
+      "path": "/api/escaneos",
+      "status": 200,
+      "durationMs": 1151,
+      "requestId": "5adc45d0-1269-4af2-bd54-5bb7c7a9d4a3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/desconocidos/TESTR147EE8387FCAUNKNOWNOK/confirmar",
+      "status": 200,
+      "durationMs": 1394,
+      "requestId": "133cb759-3a84-46c4-8c70-56ff09138870"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/unknowns/2/reject",
+      "status": 200,
+      "durationMs": 868,
+      "requestId": "e9ab7dd5-61b8-48c3-92e7-4efe3a8125f5"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/7/cerrar",
+      "status": 200,
+      "durationMs": 2142,
+      "requestId": "0d7d2780-2648-4465-8491-e41a92a4204c"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/7/cerrar",
+      "status": 200,
+      "durationMs": 871,
+      "requestId": "5e4160e5-34e4-4c5e-b483-409e3f48c1b0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/7/activar",
+      "status": 409,
+      "responseCode": "CAMPAIGN_CLOSED",
+      "durationMs": 464,
+      "requestId": "1af74686-23d9-4aea-891d-4a93ccf4f1d5"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/actualizaciones/29/revertir",
+      "status": 200,
+      "durationMs": 1487,
+      "requestId": "8bc4302a-caca-4681-9463-fb35529f1d33"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/actualizaciones/29/revertir",
+      "status": 409,
+      "responseCode": "REVERSAL_ALREADY_EXISTS",
+      "durationMs": 801,
+      "requestId": "5a80eb4f-a637-4be1-abcd-9e36c3931efb"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias",
+      "status": 200,
+      "durationMs": 1262,
+      "requestId": "9dad17a9-5f18-4d8d-89a0-cae76b58ed36"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/revisiones/decidir",
+      "status": 200,
+      "durationMs": 1119,
+      "requestId": "7b01119c-b738-4005-b1be-5559852e6bea"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/etapas/mover",
+      "status": 200,
+      "durationMs": 745,
+      "requestId": "8db30847-19d5-4279-9c40-edc7a7dfcbdb"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/etapas/mover",
+      "status": 200,
+      "durationMs": 683,
+      "requestId": "bbb4c681-fa19-44e9-ad02-70bf9044dcf4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/9/cerrar",
+      "status": 409,
+      "responseCode": "CLOSE_CONFLICT",
+      "durationMs": 1322,
+      "requestId": "794191f1-1d19-4251-b6c6-d53b318a0b47"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/campanias/9/cerrar",
+      "status": 200,
+      "durationMs": 1456,
+      "requestId": "36a3fa6d-bece-4d96-93da-347c91fbe797"
+    }
+  ]
+}

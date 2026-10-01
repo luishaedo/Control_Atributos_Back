@@ -30,6 +30,52 @@ model Maestro {
   clasif_cod    String
 }
 
+model Sucursal {
+  id        String   @id @default(uuid())
+  codigo    String   @unique
+  nombre    String
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios Usuario[]
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  nombre       String
+  rol          String
+  activo       Boolean  @default(true)
+  passwordHash String
+  sucursalId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sucursal Sucursal? @relation(fields: [sucursalId], references: [id])
+  sesiones Sesion[]
+
+  @@index([rol])
+  @@index([sucursalId])
+}
+
+model Sesion {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  usuarioId String
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
 model Campania {
   id                     Int      @id @default(autoincrement())
   nombre                 String
@@ -40,6 +86,10 @@ model Campania {
   clasif_objetivo_cod    String?
   activa                 Boolean  @default(false)
   activatedOnce          Boolean  @default(false)
+  estado                 String   @default("BORRADOR")
+  activatedAt            DateTime?
+  closedAt               DateTime?
+  closedBy               String?
 
   // relaciones existentes
   escaneos Escaneo[]
@@ -116,6 +166,7 @@ model Actualizacion {
   archivadaBy String?
   archivadaAt DateTime?
   appliedAt   DateTime?
+  reversalOfId Int?      @unique
 
   // marcas de export, si las usás
   exported_categoria_at DateTime?
@@ -125,6 +176,7 @@ model Actualizacion {
   campania Campania @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
 
   @@index([campaniaId, sku])
+  @@index([reversalOfId])
 }
 
 model SkuStage {

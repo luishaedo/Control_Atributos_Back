@@ -1,7 +1,7 @@
 // src/routes/admin.routes.js
 import { createAsyncRouter as Router } from '../utils/asyncRouter.js'
 import { upload } from '../middlewares/upload.js'
-import { authAdminOrDevBypass } from '../middlewares/authAdmin.js'
+import { authAdminOrDevBypass, bindServerActor } from '../middlewares/authAdmin.js'
 import { AdminController } from '../controllers/admin.controller.js'
 import { AdminImportController } from '../controllers/admin.import.controller.js'
 import { RevisionesController } from '../controllers/revisiones.controller.js'
@@ -10,10 +10,12 @@ import { MaestroController } from '../controllers/maestro.controller.js'
 import { WorkflowController } from '../controllers/workflow.controller.js'
 import { ActualizacionesController } from '../controllers/actualizaciones.controller.js'
 import { CampaniasController } from '../controllers/campanias.controller.js'
+import { UsuariosController } from '../controllers/usuarios.controller.js'
 
 export default function adminRouter(prisma, env = process.env) {
   const r = Router()
-  const requireAdmin = authAdminOrDevBypass(env)
+  const requireAdmin = authAdminOrDevBypass({ prisma, env, roles: ['ADMIN'] })
+  const requireReviewer = authAdminOrDevBypass({ prisma, env, roles: ['ADMIN', 'REVISOR'] })
   const admin = AdminController(prisma, env)
   const imp = AdminImportController(prisma)
   const rev = RevisionesController(prisma)
@@ -22,13 +24,24 @@ export default function adminRouter(prisma, env = process.env) {
   const flow = WorkflowController(prisma)
   const acts = ActualizacionesController(prisma)
   const camp = CampaniasController(prisma)
+  const users = UsuariosController(prisma)
 
   // Salud
-  r.get('/ping', requireAdmin, admin.ping)
+  r.get('/ping', requireReviewer, admin.ping)
   r.post('/login', admin.login)
-  r.post('/logout', requireAdmin, admin.logout)
+  r.post('/logout', requireReviewer, admin.logout)
 
-  // Campañas (mutaciones protegidas)
+  // Identidad R2.1
+  r.get('/sucursales', requireAdmin, users.listSucursales)
+  r.post('/sucursales', requireAdmin, users.createSucursal)
+  r.patch('/sucursales/:id', requireAdmin, users.updateSucursal)
+  r.get('/usuarios', requireAdmin, users.listUsuarios)
+  r.post('/usuarios', requireAdmin, users.createUsuario)
+  r.patch('/usuarios/:id', requireAdmin, users.updateUsuario)
+
+  r.use(requireReviewer, bindServerActor)
+
+  // Campaï¿½as (mutaciones protegidas)
   r.post('/campanias', requireAdmin, camp.crear)
   r.post('/campanias/:id/activar', requireAdmin, camp.activar)
   r.patch('/campanias/:id', requireAdmin, camp.actualizar)
@@ -50,10 +63,10 @@ export default function adminRouter(prisma, env = process.env) {
   r.post('/maestro/import-json', requireAdmin, mae.importar)
 
   // Actualizaciones (compatibilidad con front)
-  r.get('/actualizaciones', requireAdmin, acts.listar)
-  r.post('/actualizaciones/archivar', requireAdmin, acts.archivar)
-  r.post('/actualizaciones/undo', requireAdmin, acts.undo)
-  r.post('/actualizaciones/:id/revertir', requireAdmin, acts.revertir)
+  r.get('/actualizaciones', requireReviewer, acts.listar)
+  r.post('/actualizaciones/archivar', requireReviewer, acts.archivar)
+  r.post('/actualizaciones/undo', requireReviewer, acts.undo)
+  r.post('/actualizaciones/:id/revertir', requireReviewer, acts.revertir)
   r.post('/actualizaciones/aplicar', requireAdmin, acts.aplicar)
 
   // Export CSV
@@ -70,30 +83,30 @@ export default function adminRouter(prisma, env = process.env) {
   r.get('/export/txt/summary', requireAdmin, acts.exportTxtSummary)
 
   // Revisiones (tarjetas)
-  r.get('/revisiones', requireAdmin, rev.listar)
-  r.post('/revisiones/decidir', requireAdmin, rev.decidir)
+  r.get('/revisiones', requireReviewer, rev.listar)
+  r.post('/revisiones/decidir', requireReviewer, rev.decidir)
 
-  // Confirmación (Paso 2)
-  r.get('/confirmaciones', requireAdmin, flow.listConfirmations)
-  r.post('/etapas/mover', requireAdmin, flow.moveStage)
+  // Confirmaciï¿½n (Paso 2)
+  r.get('/confirmaciones', requireReviewer, flow.listConfirmations)
+  r.post('/etapas/mover', requireReviewer, flow.moveStage)
 
   // Desconocidos
-  r.get('/desconocidos', requireAdmin, flow.listUnknowns)
-  r.patch('/desconocidos/:sku', requireAdmin, flow.updateUnknown)
-  r.post('/desconocidos/:sku/confirmar', requireAdmin, flow.confirmUnknown)
-  r.post('/unknowns/:id/approve', requireAdmin, flow.approveUnknownById)
-  r.post('/unknowns/:id/reject', requireAdmin, flow.rejectUnknownById)
-  r.post('/unknowns/:id/merge', requireAdmin, flow.mergeUnknownById)
+  r.get('/desconocidos', requireReviewer, flow.listUnknowns)
+  r.patch('/desconocidos/:sku', requireReviewer, flow.updateUnknown)
+  r.post('/desconocidos/:sku/confirmar', requireReviewer, flow.confirmUnknown)
+  r.post('/unknowns/:id/approve', requireReviewer, flow.approveUnknownById)
+  r.post('/unknowns/:id/reject', requireReviewer, flow.rejectUnknownById)
+  r.post('/unknowns/:id/merge', requireReviewer, flow.mergeUnknownById)
 
-  // Consolidación
-  r.get('/consolidacion/cambios', requireAdmin, flow.listConsolidationChanges)
-  r.get('/consolidacion/resumen', requireAdmin, flow.consolidationSummary)
+  // Consolidaciï¿½n
+  r.get('/consolidacion/cambios', requireReviewer, flow.listConsolidationChanges)
+  r.get('/consolidacion/resumen', requireReviewer, flow.consolidationSummary)
   r.post('/campanias/:id/cerrar', requireAdmin, flow.closeCampaign)
 
   // Maestro missing
   r.get('/maestro/missing', requireAdmin, mae.listMissing)
 
-  // Discrepancias resumidas (para Admin/Auditoría)
+  // Discrepancias resumidas (para Admin/Auditorï¿½a)
   r.get('/discrepancias', requireAdmin, rev.discrepancias)
   r.get('/discrepancias-sucursales', requireAdmin, rev.discrepanciasSuc)
   r.get('/export/discrepancias.csv', requireAdmin, rev.exportDiscrepanciasCSV)

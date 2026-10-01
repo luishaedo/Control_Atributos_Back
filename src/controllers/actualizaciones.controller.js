@@ -3,7 +3,7 @@ import { toCSV } from '../utils/csv.js'
 import { sendAdminError } from '../utils/http.js'
 
 export function ActualizacionesController(prisma) {
-  const { applyUpdates, normalizeCode } = ActualizacionesService(prisma)
+  const { revertApplied } = ActualizacionesService(prisma)
   const ensureModel = (model, name, res) => {
     if (!model) {
       sendAdminError(res, 500, `Prisma client missing ${name}. Run prisma:generate.`)
@@ -190,17 +190,11 @@ export function ActualizacionesController(prisma) {
     },
 
     aplicar: async (req, res) => {
-      try {
-        const { ids = [], decidedBy = '' } = req.body || {}
-        if (!Array.isArray(ids) || ids.length === 0) {
-          return sendAdminError(res, 400, 'ids requeridos')
-        }
-        const { count } = await applyUpdates({ ids, decidedBy })
-        res.json({ ok: true, applied: count })
-      } catch (error) {
-        console.error(error)
-        sendAdminError(res, 500, 'Error aplicando actualizaciones')
-      }
+      return res.status(409).json({
+        error: 'La aplicación directa está deshabilitada; confirmá las decisiones y cerrá la campaña',
+        code: 'APPLY_REQUIRES_CLOSE',
+        requestId: req.id,
+      })
     },
 
     archivar: async (req, res) => {
@@ -223,7 +217,7 @@ export function ActualizacionesController(prisma) {
             archivadaBy: null,
           }
       const result = await prisma.actualizacion.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: ids }, estado: { not: 'aplicada' }, appliedAt: null },
         data,
       })
       res.json({ ok: true, updated: result.count })
@@ -236,15 +230,11 @@ export function ActualizacionesController(prisma) {
         return sendAdminError(res, 400, 'ids requeridos')
       }
       const result = await prisma.actualizacion.updateMany({
-        where: { id: { in: normalizedIds } },
+        where: { id: { in: normalizedIds }, estado: 'pendiente', appliedAt: null, archivada: false },
         data: {
-          estado: 'pendiente',
-          decidedBy: null,
-          decidedAt: null,
-          appliedAt: null,
-          archivada: false,
-          archivadaAt: null,
-          archivadaBy: null,
+          archivada: true,
+          archivadaAt: new Date(),
+          archivadaBy: req.body?.archivadaBy || null,
         },
       })
       res.json({ ok: true, updated: result.count })
@@ -253,27 +243,19 @@ export function ActualizacionesController(prisma) {
     revertir: async (req, res) => {
       const id = Number(req.params.id || 0)
       if (!id) return sendAdminError(res, 400, 'id requerido')
-      const act = await prisma.actualizacion.findUnique({ where: { id } })
-      if (!act) return sendAdminError(res, 404, 'actualizacion no encontrada')
-
-      const nueva = await prisma.actualizacion.create({
-        data: {
-          campaniaId: act.campaniaId,
-          sku: act.sku,
-          old_categoria_cod: act.new_categoria_cod || null,
-          old_tipo_cod: act.new_tipo_cod || null,
-          old_clasif_cod: act.new_clasif_cod || null,
-          new_categoria_cod: normalizeCode(act.old_categoria_cod),
-          new_tipo_cod: normalizeCode(act.old_tipo_cod),
-          new_clasif_cod: normalizeCode(act.old_clasif_cod),
-          estado: 'pendiente',
-          decidedBy: null,
-          decidedAt: null,
-          notas: `Reversion of ${act.id}`,
-          archivada: false,
-        },
-      })
-      res.json({ ok: true, actualizacion: nueva })
+      try {
+        const nueva = await revertApplied({
+          id,
+          decidedBy: req.body?.decidedBy || '',
+          notas: req.body?.notas || '',
+        })
+        res.json({ ok: true, actualizacion: nueva })
+      } catch (error) {
+        if (error?.status) {
+          return res.status(error.status).json({ error: error.message, code: error.code, requestId: req.id })
+        }
+        throw error
+      }
     },
 
     exportCSV: async (req, res) => {

@@ -11,17 +11,30 @@
 
 - D-T07 (28/09/2026): staging API en servicio Render Free independiente, rama Git main con despliegue manual, conectado exclusivamente a Neon r02-migration-validation/r02_prisma_validation; CORS localhost:5173 y token propio. Sin frontend Vercel adicional ni migraciones automáticas al arranque. No usar staging con datos reales; límites Free y hardening siguen R5.
 
+- D-T08 (29/09/2026, R1.3): aplicar parches solo a atributos propuestos; comparar sus valores anteriores dentro de Serializable; conflictos 409 sin retry. Vigencia lógica por campaña/SKU/atributo y desempate ts/id, incluyendo rechazo. Sustitución parcial conserva campos aún vigentes mediante continuación trazable, sin mutar el original archivado. No hay nuevo esquema ni reparación de datos históricos.
+- D-T09 (29/09/2026, R1.3): crear revisión, sustituir pendientes, mover etapa y aplicación inmediata en una transacción. Nuevas revisiones toman baseline del maestro actual, manteniendo snapshot inmutable. Control por valor y de transacciones superpuestas; no equivale a token de revisión de pantalla ni detecta ABA. Reglas de cierre/reversión y decisiones de negocio siguen pendientes.
+
+- D-T10 (29/09/2026): staging R1.3 sigue rama exclusiva r13-atributos-staging, Auto-Deploy Off. No publicar en main para evitar despliegue productivo involuntario. Verificador remoto restringe destino y SHA, crea fixtures nuevos identificables que conserva y usa credenciales solo en memoria; autorización específica de escrituras consultada tras rechazo automático.
+
+- D-T11 (30/09/2026, R1.2): un intento lógico de escaneo requiere clave idempotente por campaña. Misma clave/payload reproduce la respuesta persistida; mismo identificador con otro payload devuelve 409. Todo el flujo de escritura se ejecuta en una transacción Serializable, sin retry automático. Conflictos serializables se informan y el cliente reintenta con la misma clave. Las etapas de escaneo solo avanzan según `unknown → evaluate → confirm → consolidate`; el índice compuesto existente basta, sin migración. La identidad autenticada confiable sigue perteneciendo a R2.1.
+- D-T12 (30/09/2026, R1.4): representar el ciclo de campaña explícitamente y reforzar una única activa con índice parcial PostgreSQL. Crear el snapshot completo al activar y eliminar escrituras desde GET/escaneo. Reclamar el cierre con `CERRANDO` y ejecutar selección, aplicación y estado final dentro de una transacción Serializable; repetir un cierre finalizado es lectura idempotente. La reversión se modela como evento aplicado con `reversalOfId` único y verificación del maestro vigente.
+- D-T13 (30/09/2026, staging R1.4): publicar R1.4 solo en `control-atributos-staging` desde rama `r13-atributos-staging`, Auto-Deploy Off, y aplicar la migración manualmente sobre Neon `r02_prisma_validation` con destino verificado. El validador remoto usa credenciales en memoria por loopback local, normaliza snippets de Neon, conserva fixtures `TEST-R14`/`TESTR14` y asegura diccionarios 01/02/03 en la base aislada con `skipDuplicates` si faltan. No publicar en producción ni Vercel durante esta validación.
+
+## Decisiones de negocio aprobadas
+
+- D-B01 (30/09/2026, aprobada por el usuario): el primer `#` o `$` separa el sufijo de etiqueta del SKU base y debe informarse al operador. La base se normaliza a mayúsculas y es alfanumérica. Los códigos admiten uno o dos dígitos y cero inicial canónico; todo formato distinto o código fuera de su diccionario se rechaza sin quitar caracteres ni truncar. Mantener el valor crudo para auditoría donde el modelo lo permite.
+- D-B02 (30/09/2026, aprobada por el usuario): aceptar registra una propuesta; confirmar la habilita; cerrar aplica atómicamente solo decisiones vigentes confirmadas. Rechazos y anulaciones se preservan. Una reversión es una nueva decisión compensatoria trazable y nunca reescribe ni borra el evento original.
+- D-B03 (30/09/2026, aprobada por el usuario): solo una campaña puede estar activa; el snapshot se congela al activar; una campaña cerrada no se reactiva por el flujo normal. `inicia` y `termina` deben ser fechas válidas con `inicia <= termina`; en R1.4 son informativas y no abren/cierran automáticamente ni bloquean escaneos.
+- D-B04 (01/10/2026, aprobada por el usuario): cada persona usa una cuenta individual, con identificador único, nombre visible, rol y estado activo/inactivo. Todo usuario pertenece a una sucursal asignada; `OPERADOR` solo registra observaciones para su sucursal, mientras `REVISOR` y `ADMIN` pueden revisar globalmente según permisos. Roles mínimos: `OPERADOR` escanea y consulta lo necesario de campañas/diccionarios/maestro; `REVISOR` decide, confirma, rechaza y gestiona desconocidos; `ADMIN` administra campañas, catálogos, importaciones, cierres, exportaciones y usuarios. El actor, rol y sucursal siempre se derivan de la sesión del servidor; el cliente no puede suplantarlos por body/query. Logout revoca la sesión actual, las sesiones vencen y las mutaciones protegidas responden `401` sin sesión válida o `403` sin permiso. Para el primer administrador se permite un mecanismo de bootstrap explícito solo en entornos controlados, sin convertir tokens compartidos en identidad operativa normal.
+
 ## Decisiones de negocio pendientes
 
-Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esta autorización no decide por sí sola D-B01–D-B06.
+Autorización operativa 27/09: el usuario aprobó explícitamente la rama de pruebas Neon persistente y ejecución de migraciones aisladas; pidió continuar autónomamente el desarrollo sin repetir confirmaciones ya concedidas. Mantener límites de datos/seguridad; esa autorización no decidió por sí sola D-B01–D-B06. D-B01, D-B02 y D-B03 fueron aprobadas después, el 30/09.
+El 01/10/2026 el usuario pidió avanzar con la definición/aprobación de D-B04 para habilitar R2.1; D-B04 quedó aprobada con el contrato de identidad detallado arriba.
 
 | ID | Tema | Propuesta para discutir | Bloquea |
 |---|---|---|---|
-| D-B01 | SKU/códigos | Sufijo #/$ de etiqueta separado; rechazo sin truncado de códigos fuera de dominio | R1.1 |
-| D-B02 | Aplicación/cierre | Aprobar propone, confirmar habilita, cerrar aplica solo vigentes; reversión compensatoria | R1.4 |
-| D-B03 | Campaña/snapshot/fechas | Una activa, snapshot al activar, cierre permanente; definir fechas informativas u obligatorias | R1.4 |
-| D-B04 | Identidad | Cuenta individual, sucursal asignada, operador/revisor/admin | R2.1 |
 | D-B05 | Sistema externo | Contrato de import/export, encoding, altas y cambios netos o absolutos | R3.1/R3.2 |
 | D-B06 | Consenso | Última observación por sucursal/SKU/atributo; conservar eventos | R3.3 |
 
-El usuario autorizó roadmap y primer paso, no aprobó aún estas propuestas. No bloquean R0.1.
+El usuario autorizó roadmap y primer paso; D-B01, D-B02, D-B03 y D-B04 ya fueron aprobadas. D-B05–D-B06 continúan como propuestas pendientes.

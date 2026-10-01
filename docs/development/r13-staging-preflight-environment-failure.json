@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-09-29T21:25:58.087Z",
+  "base": "https://control-atributos-staging.onrender.com",
+  "expectedVersion": "520cd35d33a3be2e7ca1d90adc745880d0d53eff",
+  "passed": false,
+  "fixturesRetained": true,
+  "campaignId": null,
+  "skus": [],
+  "checks": [
+    {
+      "name": "versión exacta y DB disponible antes de escribir",
+      "passed": false,
+      "code": "TypeError"
+    }
+  ],
+  "requests": [],
+  "failureCode": "TypeError"
+}

@@ -3,9 +3,59 @@ import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createApp } from '../src/app.js'
+import { hashPassword } from '../src/services/identity.service.js'
 
 const token = 'test-token-not-a-real-secret'
 const origin = 'https://stockeador-client-1nll.vercel.app'
+
+test('R1.3/R1.4 transaction conflicts reach decision and close routes as 409 with request ID', async t => {
+  let writes = 0
+  const f = await fixture(t, { prisma: {
+    skuStage: { findMany: async () => [] }, unknownSku: {},
+    actualizacion: { findMany: async ({ where }) => {
+      assert.equal(where.archivada, false)
+      return [{ id: 1, sku: 'SKU' }]
+    } },
+    campania: { update: async () => { writes++ } },
+    $transaction: async () => { throw Object.assign(new Error('private details'), { code: 'P2034' }) },
+  } })
+  for (const [path, body] of [
+    ['/revisiones/decidir', { campaniaId: 1, sku: 'SKU', propuesta: { tipo_cod: '02' }, decision: 'aceptar', aplicarAhora: false }],
+    ['/campanias/1/cerrar', {}],
+  ]) {
+    const res = await f.request(`/api/admin${path}`, { method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    assert.equal(res.status, 409)
+    assert.ok(['UPDATE_CONFLICT', 'CLOSE_CONFLICT'].includes(res.body.code))
+    assert.equal(res.body.requestId, res.headers.get('x-request-id'))
+    assert.doesNotMatch(JSON.stringify(res.body), /private details/)
+  }
+  assert.equal(writes, 0)
+})
+
+test('R1.4 direct application is disabled regardless of supplied IDs', async t => {
+  const f = await fixture(t)
+  const res = await f.request('/api/admin/actualizaciones/aplicar', { method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ['1'] }) })
+  assert.equal(res.status, 409)
+  assert.equal(res.body.code, 'APPLY_REQUIRES_CLOSE')
+})
+
+test('R1.4 repeated close is an idempotent read of the closed result', async t => {
+  const closedPrisma = {
+    unknownSku: { count: async () => 0 },
+    actualizacion: { count: async () => 0, findMany: async () => [] },
+    campaniaMaestro: { count: async () => 0 },
+    campania: { findUnique: async () => ({ id: 1, estado: 'CERRADA', closedAt: new Date(), activa: false }) },
+  }
+  closedPrisma.$transaction = async fn => fn(closedPrisma)
+  const f = await fixture(t, { prisma: closedPrisma })
+  const res = await f.request('/api/admin/campanias/1/cerrar', { method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.applied, 0)
+  assert.equal(res.body.alreadyClosed, true)
+})
 
 async function fixture(t, { prisma = {}, env = {} } = {}) {
   const logs = []
@@ -136,6 +186,121 @@ test('login cookie still authorizes administrative requests', async t => {
   assert.equal((await f.request('/api/admin/ping', { headers: { Cookie: cookie.split(';')[0] } })).status, 200)
 })
 
+test('R2.1 user login creates a revocable session cookie with server-side identity', async t => {
+  let sessionRecord
+  const passwordHash = await hashPassword('operativo123')
+  const user = {
+    id: 'u-admin',
+    username: 'ana',
+    nombre: 'Ana Admin',
+    rol: 'ADMIN',
+    activo: true,
+    passwordHash,
+    sucursal: { id: 's1', codigo: 'SUC1', nombre: 'Sucursal 1', activa: true },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => {
+        sessionRecord = { id: 'sess-1', ...data }
+        return sessionRecord
+      },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+      updateMany: async ({ data }) => { sessionRecord.revokedAt = data.revokedAt; return { count: 1 } },
+    },
+  } })
+  const login = await f.request('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'ana', password: 'operativo123' }),
+  })
+  assert.equal(login.status, 200)
+  assert.equal(login.body.user.username, 'ana')
+  assert.equal(login.body.user.rol, 'ADMIN')
+  const cookie = login.headers.get('set-cookie')
+  assert.match(cookie, /cc_session=/)
+  const ping = await f.request('/api/admin/ping', { headers: { Cookie: cookie.split(';')[0] } })
+  assert.equal(ping.status, 200)
+  assert.equal(ping.body.user.username, 'ana')
+  const logout = await f.request('/api/admin/logout', {
+    method: 'POST',
+    headers: { Cookie: cookie.split(';')[0] },
+  })
+  assert.equal(logout.status, 200)
+  assert.ok(sessionRecord.revokedAt)
+})
+
+test('R2.1 reviewer session cannot use admin-only user management routes', async t => {
+  let sessionRecord
+  const passwordHash = await hashPassword('revisor123')
+  const user = {
+    id: 'u-reviewer',
+    username: 'revisor',
+    nombre: 'Rita Revisora',
+    rol: 'REVISOR',
+    activo: true,
+    passwordHash,
+    sucursal: { id: 's1', codigo: 'SUC1', nombre: 'Sucursal 1', activa: true },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => { sessionRecord = { id: 'sess-2', ...data }; return sessionRecord },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+    },
+  } })
+  const login = await f.request('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'revisor', password: 'revisor123' }),
+  })
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  assert.equal((await f.request('/api/admin/ping', { headers: { Cookie: cookie } })).status, 200)
+  const denied = await f.request('/api/admin/usuarios', { headers: { Cookie: cookie } })
+  assert.equal(denied.status, 403)
+  assert.equal(denied.body.code, 'FORBIDDEN')
+})
+
+test('R2.1 public session endpoints authenticate operators and revoke logout', async t => {
+  let sessionRecord
+  const passwordHash = await hashPassword('operador123')
+  const user = {
+    id: 'u-operator',
+    username: 'operador',
+    nombre: 'Olga Operadora',
+    rol: 'OPERADOR',
+    activo: true,
+    passwordHash,
+    sucursal: { id: 's2', codigo: 'SUC2', nombre: 'Sucursal 2', activa: true },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => { sessionRecord = { id: 'sess-3', ...data }; return sessionRecord },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+      updateMany: async ({ data }) => { sessionRecord.revokedAt = data.revokedAt; return { count: 1 } },
+    },
+  } })
+  const login = await f.request('/api/session/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'operador', password: 'operador123' }),
+  })
+  assert.equal(login.status, 200)
+  assert.equal(login.body.user.rol, 'OPERADOR')
+  assert.equal(login.body.user.sucursal.codigo, 'SUC2')
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  const current = await f.request('/api/session', { headers: { Cookie: cookie } })
+  assert.equal(current.status, 200)
+  assert.equal(current.body.user.username, 'operador')
+  const logout = await f.request('/api/session/logout', { method: 'POST', headers: { Cookie: cookie } })
+  assert.equal(logout.status, 200)
+  assert.ok(sessionRecord.revokedAt)
+})
+
 test('CORS retains configured aliases, credentials and rejects other origins', async t => {
   const f = await fixture(t, { env: { CORS_ORIGIN: origin, FRONTEND_URL: 'https://other.example' } })
   for (const allowed of [origin, 'https://other.example']) {
@@ -159,6 +324,19 @@ test('invalid JSON returns 400 instead of internal server error', async t => {
   const res = await f.request('/api/escaneos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{broken' })
   assert.equal(res.status, 400)
   assert.equal(res.body.code, 'INVALID_JSON')
+})
+
+test('R1.2 scan requires an idempotency key before database access', async t => {
+  const f = await fixture(t, { prisma: {
+    $transaction: async () => assert.fail('invalid scan must not open a transaction'),
+  } })
+  const res = await f.request('/api/escaneos', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ campaniaId: 1, skuRaw: 'SKU1' }),
+  })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.code, 'IDEMPOTENCY_KEY_REQUIRED')
+  assert.equal(res.body.requestId, res.headers.get('x-request-id'))
 })
 
 test('administrative validation errors use JSON readable by both frontend clients', async t => {

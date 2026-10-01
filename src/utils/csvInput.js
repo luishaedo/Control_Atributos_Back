@@ -1,15 +1,9 @@
 // src/utils/csvInput.js
 import { parse } from 'csv-parse/sync'
+import { parseCode, parseSku } from './sku.js'
 
 const norm = (s='') => String(s).trim()
-
-const pad2 = (v='') => {
-  const s = String(v || '').trim()
-  if (s === '') return ''
-  const n = Number(s)
-  if (!Number.isNaN(n)) return String(n).padStart(2, '0').slice(-2)
-  return s.padStart(2, '0').slice(-2)
-}
+const validationError = message => Object.assign(new Error(message), { status: 400, code: 'INVALID_IMPORT_DATA' })
 
 function decodeCSV(buffer) {
   const utf8Text = buffer.toString('utf8')
@@ -71,35 +65,52 @@ export function parseDicCSV(buffer) {
   return rows.map((r,i) => {
     const codigo = val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO '])
     const desc   = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION','Descripción ','Descripcion ','descripcion ','DESCRIPCION '])
-    const cod = pad2(codigo)
-    if (!cod) {
-      throw new Error(
-        `Fila ${i+2}: diccionario sin "Código". ` +
+    const parsedCode = parseCode(codigo)
+    if (!parsedCode.valid) {
+      throw validationError(
+        `Fila ${i+2}: "Código" debe tener uno o dos dígitos; no se truncó el valor. ` +
         `Encabezados fila 1: ${headerKeys.join(', ')}. ` +
         `Encoding: ${encoding}. ` +
         `Delimiter: "${delimiter}"`
       )
     }
-    return { cod, nombre: norm(desc || '') }
+    return { cod: parsedCode.normalized, nombre: norm(desc || '') }
   })
 }
 
 export function parseMaestroCSV(buffer) {
   const { rows } = parseWithAutoDelimiter(buffer)
   return rows.map((r,i) => {
-    const sku  = norm(val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO ']) || '')
-    if (!sku) throw new Error(`Fila ${i+2}: maestro sin "Código" (SKU)`)
+    const skuRaw = norm(val(r, ['Código','Codigo','codigo','CODIGO','Código ','Codigo ','codigo ','CODIGO ']) || '')
+    const parsedSku = parseSku(skuRaw)
+    if (!parsedSku.valid) throw validationError(`Fila ${i+2}: SKU inválido; se admite una base alfanumérica y sufijo opcional #/$`)
     const desc = val(r, ['Descripción','Descripcion','descripcion','DESCRIPCION','Descripción ','Descripcion ','descripcion ','DESCRIPCION ']) || ''
     const cat  = val(r, ['Categoría','Categoria','categoria','CATEGORIA','Categoría ','Categoria ','categoria ','CATEGORIA '])
     const tip  = val(r, ['Tipo','tipo','TIPO','Tipo ','tipo ','TIPO '])
     const cla  = val(r, ['Clasificación','Clasificacion','clasificacion','CLASIFICACION','Clasificación ','Clasificacion ','clasificacion ','CLASIFICACION '])
 
+    const parsedCodes = [
+      ['Categoría', parseCode(cat)],
+      ['Tipo', parseCode(tip)],
+      ['Clasificación', parseCode(cla)],
+    ]
+    const invalidCode = parsedCodes.find(([, parsed]) => !parsed.valid)
+    if (invalidCode) {
+      throw validationError(`Fila ${i+2}: ${invalidCode[0]} debe tener uno o dos dígitos; no se truncó el valor`)
+    }
+
     return {
-      sku,
+      sku: parsedSku.normalized,
       descripcion: norm(desc),
-      categoria_cod: pad2(cat),
-      tipo_cod:      pad2(tip),
-      clasif_cod:    pad2(cla),
+      categoria_cod: parsedCodes[0][1].normalized,
+      tipo_cod: parsedCodes[1][1].normalized,
+      clasif_cod: parsedCodes[2][1].normalized,
+      ...(parsedSku.hadSuffix ? { skuWarning: {
+        code: 'SKU_SUFFIX_IGNORED',
+        skuRaw,
+        skuNormalized: parsedSku.normalized,
+        separator: parsedSku.separator,
+      } } : {}),
     }
   })
 }

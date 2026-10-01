@@ -21,8 +21,7 @@ export function ImportService(prisma) {
     async importarMaestroDesdeBuffer(maestroBuf) {
       if (!maestroBuf) return { count: 0, skipped: [] }
       const items = parseMaestroCSV(maestroBuf) // normaliza 01/02, encabes, delimitador, etc.
-      const { count, skipped } = await maestroSvc.upsertMaestro(items)
-      return { count, skipped }
+      return maestroSvc.importMaestroItems(items)
     }
   }
 }
