@@ -20,6 +20,7 @@ Actualizado: 02/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R4.2 | COMPLETADO_LOCAL; benchmark PASS | Codex/01a0f1e5, sin agentes delegados | benchmark reproducible backend con dataset ficticio 7.594 SKUs x 7 sucursales, p95 local <2s y cero pérdida lógica; docs/development/R42_VALIDATION.md |
 | R5.1 | COMPLETADO_LOCAL; audits 0 vulns | Codex/01a0f1e5, sin agentes delegados | Node 24, dependencias backend/frontend actualizadas, CI versionado, quality checks; docs/development/R51_VALIDATION.md |
 | R5.2 | COMPLETADO_LOCAL; restore drill preparado | Codex/01a0f1e5, sin agentes delegados | operación/backup/restore/rollback/monitoreo, RPO/RTO iniciales y runner de restore aislado; docs/development/R52_OPERATION_RECOVERY.md |
+| R6.1 | PREPARADO_LOCAL; piloto no ejecutado | Codex/01a0f1e5, sin agentes delegados | gates, fases staging/1/2/7 sucursales, matriz de aceptación e incidencias; docs/development/R61_PILOT_READINESS.md |
 | UX-PROTOTIPO-01 | EN_CURSO | Codex/01a0f985, sin agentes delegados | análisis integral de producto para prototipo frontend; `Control_Atributos_Front/docs/PRODUCT_BRIEF_PROTOTIPO.md` y documentación canónica |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 

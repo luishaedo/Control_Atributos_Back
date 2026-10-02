@@ -1,4 +1,10 @@
 # Historial de entregas
+## 02/10/2026 — R6.1 piloto preparado localmente
+
+Antes de avanzar se dejaron backend y frontend limpios y publicados en GitHub: backend `61065da` documenta el workstream del prototipo y frontend `ce8e812` versiona `docs/PRODUCT_BRIEF_PROTOTIPO.md`.
+
+Se agrego `docs/development/R61_PILOT_READINESS.md` con gates obligatorios, fases staging -> 1 sucursal -> 2 sucursales -> 7 sucursales, matriz minima de aceptacion, formato de incidencias y pendientes para habilitar piloto. R6.1 queda `PREPARADO_LOCAL`: no se marca validado porque faltan ejecucion de restore drill real, observacion de CI remoto, despliegue de ultimos SHAs si se usa app publicada, rotacion de contrasenas temporales, definicion de sucursal piloto y aprobacion operativa.
+
 ## 02/10/2026 — R5.2 operacion y recuperacion completado localmente
 
 Se documento el runbook operativo R5.2 en `docs/development/R52_OPERATION_RECOVERY.md`: RPO/RTO iniciales para piloto, backups antes de importaciones/cierres/migraciones, restore drill aislado, rollback de codigo, rollback de datos, monitoreo minimo y checklist de habilitacion R6.1. Se agrego D-T15: restore siempre primero contra DB/rama aislada, rollback de datos no automatico y restore productivo completo solo con aceptacion explicita de perdida desde el backup elegido.
