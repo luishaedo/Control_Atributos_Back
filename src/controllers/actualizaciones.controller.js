@@ -21,12 +21,17 @@ export function ActualizacionesController(prisma) {
   }
 
   const formatTimestamp = (date) => {
-    const yyyy = date.getFullYear()
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
-    const dd = String(date.getDate()).padStart(2, '0')
-    const hh = String(date.getHours()).padStart(2, '0')
-    const min = String(date.getMinutes()).padStart(2, '0')
-    return `${yyyy}${mm}${dd}_${hh}${min}`
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date)
+    const getPart = (type) => parts.find((part) => part.type === type)?.value
+    return `${getPart('year')}${getPart('month')}${getPart('day')}_${getPart('hour')}${getPart('minute')}`
   }
 
   const sanitizeFilenamePart = (value) => {
