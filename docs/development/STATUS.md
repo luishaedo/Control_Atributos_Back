@@ -20,6 +20,7 @@ Actualizado: 02/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R4.2 | COMPLETADO_LOCAL; benchmark PASS | Codex/01a0f1e5, sin agentes delegados | benchmark reproducible backend con dataset ficticio 7.594 SKUs x 7 sucursales, p95 local <2s y cero pérdida lógica; docs/development/R42_VALIDATION.md |
 | R5.1 | COMPLETADO_LOCAL; audits 0 vulns | Codex/01a0f1e5, sin agentes delegados | Node 24, dependencias backend/frontend actualizadas, CI versionado, quality checks; docs/development/R51_VALIDATION.md |
 | R5.2 | COMPLETADO_LOCAL; restore drill preparado | Codex/01a0f1e5, sin agentes delegados | operación/backup/restore/rollback/monitoreo, RPO/RTO iniciales y runner de restore aislado; docs/development/R52_OPERATION_RECOVERY.md |
+| UX-PROTOTIPO-01 | EN_CURSO | Codex/01a0f985, sin agentes delegados | análisis integral de producto para prototipo frontend; `Control_Atributos_Front/docs/PRODUCT_BRIEF_PROTOTIPO.md` y documentación canónica |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
 No hay agentes delegados. Entrega staging completada por Codex/coordinador: servicio separado, DB aislada, tres smoke incluido reinicio y documentación. R1.3 finalizado localmente por Codex/01a0eef9 y validado remotamente por Codex/01a0f1e5. R1.1 y R1.2 quedaron completados y validados localmente con D-B01 aprobada. R1.4 quedó publicado y validado en staging por Codex/01a0f1e5 con D-B02/D-B03 aprobadas. No se modificó producción ni Vercel durante R1.4.
