@@ -1,4 +1,12 @@
 # Historial de entregas
+## 02/10/2026 — R5.1 runtime, dependencias y CI completado localmente
+
+Se fijo Node `>=24 <25` en backend y frontend con `.nvmrc` y `engines`, alineando la app a una linea LTS activa y sacando el rango anterior que incluia Node EOL. Se agregaron workflows CI versionados para ambos repos: backend ejecuta `npm ci`, Prisma generate/validate, tests y audit productivo; frontend ejecuta `npm ci`, lint, tests, build con `VITE_API_URL` explicita y audit productivo.
+
+Dependencias corregidas: backend actualizo `express` linea 4, `multer` linea 2.4 y `csv-parse` linea 7; frontend actualizo `react-router-dom`, `vite`, `vitest`, `@vitejs/plugin-react` y transitivas por `npm audit fix` sin `--force`. Auditorias finales: backend `npm audit --json` 0 vulnerabilidades; frontend `npm audit --json` 0 vulnerabilidades.
+
+Validacion local: backend `npx prisma validate --schema prisma\schema.prisma` OK y `npm test` 71 tests, 68 PASS, 3 SKIP. Frontend `npm run lint` 0 errores/41 advertencias heredadas, `npm test` 7 PASS, `VITE_API_URL=https://control-atributos-back.onrender.com npm run build` OK. Vitest/build frontend requirieron ejecucion fuera del sandbox por bloqueo ambiental de esbuild leyendo `vite.config.js`; con permisos pasaron. No se publico Render/Vercel ni se ejecuto CI remoto todavia. Evidencia: R51_VALIDATION.md.
+
 ## 01/10/2026 — R4.2 rendimiento medido completado localmente
 
 Se agrego `scripts/benchmark-r42.mjs` y el comando `npm run benchmark:r42` para medir localmente los puntos marcados por H14 sin usar DB real, `.env`, secretos ni datos productivos. El runner genera un dataset ficticio `TEST-R42` de 7.594 SKUs x 7 sucursales, 53.158 escaneos, 7.594 snapshots y 584 decisiones, invoca los controladores reales de revisiones con Prisma falso en memoria y mide p95 en caliente.

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "quality:check": "npm run prisma:generate && npx prisma validate --schema prisma/schema.prisma && npm test && npm audit --omit=dev",
+    "audit:prod": "npm audit --omit=dev",
     "smoke": "node scripts/smoke.mjs",
     "benchmark:r42": "node scripts/benchmark-r42.mjs",
     "dev": "node src/server.js",
@@ -18,15 +20,15 @@
     "seed": "node prisma/seed.js"
   },
   "engines": {
-    "node": ">=18 <21"
+    "node": ">=24 <25"
   },
   "dependencies": {
     "@prisma/client": "^5.17.0",
     "cors": "^2.8.5",
-    "csv-parse": "^6.1.0",
+    "csv-parse": "^7.0.3",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "multer": "^2.0.2"
+    "express": "^4.22.3",
+    "multer": "^2.4.0"
   },
   "devDependencies": {
     "prisma": "^5.17.0"
