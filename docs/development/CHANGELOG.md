@@ -1,4 +1,17 @@
 # Historial de entregas
+
+## 02/10/2026 — R6.1 verificación operativa parcial
+
+Se verificaron GitHub, Actions, Render, Vercel y la aplicación publicada. Backend `b24c23b` está en `main`, cuyo head remoto observado ya era `5a228a1`; frontend `ce8e812` es head de `main`. Frontend CI #2 está verde. Backend CI #4/#5 está rojo en `prisma validate` antes de tests/audit; con `DATABASE_URL` vacía se reproduce P1012 localmente.
+
+Render está Live en `5a228a1` (deploy `dep-davt3760tbcc73f9vlig`), health live/ready 200 y smoke remoto 7/7 PASS. Vercel reporta deployment exitoso para `ce8e812`; la app responde 200 y sus assets publicados coinciden por SHA-256 con los artefactos del checkout. No se disparó redeploy.
+
+Se creó en Neon la rama aislada autoexpirable `r61-restore-drill` y la DB `r61_restore_drill`. El guardrail de origen/destino iguales rechazó correctamente. El restore real falló seguro en `pg_dump` antes de escribir/restaurar; herramientas locales PostgreSQL 16.3 frente a Neon PostgreSQL 17 indican incompatibilidad mayor probable. No se guardaron secretos, el puente local efímero se eliminó y producción no fue modificada.
+
+Fase 0 no se inició: no se crearon datos ficticios ni campaña porque CI backend y restore siguen bloqueando los gates. Evidencia y próximos pasos en `docs/development/R61_VERIFICATION_2026-10-02.md`.
+
+Continuación: se corrigió el CI backend en PR #28 con `DATABASE_URL` PostgreSQL ficticia/no secreta y timezone explícito Argentina para nombres de exportación; el workflow del PR quedó verde y se mergeó a `main` (`e165654`). Se repitió el restore drill real con herramientas PostgreSQL 17.11 y conexiones directas: `pg_dump`, `pg_restore`, tablas esperadas y `prisma migrate status` OK contra la DB aislada `r61_restore_drill`. Se ajustó `scripts/restore-drill.mjs` para invocar Prisma vía Node local y evitar fallos `spawn npx` en Windows. No se guardaron URLs ni secretos; producción se usó solo como origen de dump.
+
 ## 02/10/2026 — R6.1 piloto preparado localmente
 
 Antes de avanzar se dejaron backend y frontend limpios y publicados en GitHub: backend `61065da` documenta el workstream del prototipo y frontend `ce8e812` versiona `docs/PRODUCT_BRIEF_PROTOTIPO.md`.
