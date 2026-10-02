@@ -7,6 +7,8 @@
     "test": "node --test",
     "quality:check": "npm run prisma:generate && npx prisma validate --schema prisma/schema.prisma && npm test && npm audit --omit=dev",
     "audit:prod": "npm audit --omit=dev",
+    "ops:smoke": "node scripts/smoke.mjs",
+    "ops:restore-drill": "node scripts/restore-drill.mjs",
     "smoke": "node scripts/smoke.mjs",
     "benchmark:r42": "node scripts/benchmark-r42.mjs",
     "dev": "node src/server.js",

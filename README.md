@@ -11,6 +11,17 @@ npm run dev
 ```
 API: `http://localhost:4000`
 
+## Operacion
+
+Comandos read-only/recuperacion:
+
+```bash
+npm run ops:smoke -- --base https://control-atributos-back.onrender.com --origin https://stockeador-client-1nll.vercel.app
+npm run ops:restore-drill
+```
+
+`ops:restore-drill` exige `SOURCE_DATABASE_URL` y `RESTORE_DATABASE_URL`, rechaza restaurar sobre el mismo destino y solo acepta destinos claramente aislados. Ver `docs/development/R52_OPERATION_RECOVERY.md`.
+
 ## Migraciones segun entorno
 - Local/desarrollo (crea nuevas migraciones): `npm run migrate:local -- --name nombre_cambio`
 - Render/produccion (solo aplica migraciones existentes): `npm run migrate:render`

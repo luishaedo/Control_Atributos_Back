@@ -1,4 +1,12 @@
 # Historial de entregas
+## 02/10/2026 — R5.2 operacion y recuperacion completado localmente
+
+Se documento el runbook operativo R5.2 en `docs/development/R52_OPERATION_RECOVERY.md`: RPO/RTO iniciales para piloto, backups antes de importaciones/cierres/migraciones, restore drill aislado, rollback de codigo, rollback de datos, monitoreo minimo y checklist de habilitacion R6.1. Se agrego D-T15: restore siempre primero contra DB/rama aislada, rollback de datos no automatico y restore productivo completo solo con aceptacion explicita de perdida desde el backup elegido.
+
+Se agrego `scripts/restore-drill.mjs` y los comandos `ops:smoke` / `ops:restore-drill`. El runner exige `SOURCE_DATABASE_URL` y `RESTORE_DATABASE_URL`, rechaza origen/destino iguales, exige que el destino parezca aislado, usa `pg_dump`/`pg_restore`, verifica tablas criticas y corre `prisma migrate status` contra el destino restaurado sin imprimir credenciales.
+
+Validacion local: `node --check scripts/restore-drill.mjs`, guardrail sin credenciales falla cerrado, `npx.cmd prisma validate --schema prisma\schema.prisma`, `npm.cmd test` 71 tests, 68 PASS, 3 SKIP, y `git diff --check` OK. No se ejecuto restore real porque requiere credenciales Neon y una DB destino aislada. No se modifico produccion ni se publico Render/Vercel.
+
 ## 02/10/2026 — R5.1 runtime, dependencias y CI completado localmente
 
 Se fijo Node `>=24 <25` en backend y frontend con `.nvmrc` y `engines`, alineando la app a una linea LTS activa y sacando el rango anterior que incluia Node EOL. Se agregaron workflows CI versionados para ambos repos: backend ejecuta `npm ci`, Prisma generate/validate, tests y audit productivo; frontend ejecuta `npm ci`, lint, tests, build con `VITE_API_URL` explicita y audit productivo.
