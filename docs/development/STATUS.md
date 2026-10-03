@@ -6,7 +6,7 @@ Actualizado: 02/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 
 | Tarea | Estado | Responsable | Alcance |
 |---|---|---|---|
-| IMPORT-ROW-RECOVERY | COMPLETADO_LOCAL + VALIDADO_LOCAL | Codex/coordinador | backend parser, servicios, controladores y tests; frontend panel de importación, corrección manual y descarga, cuatro CSV en `public/templates/`, tests; docs R3.1/D-B05. Backend 74 PASS/3 SKIP; frontend 11/11 PASS, lint sin errores y build OK. No staging ni deploy |
+| IMPORT-ROW-RECOVERY | PUBLICADO_EN_PR; validación local completa | Codex/coordinador | Backend `c91b8ec`, PR #29; frontend `788b807`, PR #52. Parser, servicios, controladores, panel de importación, corrección manual, descarga, cuatro plantillas y tests. Backend 74 PASS/3 SKIP; frontend 11/11 PASS, lint sin errores y build OK. Sin merge, staging ni deploy |
 | R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
 | R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
 | R1.1 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | normalización SKU/códigos backend y frontend; tests; docs/development/R11_VALIDATION.md |
