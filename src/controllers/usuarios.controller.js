@@ -64,6 +64,7 @@ export function UsuariosController(prisma) {
         data.activa = req.body.activa
       }
       if (!id || !Object.keys(data).length) return sendAdminError(res, 400, 'id y cambios requeridos')
+      if (data.codigo === '' || data.nombre === '') return sendAdminError(res, 400, 'codigo y nombre no pueden estar vacíos')
       const item = await prisma.$transaction(async (tx) => {
         const previous = await tx.sucursal.findUnique({ where: { id }, select: { codigo: true, nombre: true, activa: true } })
         if (!previous) throw Object.assign(new Error('Sucursal no encontrada'), { code: 'P2025' })
@@ -145,6 +146,7 @@ export function UsuariosController(prisma) {
         data.mustChangePassword = true
       }
       if (!id || !Object.keys(data).length) return sendAdminError(res, 400, 'id y cambios requeridos')
+      if (data.nombre === '') return sendAdminError(res, 400, 'nombre no puede estar vacío')
       let user
       try {
         user = await prisma.$transaction(async (tx) => {

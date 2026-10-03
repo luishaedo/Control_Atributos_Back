@@ -112,6 +112,23 @@ test('ACCOUNTS-02 rejects active operator without an active branch', async () =>
   }
 })
 
+test('ACCOUNTS-07 rejects empty account and branch fields before writing', async () => {
+  let transactionCalls = 0
+  const prisma = { $transaction: async () => { transactionCalls++ } }
+  const controller = UsuariosController(prisma)
+  for (const [action, body] of [
+    ['updateSucursal', { codigo: '   ' }],
+    ['updateSucursal', { nombre: '   ' }],
+    ['updateUsuario', { nombre: '   ' }],
+  ]) {
+    const res = response()
+    await controller[action](request(body), res)
+    assert.equal(res.statusCode, 400)
+    assert.match(res.body.error, /vacío/)
+  }
+  assert.equal(transactionCalls, 0)
+})
+
 test('ACCOUNTS-02 does not create an operator for an inactive branch', async () => {
   let created = false
   const prisma = {

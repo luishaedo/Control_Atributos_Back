@@ -12,6 +12,7 @@ Fecha: 03/10/2026. Extensión de R2.1 y D-B04. El backend ya expone CRUD parcial
 | ACCOUNTS-04 | Validación operativa: pruebas en staging con cuentas ficticias y roles, cookies entre frontend/backend, sesión expirada, desactivación y recuperación; guía para siete sucursales. | Evidencia de staging y aprobación operativa antes de producción. |
 | ACCOUNTS-05 | Confirmación de contraseña inicial y restablecida en el panel ADMIN. | Una discrepancia impide el envío; la confirmación se limpia y no viaja a la API; pruebas de ambos flujos. |
 | ACCOUNTS-06 | Edición de nombres de sucursal y usuario mediante formularios dentro del panel. | Sin `window.prompt`; cancelar no escribe; valores vacíos se rechazan y nombres válidos se recortan antes de enviar; pruebas de interfaz. |
+| ACCOUNTS-07 | Validación del servidor al actualizar nombres y código de sucursal. | Un valor presente pero vacío tras recortar espacios devuelve `400` antes de abrir una transacción; no se escribe ni se audita. |
 
 ## Decisiones de producto pendientes
 
@@ -35,5 +36,7 @@ Avance ACCOUNTS-03 (03/10/2026): cambio propio y rotación obligatoria de clave 
 ACCOUNTS-05 (03/10/2026): confirmación local de contraseñas iniciales y restablecidas implementada y cubierta por tests de interfaz. No cambia la API ni exige migraciones. La validación de ACCOUNTS-04 en staging sigue pendiente de la rotación de credencial aislada.
 
 ACCOUNTS-06 (03/10/2026): edición de nombres con formularios locales, cancelación y validación de espacios en blanco implementadas y cubiertas por tests. No cambia la API ni exige migraciones. ACCOUNTS-04 en staging sigue pendiente.
+
+ACCOUNTS-07 (03/10/2026): validación de campos vacíos al actualizar usuario o sucursal implementada en la API y cubierta por pruebas con doble en memoria. No cambia el esquema ni requiere migraciones. ACCOUNTS-04 en staging sigue pendiente.
 
 No ejecutar migraciones, seed, reset ni cambios en bases remotas para estas entregas locales.
