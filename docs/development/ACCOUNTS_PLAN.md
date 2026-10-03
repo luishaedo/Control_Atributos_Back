@@ -10,6 +10,7 @@ Fecha: 03/10/2026. Extensión de R2.1 y D-B04. El backend ya expone CRUD parcial
 | ACCOUNTS-02 | Reglas de integridad y seguridad: impedir dejar el sistema sin un ADMIN activo, impedir operador sin sucursal activa, revocar sesiones al desactivar o cambiar permisos, validación consistente, conflictos y auditoría de cambios de cuenta sin secretos. | Pruebas de concurrencia y errores con PostgreSQL aislado; cuentas y sesiones consistentes ante fallo. |
 | ACCOUNTS-03 | Cambio de contraseña propia con clave actual y restablecimiento por ADMIN si se olvidó (D-B07). Rotación obligatoria al primer ingreso (D-B08). | Cambio propio revoca sesiones y audita sin secretos; administrador puede restablecer y exige cambio posterior. D-B09 excluye el límite de intentos de esta entrega. |
 | ACCOUNTS-04 | Validación operativa: pruebas en staging con cuentas ficticias y roles, cookies entre frontend/backend, sesión expirada, desactivación y recuperación; guía para siete sucursales. | Evidencia de staging y aprobación operativa antes de producción. |
+| ACCOUNTS-05 | Confirmación de contraseña inicial y restablecida en el panel ADMIN. | Una discrepancia impide el envío; la confirmación se limpia y no viaja a la API; pruebas de ambos flujos. |
 
 ## Decisiones de producto pendientes
 
