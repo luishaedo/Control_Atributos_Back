@@ -6,7 +6,9 @@ Actualizado: 03/10/2026. Coordinador de esta entrega: Codex, chat actual de recu
 
 | Tarea | Estado | Responsable | Alcance |
 |---|---|---|---|
-| IMPORT-BULK-RECOVERY | IMPLEMENTADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; PR #30 abierto | Codex, chat actual; sin agentes delegados | Backend `src/services/maestro.service.js`, `test/import.real-files.test.js`, `test/import.postgres.test.js` y `docs/development/{STATUS,DECISIONS,CHANGELOG}.md`. PR #29 ya fue mergeado. `npm test`: 77 PASS/4 SKIP local; CI usa 1.201 filas sintéticas cuando no dispone de los CSV externos. PostgreSQL 16 local aislado con 10/10 migraciones: importación de los archivos de raíz y reimportación PASS. Sin pruebas de escritura en producción. |
+| IMPORT-BULK-RECOVERY | VALIDADO_PRODUCCION para importación de archivos | Codex, chat actual; sin agentes delegados | Backend PR #30, merge `975cac3`; Render deploy `dep-db0e7chsrm7s73f6vvd0` Live (03/10/2026). `npm test`: 77 PASS/4 SKIP local; CI #13 PASS; PostgreSQL 16 aislado: archivos reales y reimportación PASS. Carga autenticada en producción: diccionarios 50/28/16, maestro liviano 8/8, maestro completo 7.586 importados y 7 omitidos por formato SKU/códigos vacíos. GET posterior confirmó 50/28/16 y 7.586 artículos; smoke remoto 7/7 PASS. Sin borrados ni seed en producción. |
+
+Las 7 filas omitidas del maestro completo requieren decisión/corrección del origen antes de reimportar: 1425, 1510, 3657 y 3715 tienen SKU fuera del contrato D-B01; 3687, 4805 y 5445 carecen de códigos. El panel permite descargarlas y corregirlas individualmente. No asignar SKU o códigos por inferencia. No se probó en producción una falla forzada de DB; el rollback se verificó con dobles y la importación completa con PostgreSQL aislado.
 
 ## Última entrega y propiedad
 
