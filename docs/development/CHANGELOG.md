@@ -1,5 +1,11 @@
 # Historial de entregas
 
+## 03/10/2026 — Importación de archivos reales sin vencimiento de transacción
+
+El importador de diccionarios y maestro ahora ejecuta upsert SQL parametrizado en lotes de hasta 500 filas dentro de una transacción Serializable. Antes hacía un upsert secuencial por fila con el límite implícito de cinco segundos de Prisma; en producción vencía durante `dicTipo.upsert`. Se amplió el límite transaccional a 120 s y la espera de conexión a 10 s. El lote conserva atomicidad y la prevalidación/recuperación de filas de la entrega anterior.
+
+Archivos: `src/services/maestro.service.js`, `test/import.real-files.test.js`, `test/import.postgres.test.js`, `docs/development/{STATUS,DECISIONS,CHANGELOG}.md`. Validación: `npm test` 77 PASS/4 SKIP en el workspace; prueba PostgreSQL 16 aislado con migraciones 10/10: tres diccionarios, maestro liviano, maestro completo y reimportación PASS. CI ejecuta un caso sintético de 1.201 filas y omite únicamente las pruebas de los CSV de la raíz cuando no están presentes en el checkout del backend. Archivos de raíz: 50 categorías, 28 tipos, 16 clasificaciones; maestro liviano 8/8 y maestro completo 7.586 importables/7 omitidas (cuatro SKU fuera de D-B01 y tres códigos vacíos). No se corrigieron valores inventando SKU/códigos. Sin escritura en producción durante pruebas. PR #30 abierto; pendiente CI, despliegue y carga remota autenticada.
+
 ## 02/10/2026 — Plantillas y recuperación de filas omitidas en importaciones
 
 Se añadieron cuatro plantillas CSV con encabezados canónicos para categorías, tipos, clasificaciones y maestro. Backend ahora procesa cada fila por separado, persiste en una transacción las válidas y responde con número de fila, datos originales, campo y motivo de cada omisión; esto incluye códigos inexistentes en diccionarios y duplicados normalizados, conservando la primera aparición. Frontend muestra un cuadro separado por archivo, permite corregir y cargar una fila individualmente, y descarga las omitidas como CSV compatible con reimportación. Encabezados no reconocibles o CSV mal formado siguen generando error de archivo.

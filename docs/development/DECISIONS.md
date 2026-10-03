@@ -2,6 +2,8 @@
 
 ## Decisiones técnicas de esta entrega
 
+- D-T-IMPORT-01 (03/10/2026): las importaciones de diccionarios y maestro escriben con `INSERT ... ON CONFLICT DO UPDATE` parametrizado, en lotes de hasta 500 filas y una transacción Serializable por archivo. La transacción interactiva dispone de 120 s y espera de conexión de hasta 10 s; el volumen de consultas deja de depender de cada fila. La validación y el reporte de omisiones ocurren antes de escribir. No se amplía el formato SKU aprobado en D-B01 ni se completan códigos vacíos por inferencia.
+
 - D-T01 (26/09/2026): conservar stack; app Express inyectable para tests sin DB real. Sin actualización de major ni de esquema en R0.1.
 - D-T02: roadmap/estado/decisiones/historial canónicos en este repositorio, `docs/development`; raíz solo enlaza. Los tres AGENTS explican descubrimiento. Hasta publicar estos archivos, un agente en otro checkout debe recibirlos del coordinador.
 - D-T03: mantener health legado como liveness; crear readiness independiente con DB y deadline. No mostrar errores Prisma ni secretos al cliente.
