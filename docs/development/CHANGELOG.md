@@ -4,7 +4,7 @@
 
 La API verifica la sucursal activa dentro de la transacción Serializable que crea al operador. La desactivación de sucursal también usa Serializable; un conflicto de serialización devuelve `409` sin repetir la escritura. Una desactivación posterior puede dejar un operador asignado a la sucursal inactiva, pero el ingreso consulta el estado vigente y lo bloquea. Archivos: `src/controllers/usuarios.controller.js`, `test/{accounts,accounts.postgres}.test.js`, `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG,DECISIONS}.md`.
 
-Validación local: `npm.cmd test` con PostgreSQL 16 aislado en `127.0.0.1:55440/accounts_isolated`: 99 PASS/4 SKIP, incluida una carrera controlada; fixtures finales 0 usuarios/0 sucursales/0 sesiones/0 auditorías. `git diff --check` sin errores. Sin cambios de esquema, migraciones nuevas, DB remota, staging ni producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge.
+Validación local: `npm.cmd test` con PostgreSQL 16 aislado en `127.0.0.1:55440/accounts_isolated`: 99 PASS/4 SKIP, incluida una carrera controlada; fixtures finales 0 usuarios/0 sucursales/0 sesiones/0 auditorías; clúster detenido y eliminado. `git diff --check` sin errores. Commit `22993a7` publicado en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32), CI 1/1 PASS. Sin cambios de esquema, migraciones nuevas, DB remota, staging ni producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge.
 
 ## 03/10/2026 — ACCOUNTS-07, validación de actualizaciones en el servidor
 
