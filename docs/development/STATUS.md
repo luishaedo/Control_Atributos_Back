@@ -1,6 +1,12 @@
 # Estado de trabajo compartido
 
-Actualizado: 02/10/2026. Coordinador: Codex, chat Corregir aplicación de atributos (01a0eef9).
+Actualizado: 03/10/2026. Coordinador de esta entrega: Codex, chat actual de recuperación de importaciones.
+
+## Trabajo activo 03/10/2026
+
+| Tarea | Estado | Responsable | Alcance |
+|---|---|---|---|
+| IMPORT-BULK-RECOVERY | IMPLEMENTADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; PR pendiente | Codex, chat actual; sin agentes delegados | Backend `src/services/maestro.service.js`, `test/import.real-files.test.js`, `test/import.postgres.test.js` y `docs/development/{STATUS,DECISIONS,CHANGELOG}.md`. PR #29 ya fue mergeado; esta corrección requiere PR propio. `npm test`: 76 PASS/4 SKIP. PostgreSQL 16 local aislado con 10/10 migraciones: importación de los archivos de raíz y reimportación PASS. Sin pruebas de escritura en producción. |
 
 ## Última entrega y propiedad
 

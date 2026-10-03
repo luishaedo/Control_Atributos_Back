@@ -9,7 +9,7 @@ export function MaestroService(prisma) {
 
   const runInTransaction = async (fn) => {
     if (typeof prisma.$transaction === 'function') {
-      return prisma.$transaction(fn, { isolationLevel: 'Serializable' })
+      return prisma.$transaction(fn, { isolationLevel: 'Serializable', maxWait: 10000, timeout: 120000 })
     }
     return fn(prisma)
   }
@@ -19,6 +19,31 @@ export function MaestroService(prisma) {
     code: 'INVALID_IMPORT_DATA',
     details,
   })
+
+  // A single parameterized statement per batch avoids thousands of round trips inside
+  // Prisma's interactive transaction (which otherwise expires after five seconds).
+  const bulkUpsert = async (tx, table, columns, items, model) => {
+    if (!items.length) return
+    if (typeof tx.$executeRawUnsafe !== 'function') {
+      // In-memory Prisma doubles used by older service tests.
+      for (const item of items) {
+        await tx[model].upsert({ where: { [columns[0]]: item[columns[0]] }, create: item,
+          update: Object.fromEntries(columns.slice(1).map(column => [column, item[column]])) })
+      }
+      return
+    }
+    const quotedColumns = columns.map(column => `"${column}"`).join(', ')
+    const update = columns.slice(1).map(column => `"${column}" = EXCLUDED."${column}"`).join(', ')
+    for (let start = 0; start < items.length; start += 500) {
+      const batch = items.slice(start, start + 500)
+      const values = batch.flatMap(item => columns.map(column => item[column]))
+      const placeholders = batch.map((_, row) => `(${columns.map((_, col) => `$${row * columns.length + col + 1}`).join(', ')})`).join(', ')
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "${table}" (${quotedColumns}) VALUES ${placeholders} ON CONFLICT ("${columns[0]}") DO UPDATE SET ${update}`,
+        ...values,
+      )
+    }
+  }
 
   const normalizeRequiredItem = (item, index) => {
     const parsedSku = parseSku(item?.sku || '')
@@ -147,15 +172,9 @@ export function MaestroService(prisma) {
       const normalizedTipos = normalizeEntries(tipos, 'tipos')
       const normalizedClasif = normalizeEntries(clasif, 'clasif')
       await runInTransaction(async tx => {
-        for (const c of normalizedCategorias) {
-          await tx.dicCategoria.upsert({ where: { cod: c.cod }, create: c, update: { nombre: c.nombre } })
-        }
-        for (const t of normalizedTipos) {
-          await tx.dicTipo.upsert({ where: { cod: t.cod }, create: t, update: { nombre: t.nombre } })
-        }
-        for (const cl of normalizedClasif) {
-          await tx.dicClasif.upsert({ where: { cod: cl.cod }, create: cl, update: { nombre: cl.nombre } })
-        }
+        await bulkUpsert(tx, 'DicCategoria', ['cod', 'nombre'], normalizedCategorias, 'dicCategoria')
+        await bulkUpsert(tx, 'DicTipo', ['cod', 'nombre'], normalizedTipos, 'dicTipo')
+        await bulkUpsert(tx, 'DicClasif', ['cod', 'nombre'], normalizedClasif, 'dicClasif')
       })
       return { categorias: normalizedCategorias.length, tipos: normalizedTipos.length, clasif: normalizedClasif.length }
     },
@@ -163,18 +182,7 @@ export function MaestroService(prisma) {
     async importMaestroItems(items = [], options = {}) {
       const { items: normalized, warnings, omittedRows } = await validateMaestroImport(items, options)
       await runInTransaction(async tx => {
-        for (const item of normalized) {
-          await tx.maestro.upsert({
-            where: { sku: item.sku },
-            create: item,
-            update: {
-              descripcion: item.descripcion,
-              categoria_cod: item.categoria_cod,
-              tipo_cod: item.tipo_cod,
-              clasif_cod: item.clasif_cod,
-            },
-          })
-        }
+        await bulkUpsert(tx, 'Maestro', ['sku', 'descripcion', 'categoria_cod', 'tipo_cod', 'clasif_cod'], normalized, 'maestro')
       })
       return { count: normalized.length, skipped: omittedRows, omittedRows, warningCount: warnings.length, warnings }
     },
