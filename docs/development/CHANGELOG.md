@@ -4,7 +4,7 @@
 
 El panel ADMIN exige repetir la contraseña al crear una cuenta y al restablecerla. Una discrepancia muestra error sin enviar la petición; el campo de confirmación no se incluye en el payload y se limpia tras guardar o cancelar el restablecimiento. No cambia el contrato del backend ni la regla aprobada de cambio obligatorio en el primer ingreso. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
 
-Validación local: `npm.cmd test -- --run` 21/21 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas y build con `VITE_API_URL=http://localhost:3000` PASS. La primera corrida de tests falló por una selección ambigua del campo «Nombre» en el test; se corrigió el selector y la suite completa pasó. Sin DB remota, migraciones, staging ni producción. Los PRs de Cuentas siguen en borrador hasta la validación ACCOUNTS-04.
+Validación local: `npm.cmd test -- --run` 21/21 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas y build con `VITE_API_URL=http://localhost:3000` PASS. La primera corrida de tests falló por una selección ambigua del campo «Nombre» en el test; se corrigió el selector y la suite completa pasó. Frontend commit `0976df1` publicado en [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54); documentación backend commit `888d38f` publicado en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32). CI frontend de `0976df1` y backend de `888d38f` PASS. Sin DB remota, migraciones, staging ni producción. Los PRs de Cuentas siguen en borrador hasta la validación ACCOUNTS-04.
 
 ## 03/10/2026 — ACCOUNTS-04-QA-LOCAL, confirmación de desactivaciones
 

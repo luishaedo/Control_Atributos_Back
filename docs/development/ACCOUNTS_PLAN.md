@@ -31,4 +31,6 @@ ACCOUNTS-02 completada localmente y validada en PostgreSQL 16 aislado el 03/10/2
 
 Avance ACCOUNTS-03 (03/10/2026): cambio propio y rotación obligatoria de clave inicial/restablecida implementados y validados con PostgreSQL aislado; restablecimiento por ADMIN disponible localmente desde ACCOUNTS-01. D-B09 quita el límite de intentos del alcance. ACCOUNTS-04 está en ensayo local; staging y aprobación operativa pendientes. No desplegado.
 
+ACCOUNTS-05 (03/10/2026): confirmación local de contraseñas iniciales y restablecidas implementada y cubierta por tests de interfaz. No cambia la API ni exige migraciones. La validación de ACCOUNTS-04 en staging sigue pendiente de la rotación de credencial aislada.
+
 No ejecutar migraciones, seed, reset ni cambios en bases remotas para estas entregas locales.
