@@ -65,40 +65,46 @@ test('R1.1 importación, lookup y exportación comparten la identidad SKU', asyn
   assert.doesNotMatch(exported.body, /etiqueta/)
 })
 
-test('R1.1 importación rechaza código inválido sin truncar ni escribir', async () => {
+test('Importación informa código inválido por fila sin truncarlo ni escribir esa fila', async () => {
   const { controller, response, rows } = fixture()
   const result = response()
   await controller.importar({ body: { items: [{
     sku: 'ABC2', descripcion: 'Inválido',
     categoria_cod: '123', tipo_cod: '02', clasif_cod: '03',
   }] } }, result)
-  assert.equal(result.statusCode, 400)
-  assert.equal(result.body.invalidItems[0].reason, 'invalid_code_or_missing_fields')
+  assert.equal(result.statusCode, 200)
+  assert.equal(result.body.omittedRows[0].reason, 'invalid_code_or_missing_fields')
+  assert.equal(result.body.omittedRows[0].field, 'categoria_cod')
   assert.equal(rows.size, 0)
 })
 
-test('R3.1 importación de maestro rechaza lote completo antes de escribir parcialmente', async () => {
+test('Importación de maestro aplica filas válidas y devuelve omitidas por código fuera de diccionario', async () => {
   const { controller, response, rows } = fixture()
   const result = response()
   await controller.importar({ body: { items: [
     { sku: 'ABC1', descripcion: 'Válido', categoria_cod: '01', tipo_cod: '02', clasif_cod: '03' },
     { sku: 'ABC2', descripcion: 'Inválido', categoria_cod: '99', tipo_cod: '02', clasif_cod: '03' },
   ] } }, result)
-  assert.equal(result.statusCode, 400)
-  assert.equal(result.body.code, 'INVALID_DICTIONARY')
-  assert.equal(result.body.invalidCount, 1)
-  assert.equal(rows.size, 0)
+  assert.equal(result.statusCode, 200)
+  assert.equal(result.body.count, 1)
+  assert.equal(result.body.omittedCount, 1)
+  assert.equal(result.body.omittedRows[0].reason, 'invalid_dictionary_code')
+  assert.equal(result.body.omittedRows[0].row, 2)
+  assert.equal(rows.size, 1)
+  assert.equal(rows.has('ABC1'), true)
+  assert.equal(rows.has('ABC2'), false)
 })
 
-test('R3.1 importación de maestro rechaza SKUs duplicados del mismo lote', async () => {
+test('Importación de maestro conserva primera fila y reporta SKU duplicado', async () => {
   const { controller, response, rows } = fixture()
   const result = response()
   await controller.importar({ body: { items: [
     { sku: 'ABC1', descripcion: 'Primero', categoria_cod: '01', tipo_cod: '02', clasif_cod: '03' },
     { sku: 'abc1#etiqueta', descripcion: 'Duplicado', categoria_cod: '01', tipo_cod: '02', clasif_cod: '03' },
   ] } }, result)
-  assert.equal(result.statusCode, 400)
-  assert.equal(result.body.code, 'INVALID_IMPORT_DATA')
-  assert.equal(result.body.invalidItems[0].reason, 'duplicate_sku_in_batch')
-  assert.equal(rows.size, 0)
+  assert.equal(result.statusCode, 200)
+  assert.equal(result.body.count, 1)
+  assert.equal(result.body.omittedRows[0].reason, 'duplicate_sku_in_batch')
+  assert.equal(rows.size, 1)
+  assert.equal(rows.get('ABC1').descripcion, 'Primero')
 })

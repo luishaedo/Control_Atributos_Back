@@ -6,6 +6,7 @@ Actualizado: 02/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 
 | Tarea | Estado | Responsable | Alcance |
 |---|---|---|---|
+| IMPORT-ROW-RECOVERY | PUBLICADO_EN_PR; validación local completa | Codex/coordinador | Backend `c91b8ec`, PR #29; frontend `788b807`, PR #52. Parser, servicios, controladores, panel de importación, corrección manual, descarga, cuatro plantillas y tests. Backend 74 PASS/3 SKIP; frontend 11/11 PASS, lint sin errores y build OK. Sin merge, staging ni deploy |
 | R0.1 | VALIDADO_PRODUCCION (disponibilidad) | Codex/coordinador | Backend publicado; pruebas HTTP locales y smoke remoto |
 | R0.2 | COMPLETADO: VALIDADO_STAGING + disponibilidad VALIDADO_PRODUCCION | Mismo coordinador | Render/Neon, scripts operativos y docs/development/* |
 | R1.1 | COMPLETADO_LOCAL + VALIDADO_LOCAL_POSTGRESQL; no validado en staging | Codex/01a0f1e5, sin agentes delegados | normalización SKU/códigos backend y frontend; tests; docs/development/R11_VALIDATION.md |
@@ -21,6 +22,7 @@ Actualizado: 02/10/2026. Coordinador: Codex, chat Corregir aplicación de atribu
 | R5.1 | COMPLETADO_LOCAL; audits 0 vulns | Codex/01a0f1e5, sin agentes delegados | Node 24, dependencias backend/frontend actualizadas, CI versionado, quality checks; docs/development/R51_VALIDATION.md |
 | R5.2 | COMPLETADO_LOCAL; restore drill preparado | Codex/01a0f1e5, sin agentes delegados | operación/backup/restore/rollback/monitoreo, RPO/RTO iniciales y runner de restore aislado; docs/development/R52_OPERATION_RECOVERY.md |
 | R6.1 | PREPARADO_LOCAL; piloto no ejecutado | Codex/01a0f1e5, sin agentes delegados | gates, fases staging/1/2/7 sucursales, matriz de aceptación e incidencias; docs/development/R61_PILOT_READINESS.md |
+| R6.1-VERIFY | COMPLETADO; GATES CI/RESTORE VERDES | Codex/01a0fd55, sin agentes delegados | SHAs/deploys verificados y smoke 7/7; CI backend corregido y mergeado; restore aislado PASS con PostgreSQL 17.11; Fase 0 no iniciada; docs/development/R61_VERIFICATION_2026-10-02.md |
 | UX-PROTOTIPO-01 | EN_CURSO | Codex/01a0f985, sin agentes delegados | análisis integral de producto para prototipo frontend; `Control_Atributos_Front/docs/PRODUCT_BRIEF_PROTOTIPO.md` y documentación canónica |
 | Coordinación | Actualizada localmente | Mismo coordinador | AGENTS y documentos canónicos |
 
@@ -46,6 +48,8 @@ Publicación main 01/10/2026: backend `86c2fff6701c9500329ad3141c8459fc7338041c`
 - Credenciales temporales de pruebas y producción eliminadas; no reutilizar archivos de conexión ni imprimir variables de entorno.
 
 ## Límites y siguiente acción
+
+Verificación R6.1 del 02/10/2026: GitHub contiene `b24c23b` y `ce8e812`; frontend CI verde; backend CI fue corregido en PR #28 y mergeado a `main` (`e165654`) con workflow verde. Render está Live en el SHA posterior `5a228a1` y smoke productivo 7/7 PASS. Vercel registra deploy exitoso de `ce8e812` y el bundle publicado coincide con los artefactos locales. Restore real completado con PostgreSQL 17.11 desde `production/neondb` hacia rama Neon aislada `r61-restore-drill` / DB `r61_restore_drill`: `pg_dump`, `pg_restore`, tablas esperadas y `prisma migrate status` OK, sin guardar secretos. No se inició el dataset/piloto Fase 0. Ver `R61_VERIFICATION_2026-10-02.md`.
 
 R0.2 COMPLETADO en su alcance de disponibilidad: servicio remoto control-atributos-staging (srv-datd8aek1f9s73fqp9fg) Live, conectado exclusivamente a r02-migration-validation/r02_prisma_validation. Tres smoke de 7/7, incluido reinicio real, SHA 487a0e9 completo confirmado. Configuración/evidencias en STAGING.md y smoke-staging-*.json. Plan Free, Auto-Deploy Off, token independiente; no cambios a producción/Vercel en esta entrega. R1.3 quedó VALIDADO_STAGING el 30/09/2026: 12/12 escenarios y 58 HTTP sobre SHA 520cd35, con campaña inactiva y 11 SKU TEST-R13 retenidos como evidencia en la base aislada. R1.4 quedó VALIDADO_STAGING el 30/09/2026: commit 594ce7a, deploy dep-daupn7c9v7es73ag7le0, migración 9/9, smoke 7/7 y validación funcional 9/9 checks con 32 HTTP. No volver a inicializar producción: ya tiene esquema.
 

@@ -13,6 +13,8 @@ const REQUIRED_DESTINATION_HINTS = [
   "drill",
 ];
 
+const PRISMA_CLI = join("node_modules", "prisma", "build", "index.js");
+
 const redact = (value) =>
   String(value || "")
     .replace(/\/\/([^:]+):([^@]+)@/g, "//$1:***@")
@@ -126,7 +128,7 @@ const main = async () => {
       throw new Error(`Missing restored tables: ${missingTables.join(", ")}`);
     }
 
-    const migrateStatus = await run("npx", ["prisma", "migrate", "status", "--schema", "prisma/schema.prisma"], {
+    const migrateStatus = await run(process.execPath, [PRISMA_CLI, "migrate", "status", "--schema", "prisma/schema.prisma"], {
       env: { DATABASE_URL: args.restore },
     });
     manifest.checks.push({ name: "prisma_migrate_status", ok: true, output: migrateStatus.stdout.trim() });

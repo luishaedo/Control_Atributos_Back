@@ -1,5 +1,5 @@
 // src/services/import.service.js
-import { parseDicCSV, parseMaestroCSV } from '../utils/csvInput.js'
+import { parseDicCSVReport, parseMaestroCSVReport } from '../utils/csvInput.js'
 import { MaestroService } from './maestro.service.js'
 
 export function ImportService(prisma) {
@@ -8,20 +8,34 @@ export function ImportService(prisma) {
   return {
     // Diccionarios: recibe buffers de archivos individuales (opcional cada uno)
     async importarDiccionariosDesdeBuffers({ categoriasBuf = null, tiposBuf = null, clasifBuf = null } = {}) {
-      const categorias = categoriasBuf ? parseDicCSV(categoriasBuf) : []
-      const tipos      = tiposBuf ? parseDicCSV(tiposBuf) : []
-      const clasif     = clasifBuf ? parseDicCSV(clasifBuf) : []
+      const parse = buffer => buffer ? parseDicCSVReport(buffer) : { items: [], omittedRows: [] }
+      const categoriasReport = parse(categoriasBuf)
+      const tiposReport = parse(tiposBuf)
+      const clasifReport = parse(clasifBuf)
+      const stripRow = ({ sourceRow, ...item }) => item
 
       // upsert en lote
-      const res = await maestroSvc.upsertDiccionarios({ categorias, tipos, clasif })
-      return res // { categorias: n, tipos: n, clasif: n }
+      const counts = await maestroSvc.upsertDiccionarios({
+        categorias: categoriasReport.items.map(stripRow),
+        tipos: tiposReport.items.map(stripRow),
+        clasif: clasifReport.items.map(stripRow),
+      })
+      return {
+        ...counts,
+        omittedRows: {
+          categorias: categoriasReport.omittedRows,
+          tipos: tiposReport.omittedRows,
+          clasif: clasifReport.omittedRows,
+        },
+      }
     },
 
     // Maestro: recibe un solo buffer de archivo
     async importarMaestroDesdeBuffer(maestroBuf) {
-      if (!maestroBuf) return { count: 0, skipped: [] }
-      const items = parseMaestroCSV(maestroBuf) // normaliza 01/02, encabes, delimitador, etc.
-      return maestroSvc.importMaestroItems(items)
+      if (!maestroBuf) return { count: 0, omittedRows: [] }
+      const report = parseMaestroCSVReport(maestroBuf)
+      const result = await maestroSvc.importMaestroItems(report.items, { allowPartial: true })
+      return { ...result, omittedRows: [...report.omittedRows, ...result.omittedRows] }
     }
   }
 }

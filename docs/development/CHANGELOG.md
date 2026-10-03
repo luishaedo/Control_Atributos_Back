@@ -1,4 +1,23 @@
 # Historial de entregas
+
+## 02/10/2026 — Plantillas y recuperación de filas omitidas en importaciones
+
+Se añadieron cuatro plantillas CSV con encabezados canónicos para categorías, tipos, clasificaciones y maestro. Backend ahora procesa cada fila por separado, persiste en una transacción las válidas y responde con número de fila, datos originales, campo y motivo de cada omisión; esto incluye códigos inexistentes en diccionarios y duplicados normalizados, conservando la primera aparición. Frontend muestra un cuadro separado por archivo, permite corregir y cargar una fila individualmente, y descarga las omitidas como CSV compatible con reimportación. Encabezados no reconocibles o CSV mal formado siguen generando error de archivo.
+
+Archivos principales: `Control_Atributos_Back/src/utils/csvInput.js`, servicios/controladores de importación, tests backend, `Control_Atributos_Front/src/pages/admin/modules/Imports/*`, cuatro CSV en `public/templates/` y test de plantillas. Decisión D-B05 actualizada por solicitud del usuario. Backend `npm test`: 77 pruebas, 74 PASS, 3 SKIP. Frontend `npm test`: 11/11 PASS; lint 0 errores/41 advertencias heredadas; build OK y cuatro plantillas presentes en `dist/templates`. Publicación: backend `c91b8ec` en PR #29 y frontend `788b807` en PR #52. Sin DB real, merge, staging ni deploy. Próximo paso: revisar CI, mergear ambos PR y verificar los despliegues coordinados de Render/Vercel.
+
+## 02/10/2026 — R6.1 verificación operativa parcial
+
+Se verificaron GitHub, Actions, Render, Vercel y la aplicación publicada. Backend `b24c23b` está en `main`, cuyo head remoto observado ya era `5a228a1`; frontend `ce8e812` es head de `main`. Frontend CI #2 está verde. Backend CI #4/#5 está rojo en `prisma validate` antes de tests/audit; con `DATABASE_URL` vacía se reproduce P1012 localmente.
+
+Render está Live en `5a228a1` (deploy `dep-davt3760tbcc73f9vlig`), health live/ready 200 y smoke remoto 7/7 PASS. Vercel reporta deployment exitoso para `ce8e812`; la app responde 200 y sus assets publicados coinciden por SHA-256 con los artefactos del checkout. No se disparó redeploy.
+
+Se creó en Neon la rama aislada autoexpirable `r61-restore-drill` y la DB `r61_restore_drill`. El guardrail de origen/destino iguales rechazó correctamente. El restore real falló seguro en `pg_dump` antes de escribir/restaurar; herramientas locales PostgreSQL 16.3 frente a Neon PostgreSQL 17 indican incompatibilidad mayor probable. No se guardaron secretos, el puente local efímero se eliminó y producción no fue modificada.
+
+Fase 0 no se inició: no se crearon datos ficticios ni campaña porque CI backend y restore siguen bloqueando los gates. Evidencia y próximos pasos en `docs/development/R61_VERIFICATION_2026-10-02.md`.
+
+Continuación: se corrigió el CI backend en PR #28 con `DATABASE_URL` PostgreSQL ficticia/no secreta y timezone explícito Argentina para nombres de exportación; el workflow del PR quedó verde y se mergeó a `main` (`e165654`). Se repitió el restore drill real con herramientas PostgreSQL 17.11 y conexiones directas: `pg_dump`, `pg_restore`, tablas esperadas y `prisma migrate status` OK contra la DB aislada `r61_restore_drill`. Se ajustó `scripts/restore-drill.mjs` para invocar Prisma vía Node local y evitar fallos `spawn npx` en Windows. No se guardaron URLs ni secretos; producción se usó solo como origen de dump.
+
 ## 02/10/2026 — R6.1 piloto preparado localmente
 
 Antes de avanzar se dejaron backend y frontend limpios y publicados en GitHub: backend `61065da` documenta el workstream del prototipo y frontend `ce8e812` versiona `docs/PRODUCT_BRIEF_PROTOTIPO.md`.
