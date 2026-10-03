@@ -16,6 +16,7 @@ export default function adminRouter(prisma, env = process.env) {
   const r = Router()
   const requireAdmin = authAdminOrDevBypass({ prisma, env, roles: ['ADMIN'] })
   const requireReviewer = authAdminOrDevBypass({ prisma, env, roles: ['ADMIN', 'REVISOR'] })
+  const requireReviewerForSession = authAdminOrDevBypass({ prisma, env, roles: ['ADMIN', 'REVISOR'], allowPasswordChange: true })
   const admin = AdminController(prisma, env)
   const imp = AdminImportController(prisma)
   const rev = RevisionesController(prisma)
@@ -27,15 +28,16 @@ export default function adminRouter(prisma, env = process.env) {
   const users = UsuariosController(prisma)
 
   // Salud
-  r.get('/ping', requireReviewer, admin.ping)
+  r.get('/ping', requireReviewerForSession, admin.ping)
   r.post('/login', admin.login)
-  r.post('/logout', requireReviewer, admin.logout)
+  r.post('/logout', requireReviewerForSession, admin.logout)
 
   // Identidad R2.1
   r.get('/sucursales', requireAdmin, users.listSucursales)
   r.post('/sucursales', requireAdmin, users.createSucursal)
   r.patch('/sucursales/:id', requireAdmin, users.updateSucursal)
   r.get('/usuarios', requireAdmin, users.listUsuarios)
+  r.get('/cuentas/auditoria', requireAdmin, users.listAuditoria)
   r.post('/usuarios', requireAdmin, users.createUsuario)
   r.patch('/usuarios/:id', requireAdmin, users.updateUsuario)
 

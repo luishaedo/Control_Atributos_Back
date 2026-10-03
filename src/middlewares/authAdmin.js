@@ -61,7 +61,7 @@ function legacyBootstrapAuth(req, env) {
   }
 }
 
-export function authSession({ prisma, env = process.env, roles = [] }) {
+export function authSession({ prisma, env = process.env, roles = [], allowPasswordChange = false }) {
   const allowedRoles = new Set(roles.map(role => String(role).toUpperCase()))
   const identity = IdentityService(prisma, env)
   return async (req, res, next) => {
@@ -73,13 +73,16 @@ export function authSession({ prisma, env = process.env, roles = [] }) {
     if (allowedRoles.size && !allowedRoles.has(auth.user.rol)) {
       return res.status(403).json({ error: 'Permiso insuficiente', code: 'FORBIDDEN', requestId: req.id })
     }
+    if (!allowPasswordChange && auth.user.mustChangePassword) {
+      return res.status(403).json({ error: 'Debés cambiar la contraseña antes de continuar', code: 'PASSWORD_CHANGE_REQUIRED', requestId: req.id })
+    }
     req.auth = auth
     next()
   }
 }
 
-export function authAdminOrDevBypass({ prisma, env = process.env, roles = ['ADMIN'] }) {
-  const strictAuth = authSession({ prisma, env, roles })
+export function authAdminOrDevBypass({ prisma, env = process.env, roles = ['ADMIN'], allowPasswordChange = false }) {
+  const strictAuth = authSession({ prisma, env, roles, allowPasswordChange })
   return (req, res, next) => {
     if (isDevAuthBypassEnabled(env)) {
       if (!bypassWarningShown) {

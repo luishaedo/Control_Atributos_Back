@@ -48,6 +48,7 @@ model Usuario {
   rol          String
   activo       Boolean  @default(true)
   passwordHash String
+  mustChangePassword Boolean @default(false)
   sucursalId   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -74,6 +75,21 @@ model Sesion {
   @@index([usuarioId])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+model CuentaAudit {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      String
+  entidad    String
+  entidadId  String
+  accion     String
+  cambios    Json
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entidad, entidadId, createdAt])
 }
 
 model Campania {

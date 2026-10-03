@@ -49,5 +49,27 @@ export function SessionController(prisma, env = process.env) {
       res.clearCookie('cc_session', clearCookieOptions(env))
       return res.json({ ok: true })
     },
+
+    changePassword: async (req, res) => {
+      const result = await identity.changePassword({
+        userId: req.auth?.user?.id,
+        sessionId: req.auth?.sessionId,
+        currentPassword: req.body?.currentPassword,
+        newPassword: req.body?.newPassword,
+        requestId: req.id,
+      })
+      if (!result.ok) {
+        const messages = {
+          SESSION_REQUIRED: 'Iniciá sesión con tu usuario para cambiar la contraseña',
+          INVALID_PASSWORD_INPUT: 'Ingresá la contraseña actual y una nueva de al menos 8 caracteres',
+          INVALID_CURRENT_PASSWORD: 'La contraseña actual no es correcta',
+          PASSWORD_UNCHANGED: 'La nueva contraseña debe ser distinta de la actual',
+          PASSWORD_CONFLICT: 'La cuenta cambió durante la operación; ingresá nuevamente',
+        }
+        return res.status(result.status).json({ error: messages[result.code], code: result.code, requestId: req.id })
+      }
+      res.clearCookie('cc_session', clearCookieOptions(env))
+      return res.json({ ok: true, sessionsRevoked: true })
+    },
   }
 }

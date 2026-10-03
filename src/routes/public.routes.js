@@ -14,6 +14,7 @@ export default function publicRouter(prisma, env = process.env) {
   const esc = EscaneosController(prisma)
   const session = SessionController(prisma, env)
   const requireSession = authSession({ prisma, env, roles: ['OPERADOR', 'REVISOR', 'ADMIN'] })
+  const requireSessionForPassword = authSession({ prisma, env, roles: ['OPERADOR', 'REVISOR', 'ADMIN'], allowPasswordChange: true })
 
   r.get('/diccionarios', dic.listar)
   r.get('/maestro', mae.listar)
@@ -24,8 +25,9 @@ export default function publicRouter(prisma, env = process.env) {
   r.get('/maestro/:sku', mae.getUno)
 
   r.post('/session/login', session.login)
-  r.get('/session', requireSession, session.current)
-  r.post('/session/logout', requireSession, session.logout)
+  r.get('/session', requireSessionForPassword, session.current)
+  r.post('/session/logout', requireSessionForPassword, session.logout)
+  r.post('/session/password', requireSessionForPassword, session.changePassword)
 
   r.post('/escaneos', requireSession, esc.crear)
 

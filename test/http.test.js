@@ -3,10 +3,42 @@ import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createApp } from '../src/app.js'
-import { hashPassword } from '../src/services/identity.service.js'
+import { hashPassword, verifyPassword } from '../src/services/identity.service.js'
 
 const token = 'test-token-not-a-real-secret'
 const origin = 'https://stockeador-client-1nll.vercel.app'
+
+test('ACCOUNTS-02 admin API rejects removing the last active admin with 409', async t => {
+  const db = {
+    usuario: {
+      findUnique: async () => ({ rol: 'ADMIN', activo: true, sucursalId: null }),
+      count: async () => 1,
+      update: async () => { throw new Error('must not update') },
+    },
+  }
+  const f = await fixture(t, { prisma: { $transaction: async (callback) => callback(db) } })
+  const result = await f.request('/api/admin/usuarios/u1', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ activo: false }),
+  })
+  assert.equal(result.status, 409)
+  assert.match(result.body.error, /administrador activo/)
+  assert.equal(result.body.requestId, result.headers.get('x-request-id'))
+})
+
+test('ACCOUNTS-02 audit endpoint is admin-only and returns bounded events', async t => {
+  const f = await fixture(t, { prisma: { cuentaAudit: { findMany: async ({ take }) => {
+    assert.equal(take, 50)
+    return [{ id: 'audit-1', entidad: 'USUARIO', entidadId: 'u1', accion: 'ACTUALIZAR', cambios: { rol: { anterior: 'OPERADOR', nuevo: 'REVISOR' } } }]
+  } } } })
+  const denied = await f.request('/api/admin/cuentas/auditoria')
+  assert.equal(denied.status, 401)
+  const allowed = await f.request('/api/admin/cuentas/auditoria', { headers: { Authorization: `Bearer ${token}` } })
+  assert.equal(allowed.status, 200)
+  assert.equal(allowed.body.items.length, 1)
+  assert.equal(allowed.body.items[0].cambios.rol.nuevo, 'REVISOR')
+})
 
 test('R1.3/R1.4 transaction conflicts reach decision and close routes as 409 with request ID', async t => {
   let writes = 0
@@ -229,6 +261,61 @@ test('R2.1 user login creates a revocable session cookie with server-side identi
   })
   assert.equal(logout.status, 200)
   assert.ok(sessionRecord.revokedAt)
+})
+
+test('ACCOUNTS-03 user changes own password, revokes sessions and records no secret', async t => {
+  const user = { id: 'u1', username: 'ana', nombre: 'Ana', rol: 'ADMIN', activo: true, mustChangePassword: true, passwordHash: await hashPassword('claveAnterior123'), sucursal: { id: 's1', codigo: 'CENTRO', nombre: 'Centro', activa: true } }
+  let sessionRecord
+  let audit
+  const tx = {
+    usuario: {
+      findUnique: async () => user,
+      update: async ({ data }) => { Object.assign(user, data); return user },
+    },
+    sesion: { findUnique: async () => sessionRecord, updateMany: async ({ data }) => { sessionRecord.revokedAt = data.revokedAt } },
+    cuentaAudit: { create: async ({ data }) => { audit = data } },
+  }
+  const f = await fixture(t, { prisma: {
+    usuario: { findUnique: async () => user },
+    sesion: {
+      create: async ({ data }) => { sessionRecord = { id: 'sess-1', ...data }; return sessionRecord },
+      findUnique: async () => ({ ...sessionRecord, usuario: user }),
+      update: async () => sessionRecord,
+    },
+    $transaction: async (callback) => callback(tx),
+  } })
+  const login = await f.request('/api/session/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'ana', password: 'claveAnterior123' }) })
+  assert.equal(login.status, 200)
+  assert.equal(login.body.user.mustChangePassword, true)
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  assert.equal((await f.request('/api/session', { headers: { Cookie: cookie } })).status, 200)
+  assert.equal((await f.request('/api/admin/ping', { headers: { Cookie: cookie } })).status, 200)
+  const blocked = await f.request('/api/admin/usuarios', { headers: { Cookie: cookie } })
+  assert.equal(blocked.status, 403)
+  assert.equal(blocked.body.code, 'PASSWORD_CHANGE_REQUIRED')
+  assert.equal((await f.request('/api/escaneos', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' })).body.code, 'PASSWORD_CHANGE_REQUIRED')
+  const wrong = await f.request('/api/session/password', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: 'equivocada', newPassword: 'claveNueva456' }) })
+  assert.equal(wrong.status, 400)
+  assert.equal(wrong.body.code, 'INVALID_CURRENT_PASSWORD')
+  assert.equal(audit, undefined)
+  const changed = await f.request('/api/session/password', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: 'claveAnterior123', newPassword: 'claveNueva456' }) })
+  assert.equal(changed.status, 200)
+  assert.equal(changed.body.sessionsRevoked, true)
+  assert.ok(sessionRecord.revokedAt)
+  assert.equal(await verifyPassword('claveNueva456', user.passwordHash), true)
+  assert.equal(user.mustChangePassword, false)
+  assert.deepEqual(audit.cambios, { passwordChanged: true })
+  assert.equal(audit.actor, 'ana')
+  assert.doesNotMatch(JSON.stringify(audit), /claveAnterior123|claveNueva456|passwordHash/)
+  assert.equal((await f.request('/api/session', { headers: { Cookie: cookie } })).status, 401)
+  assert.equal((await f.request('/api/session/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'ana', password: 'claveNueva456' }) })).status, 200)
+})
+
+test('ACCOUNTS-03 bootstrap token cannot change a personal password', async t => {
+  const f = await fixture(t)
+  const result = await f.request('/api/session/password', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: 'old', newPassword: 'new-password-123' }) })
+  assert.equal(result.status, 403)
+  assert.equal(result.body.code, 'SESSION_REQUIRED')
 })
 
 test('R2.1 reviewer session cannot use admin-only user management routes', async t => {

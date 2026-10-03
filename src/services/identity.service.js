@@ -25,6 +25,8 @@ export function publicUser(user) {
     username: user.username,
     nombre: user.nombre,
     rol: user.rol,
+    activo: user.activo,
+    mustChangePassword: user.mustChangePassword,
     sucursal: user.sucursal ? {
       id: user.sucursal.id,
       codigo: user.sucursal.codigo,
@@ -120,6 +122,39 @@ export function IdentityService(prisma, env = process.env) {
         where: { id: sessionId, revokedAt: null },
         data: { revokedAt: new Date() },
       })
+    },
+
+    async changePassword({ userId, sessionId, currentPassword, newPassword, requestId }) {
+      if (!sessionId || !userId) return { ok: false, status: 403, code: 'SESSION_REQUIRED' }
+      if (typeof currentPassword !== 'string' || !currentPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+        return { ok: false, status: 400, code: 'INVALID_PASSWORD_INPUT' }
+      }
+      try {
+        return await prisma.$transaction(async (tx) => {
+          const session = await tx.sesion.findUnique({ where: { id: sessionId }, select: { usuarioId: true, revokedAt: true, expiresAt: true } })
+          if (!session || session.usuarioId !== userId || session.revokedAt || session.expiresAt <= new Date()) {
+            return { ok: false, status: 403, code: 'SESSION_REQUIRED' }
+          }
+          const user = await tx.usuario.findUnique({ where: { id: userId }, select: { id: true, username: true, activo: true, passwordHash: true } })
+          if (!user?.activo || !(await verifyPassword(currentPassword, user.passwordHash))) {
+            return { ok: false, status: 400, code: 'INVALID_CURRENT_PASSWORD' }
+          }
+          if (await verifyPassword(newPassword, user.passwordHash)) {
+            return { ok: false, status: 400, code: 'PASSWORD_UNCHANGED' }
+          }
+          const passwordHash = await hashPassword(newPassword)
+          await tx.usuario.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: false } })
+          await tx.sesion.updateMany({ where: { usuarioId: userId, revokedAt: null }, data: { revokedAt: new Date() } })
+          await tx.cuentaAudit.create({ data: {
+            actorId: user.id, actor: user.username, entidad: 'USUARIO', entidadId: user.id,
+            accion: 'CAMBIAR_CLAVE_PROPIA', cambios: { passwordChanged: true }, requestId: requestId || null,
+          } })
+          return { ok: true }
+        }, { isolationLevel: 'Serializable' })
+      } catch (error) {
+        if (error.code === 'P2034') return { ok: false, status: 409, code: 'PASSWORD_CONFLICT' }
+        throw error
+      }
     },
   }
 }
