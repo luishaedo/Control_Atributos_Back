@@ -2,6 +2,18 @@
 
 ## Decisiones técnicas de esta entrega
 
+- D-T-ACCOUNTS-06 (03/10/2026): verificar la sucursal activa dentro de la misma transacción Serializable que crea al operador y ejecutar también la desactivación en Serializable. Informar `P2034` como `409` sin reintento automático. Una creación que se confirma antes de una desactivación puede conservar el registro del operador; la autenticación bloquea el ingreso mientras la sucursal esté inactiva. No se promete que una sucursal inactiva no tenga operadores asignados.
+
+- D-T-ACCOUNTS-05 (03/10/2026): `Usuario.mustChangePassword` comienza en `false` para preservar cuentas existentes. La creación o el restablecimiento por ADMIN lo fija en `true`. En rutas autenticadas, la sesión marcada solo permite consultar la sesión, cerrar sesión, verificar conectividad y cambiar la contraseña propia; al hacerlo se limpia la marca, se revocan todas sus sesiones y se exige un nuevo ingreso. La API aplica el bloqueo aunque se omita el modal del cliente; las lecturas públicas conservan su contrato actual.
+
+- D-T-ACCOUNTS-04 (03/10/2026): el cambio de contraseña propia requiere sesión individual y clave actual; la nueva clave tiene al menos ocho caracteres y debe ser distinta. Hash, revocación de todas las sesiones y evento de auditoría se confirman en una transacción Serializable; se borra la cookie tras éxito. El token bootstrap sin sesión individual no puede usar esta ruta. Un conflicto concurrente se informa como 409 sin reintento automático.
+
+- D-T-ACCOUNTS-03 (03/10/2026): persistir eventos de administración de usuarios y sucursales en `CuentaAudit` dentro de la misma transacción de la mutación. Guardar actor de sesión, entidad, acción, cambios permitidos, request ID y fecha; el restablecimiento de contraseña registra solo `passwordReset: true`, nunca contraseña, hash o token. La API de lectura requiere `ADMIN` y devuelve los últimos 50 eventos. Sin política de retención aprobada, no se borra historial automáticamente.
+
+- D-T-ACCOUNTS-02 (03/10/2026): comprobar la permanencia de un `ADMIN` activo dentro de una transacción Prisma `Serializable` cuando se le desactiva o cambia de rol. Un conflicto concurrente `P2034` se devuelve como 409 sin reintento automático. Los cambios efectivos de rol, estado, sucursal o contraseña actualizan usuario y revocan sus sesiones en la misma transacción; desactivar una sucursal revoca las sesiones de sus usuarios. Una edición de nombre no revoca. No se guardan contraseñas ni tokens en la respuesta o documentación.
+
+- D-T-ACCOUNTS-01 (03/10/2026): extender la API de identidad R2.1 y el panel React existentes, sin nueva tabla en la primera entrega. El restablecimiento manual por ADMIN reutiliza la actualización protegida de usuario, con revocación de sesiones tras la escritura confirmada. La recuperación autónoma y las contraseñas temporales requieren definir el canal y la política antes de implementarse.
+
 - D-T-UX-02 (03/10/2026): mantener React/React-Bootstrap y cargar Bootstrap desde la dependencia local antes de `src/styles.css` para hacer reproducible el estilo sin CDN. Aplicar tokens y reglas responsive compartidas; tablas anchas con desplazamiento dentro de su tarjeta, acciones que envuelven y navegación visible a 360 px. La confirmación visual previa al cierre no cambia el contrato de cierre ni sustituye la idempotencia del backend. El cambio fue publicado por PR frontend #53 tras validación local; no incluye cambios de lógica backend ni migraciones.
 
 - D-T-IMPORT-01 (03/10/2026): las importaciones de diccionarios y maestro escriben con `INSERT ... ON CONFLICT DO UPDATE` parametrizado, en lotes de hasta 500 filas y una transacción Serializable por archivo. La transacción interactiva dispone de 120 s y espera de conexión de hasta 10 s; el volumen de consultas deja de depender de cada fila. La validación y el reporte de omisiones ocurren antes de escribir. No se amplía el formato SKU aprobado en D-B01 ni se completan códigos vacíos por inferencia.
@@ -27,6 +39,12 @@
 - D-T15 (02/10/2026, R5.2): el restore operativo se ensaya siempre contra una DB/rama aislada antes de tocar producción. El runner rechaza origen/destino iguales y destinos que no declaren ser de restore/staging/test/validation/isolated/r52/drill. Rollback de datos no es automático: se prefiere reversión compensatoria o forward-fix; restore productivo completo requiere aceptar pérdida desde el backup elegido. Objetivos iniciales para piloto: RPO 24 h normal, backup previo a importaciones/cierres/migraciones y RTO 4 h.
 
 ## Decisiones de negocio aprobadas
+
+- D-B09 (03/10/2026, indicada por el usuario): avanzar con administración de cuentas sin limitar intentos de ingreso o cambio de contraseña en esta entrega. No agregar bloqueo de cuenta ni rate limit como condición de salida de ACCOUNTS-03/04.
+
+- D-B08 (03/10/2026, aprobada por el usuario): una contraseña creada o restablecida por un ADMIN debe cambiarse en el primer ingreso antes de usar la aplicación.
+
+- D-B07 (03/10/2026, aprobada por el usuario): si una persona olvidó su contraseña, un ADMIN la restablece desde Cuentas. No se implementa recuperación autónoma por correo ni otro canal. El usuario sí puede cambiar su propia contraseña cuando conoce la actual.
 
 - D-B01 (30/09/2026, aprobada por el usuario): el primer `#` o `$` separa el sufijo de etiqueta del SKU base y debe informarse al operador. La base se normaliza a mayúsculas y es alfanumérica. Los códigos admiten uno o dos dígitos y cero inicial canónico; todo formato distinto o código fuera de su diccionario se rechaza sin quitar caracteres ni truncar. Mantener el valor crudo para auditoría donde el modelo lo permite.
 - D-B02 (30/09/2026, aprobada por el usuario): aceptar registra una propuesta; confirmar la habilita; cerrar aplica atómicamente solo decisiones vigentes confirmadas. Rechazos y anulaciones se preservan. Una reversión es una nueva decisión compensatoria trazable y nunca reescribe ni borra el evento original.

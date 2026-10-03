@@ -13,6 +13,7 @@ El avance actual vive en STATUS.md. La auditoría inicial del workspace enumera 
 | R1.3 | Aplicación por atributo y conflictos | R0.1 + DB de test | Tres atributos se conservan en todo orden; cambios concurrentes detectados; decisión vigente única. F02. |
 | R1.4 | Estados, cierre, snapshot y reversión | R1.2/R1.3 + D-B02/B03 | Cierre único, atómico y solo confirmado; rechazo preservado; reversión trazable; GET sin escritura. F03/F04/F08/H05/H09/H10. |
 | R2.1 | Usuarios, sucursales y sesiones | R0.1 + D-B04 | Actor verificado, permisos por rol, logout/revocación, manejo 401, protección de mutaciones. F07/F10/H06/H07. |
+| ACCOUNTS-01..08 | Administración de cuentas | R2.1 + D-B04 | Panel para sucursales, usuarios, roles, estado y contraseñas; integridad y auditoría; recuperación; formularios, validación de actualizaciones y carrera entre alta de operador y desactivación de sucursal; validación operativa. Detalle en `ACCOUNTS_PLAN.md`. |
 | R3.1 | Importación validada y recuperable | R1.1 + D-B05 | CSV/JSON equivalentes, prevalidación, atomicidad/lotes explícitos y round-trip. F05/F09. |
 | R3.2 | Exportación final y conciliación | R1.4/R3.1 + D-B05 | TXT idénticos al estado final, pendientes diferenciados, descargas repetibles por cierre. F13/H08/H09. |
 | R3.3 | Consenso y métricas | R1.4 + D-B06 | Unidades comparables, máximo 100%, conflictos 1 contra 1, conteos por SKU/atributo definidos. F11/F12/H17. |

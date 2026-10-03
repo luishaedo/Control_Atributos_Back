@@ -1,5 +1,83 @@
 # Historial de entregas
 
+## 03/10/2026 — ACCOUNTS-08, carrera entre alta de operador y desactivación de sucursal
+
+La API verifica la sucursal activa dentro de la transacción Serializable que crea al operador. La desactivación de sucursal también usa Serializable; un conflicto de serialización devuelve `409` sin repetir la escritura. Una desactivación posterior puede dejar un operador asignado a la sucursal inactiva, pero el ingreso consulta el estado vigente y lo bloquea. Archivos: `src/controllers/usuarios.controller.js`, `test/{accounts,accounts.postgres}.test.js`, `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG,DECISIONS}.md`.
+
+Validación local: `npm.cmd test` con PostgreSQL 16 aislado en `127.0.0.1:55440/accounts_isolated`: 99 PASS/4 SKIP, incluida una carrera controlada; fixtures finales 0 usuarios/0 sucursales/0 sesiones/0 auditorías; clúster detenido y eliminado. `git diff --check` sin errores. Commit `22993a7` publicado en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32), CI 1/1 PASS. Sin cambios de esquema, migraciones nuevas, DB remota, staging ni producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge.
+
+## 03/10/2026 — ACCOUNTS-07, validación de actualizaciones en el servidor
+
+La API de Cuentas ahora rechaza con `400` un nombre de usuario vacío, o un nombre/código de sucursal vacío, cuando esos campos aparecen en una actualización. La comprobación ocurre antes de iniciar la transacción: no se guarda ni audita ese intento. El frontend ya rechaza nombres vacíos, pero esta regla también protege llamadas directas a la API. Archivos: `src/controllers/usuarios.controller.js`, `test/accounts.test.js`, `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
+
+Validación local: `npm.cmd test` 92 PASS/8 SKIP; la prueba nueva confirma tres rechazos `400` y cero transacciones. Las 8 integraciones omitidas requieren PostgreSQL aislado, que no se activó en esta corrida. Commit `ff34e0f` publicado en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32); CI PASS. Sin cambio de esquema, migraciones, DB remota, staging ni producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge.
+
+## 03/10/2026 — ACCOUNTS-06, edición de nombres en el panel
+
+La edición del nombre de sucursales y usuarios ahora usa formularios dentro de Cuentas, en lugar de `window.prompt`. Permiten revisar el valor, cancelar sin petición y rechazar nombres compuestos solo por espacios; el valor válido se recorta antes de enviarse. Si la API rechaza el cambio, el formulario permanece abierto para corregirlo. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
+
+Validación local: `npm.cmd test -- --run` 24/24 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas, build con `VITE_API_URL=http://localhost:3000` PASS. Frontend commit `b5ac0c5` publicado en [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54); documentación backend `70571e9` publicada en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32); CI de ambos PASS. Sin cambio de API ni esquema, DB remota, migraciones, staging o producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge de los PRs de Cuentas.
+
+## 03/10/2026 — ACCOUNTS-05, confirmación de claves del administrador
+
+El panel ADMIN exige repetir la contraseña al crear una cuenta y al restablecerla. Una discrepancia muestra error sin enviar la petición; el campo de confirmación no se incluye en el payload y se limpia tras guardar o cancelar el restablecimiento. No cambia el contrato del backend ni la regla aprobada de cambio obligatorio en el primer ingreso. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
+
+Validación local: `npm.cmd test -- --run` 21/21 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas y build con `VITE_API_URL=http://localhost:3000` PASS. La primera corrida de tests falló por una selección ambigua del campo «Nombre» en el test; se corrigió el selector y la suite completa pasó. Frontend commit `0976df1` publicado en [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54); documentación backend commit `888d38f` publicado en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32). CI frontend de `0976df1` y backend de `888d38f` PASS. Sin DB remota, migraciones, staging ni producción. Los PRs de Cuentas siguen en borrador hasta la validación ACCOUNTS-04.
+
+## 03/10/2026 — ACCOUNTS-04-QA-LOCAL, confirmación de desactivaciones
+
+Mientras el usuario rota la credencial aislada de staging, se revisó localmente el panel de Cuentas. Desactivar un usuario o una sucursal ahora solicita confirmación y avisa que se cerrarán las sesiones afectadas; cancelar no envía la mutación. Reactivar mantiene la acción directa. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{STATUS,CHANGELOG}.md`.
+
+Validación: frontend `npm.cmd test -- --run` 18/18 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas, build con `VITE_API_URL=http://localhost:3000` PASS; `git diff --check` sin errores. La primera ejecución de Vitest/Vite en sandbox falló por acceso denegado al directorio raíz; ambas verificaciones pasaron al repetirlas con permiso de ejecución ampliado. Frontend commit `c4aa3a2` publicado en [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54); documentación backend `e61b8a6` publicada en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32). CI de estos commits todavía sin confirmar. Sin DB remota, migraciones, staging ni producción. Próximo: validar ACCOUNTS-04 en staging tras la rotación.
+
+## 03/10/2026 — ACCOUNTS-04, ramas publicadas y PRs borrador
+
+Con autorización explícita del usuario se publicaron las ramas `feat/accounts-administration`: backend `8e9996e6760dba9b2f78cb9f634cdd1ce85a3017`, [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32); frontend `db24acf8d70929d1e06b0c9f8f0f56e7434b9f52`, [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54). Ambos PRs quedan en borrador; CI backend y frontend PASS. `main` y producción permanecen intactos.
+
+Antes del deploy de staging se solicitó al usuario rotar la credencial de la base Neon aislada y actualizar `DATABASE_URL` en Render sin compartir secretos, de acuerdo con la guía `computer-use` para cambios de credenciales en UI. El servicio Render sigue en la rama/commit anterior. Sin migraciones remotas, deploy ni pruebas de navegador desplegado. Próximo: verificar la rotación y destino, desplegar sólo staging y ejecutar ACCOUNTS-04.
+
+## 03/10/2026 — ACCOUNTS-04, revisión preparada para staging
+
+Se crearon ramas locales `feat/accounts-administration` y commits backend `8e9996e6760dba9b2f78cb9f634cdd1ce85a3017` y frontend `db24acf8d70929d1e06b0c9f8f0f56e7434b9f52`. Verificación previa: Prisma válido; backend `npm test` 91 PASS/8 SKIP sin base aislada en esta corrida (ensayo previo 95 PASS/4 SKIP con PostgreSQL); frontend lint 0 errores/38 advertencias existentes, tests 17/17 PASS, build PASS. Se comprobó en Render que el staging sigue en `r13-atributos-staging`/`594ce7a`, con despliegue manual y `npm run start` que ejecuta migraciones. La base configurada es la aislada `r02_prisma_validation`.
+
+La revisión automática rechazó dos intentos de publicar la rama backend en GitHub público y exigió autorización explícita para ese destino; se solicitó. No se intentó otro canal de publicación. Durante la verificación de destino, la interfaz de Render expuso accidentalmente la credencial de staging en la salida de la herramienta; no se guardó en archivos ni se conectó con ella. Se recomienda rotarla antes de desplegar. Sin push, PR, migraciones remotas, deploy ni cambios productivos. `ACCOUNTS04_VALIDATION.md` registra el detalle y los pasos pendientes.
+
+## 03/10/2026 — ACCOUNTS-04, ensayo operativo local previo a staging
+
+Por D-B09 el usuario indicó avanzar sin límite de intentos; ACCOUNTS-03 se considera completo localmente con ese alcance. Se agregó a `test/accounts.postgres.test.js` un circuito HTTP real con PostgreSQL aislado: creación de sucursal y operador, cookie y CORS, cambio obligatorio y restablecimiento, rechazo de contraseña vieja, roles y permisos, revocación por estado/sucursal, reactivación, expiración, último ADMIN y auditoría sin claves. `docs/development/ACCOUNTS04_VALIDATION.md` contiene resultados y guía para validar en staging y preparar siete sucursales. Se actualizaron `ACCOUNTS_PLAN.md`, `DECISIONS.md` y `STATUS.md`.
+
+Validación: 12 migraciones aplicadas sólo al clúster PostgreSQL 16 temporal; backend `npm test` 95 PASS/4 SKIP. Fixtures finales 0 usuarios/0 sucursales/0 sesiones/0 eventos; clúster detenido y eliminado. No se modificó frontend en esta entrega; sus pruebas 17/17, lint sin errores y build PASS corresponden a la entrega anterior. ACCOUNTS-04 todavía no está validado en staging: código local sin commit/publicación ni prueba de navegador desplegado. Sin cambios remotos ni despliegue. Próximo: publicar revisión controlada en staging tras verificar base de destino y ejecutar la guía; producción queda pendiente.
+
+## 03/10/2026 — ACCOUNTS-03, rotación obligatoria al primer ingreso
+
+El usuario aprobó D-B08. La creación y el restablecimiento de contraseña por ADMIN marcan la cuenta para cambiarla al iniciar sesión. El servidor bloquea las demás operaciones autenticadas hasta que la persona cambia su clave actual; el modal se abre automáticamente y no permite continuar sin completar el cambio. La operación limpia la marca, revoca todas las sesiones y requiere volver a ingresar. La migración `20261003020000_accounts_password_rotation` agrega `mustChangePassword` con valor inicial `false` para cuentas existentes. Se actualizaron esquema, servicios, controladores, middleware, rutas, auditoría, componentes y tests de backend/frontend.
+
+Validación local: 12 migraciones aplicadas en PostgreSQL 16 aislado, esquema al día y fixtures finales 0 usuarios/0 sesiones/0 eventos; clúster detenido y eliminado. Backend `npm test` 94 PASS/4 SKIP, incluyendo cambio propio transaccional; frontend lint 0 errores/38 warnings previos, tests 17/17 PASS y build PASS con URL local. Sin migración remota, commit, PR ni despliegue. ACCOUNTS-03 queda parcial por límite de intentos; staging pendiente.
+
+## 03/10/2026 — ACCOUNTS-03, cambio de contraseña propia local
+
+El usuario aprobó D-B07: la contraseña olvidada la restablece un ADMIN desde Cuentas; no habrá recuperación por correo. Se agregó POST `/api/session/password` para usuarios con sesión individual: verifica clave actual, exige nueva clave distinta de al menos ocho caracteres, cambia hash, revoca todas las sesiones y escribe `CAMBIAR_CLAVE_PROPIA` en `CuentaAudit` dentro de una transacción Serializable. Devuelve 409 ante conflicto sin reintento, borra la cookie al terminar y rechaza el token bootstrap. La barra superior de Home/Admin abre un formulario con confirmación; tras éxito solicita volver a ingresar. Archivos: backend `src/services/identity.service.js`, `src/controllers/session.controller.js`, `src/routes/public.routes.js`, `test/http.test.js`, `test/accounts.postgres.test.js`; frontend `src/services/sessionApi.js`, `src/components/Topbar.jsx`, `src/components/ChangePasswordModal.jsx` y test, `src/pages/admin/modules/Accounts/AccountsPanel.jsx`.
+
+Validación: backend `npm test` 93 PASS/4 SKIP, incluyendo PostgreSQL 16 aislado para clave incorrecta sin escritura, rollback de clave/sesiones por falla de auditoría y cambio exitoso. Frontend lint 0 errores/38 warnings previos, tests 16/16 PASS, build PASS con URL local. Fixtures finales 0 usuarios/0 sesiones/0 eventos; clúster local detenido y eliminado. Sin DB remota, commit, PR ni despliegue. ACCOUNTS-03 sigue parcial por política de rotación inicial y límites de intentos; staging ACCOUNTS-01/02/03 pendiente.
+
+## 03/10/2026 — ACCOUNTS-02 completada localmente y validada con PostgreSQL aislado
+
+Se agregó `CuentaAudit` y la migración `20261003010000_accounts_audit`. Altas/cambios de usuario y sucursal escriben un evento en la misma transacción; un reset de contraseña registra solo una marca, sin clave ni hash. Nuevo GET `/api/admin/cuentas/auditoria` exclusivo para ADMIN, limitado a 50 eventos, y tarjeta de actividad en la pestaña Cuentas. Archivos: backend `prisma/schema.prisma`, migración, `src/controllers/usuarios.controller.js`, `src/routes/admin.routes.js`, `test/accounts.test.js`, `test/accounts.postgres.test.js`, `test/http.test.js`; frontend `src/services/adminApi.js`, `src/pages/admin/modules/Accounts/AccountsPanel.jsx` y su test.
+
+Validación: PostgreSQL 16 nuevo en 127.0.0.1:55440/accounts_isolated, once migraciones aplicadas y `prisma migrate status` al día. Carrera real entre dos administradores: un 200, un 409, queda un ADMIN activo y un evento. Falla forzada al escribir auditoría revierte hash y revocación; éxito registra `passwordReset: true` sin datos sensibles. Fixtures finales: 0 usuarios, 0 sesiones, 0 eventos; clúster detenido y directorio temporal eliminado. Backend `npm test`: 90 PASS/4 SKIP. Frontend lint 0 errores/38 advertencias previas, tests 14/14 PASS, build PASS con URL local. El panel distingue cambio guardado de falla al recargar cuando la sesión propia fue revocada. Sin acceso a DB remota, commit, PR ni deploy. Pendientes: staging de ACCOUNTS-01/02, política de retención y decisiones de ACCOUNTS-03.
+
+## 03/10/2026 — ACCOUNTS-02, integridad de administradores y sesiones (avance local)
+
+Se reforzó `src/controllers/usuarios.controller.js`: desactivar o degradar al último ADMIN activo devuelve 409; la comprobación y escritura usan transacción Serializable, y un conflicto concurrente P2034 se informa sin retry automático. Cambiar rol, estado, sucursal o contraseña revoca las sesiones de la cuenta en la misma transacción. Desactivar una sucursal revoca sesiones de sus usuarios; crear/activar un operador exige sucursal activa. Los cambios de nombre no cierran sesiones. Se añadieron pruebas con dobles en `test/accounts.test.js` y una prueba HTTP en `test/http.test.js`.
+
+Validación: backend `npm test` 86 PASS/4 SKIP; `npx prisma validate` OK; `git diff --check` OK. No se usaron DB remotas, migraciones, seed ni datos reales. Sin commit, PR o despliegue. Falta prueba de concurrencia real con PostgreSQL aislado y auditoría de cambios de cuenta sin secretos para completar ACCOUNTS-02; staging/producción no validados.
+
+# 03/10/2026 — ACCOUNTS-01, administración de cuentas local
+
+Se agregó `ACCOUNTS_PLAN.md` y el tramo ACCOUNTS-01..04 al roadmap. La primera entrega incorpora una pestaña Cuentas en el panel admin para listar/crear/editar sucursales y usuarios, asignar rol/sucursal, activar/desactivar y restablecer contraseña manualmente. El backend incluye `activo` en la representación pública de usuario y actualiza hash + revoca sesiones en una transacción al restablecer la clave; no devuelve contraseñas. Archivos de código: backend `src/controllers/usuarios.controller.js`, `src/services/identity.service.js`, `test/accounts.test.js`; frontend `src/pages/admin/AdminPage.jsx`, `src/pages/admin/modules/Accounts/AccountsPanel.jsx`, `AccountsPanel.test.jsx`, `src/services/adminApi.js`.
+
+Validación: backend `npm test` 79 PASS/4 SKIP; frontend `npm run lint` 0 errores/38 advertencias previas, `npm test` 12/12 PASS, `npm run build` PASS con `VITE_API_URL` local. No se usó DB real, seed, migración ni servicios remotos. Sin commit, PR o despliegue. Límite: todavía faltan reglas server-side para preservar un administrador activo y revocar sesiones al cambiar rol/estado, además de PostgreSQL aislado, staging y decisiones de recuperación/autoservicio. Próximo paso ACCOUNTS-02; no habilitar esta pantalla para operación productiva hasta cerrar esos puntos.
+
 ## 03/10/2026 — UX-UI-02: limpieza visual y controles responsive publicada
 
 Publicación posterior: frontend PR #53 `Polish responsive UX and admin layout` fue creado desde `ux-ui-professional-polish` y mergeado a `main` con squash `985732cc01333ec98e1937f656044017bcc6eab1`. Vercel responde 200 en `https://stockeador-client-1nll.vercel.app/` y sirve los assets generados por el build local: `/assets/index-CTQBiy8p.js` y `/assets/index-DxRY2PGW.css`. No hubo cambios backend, migraciones ni operaciones de datos. Queda pendiente QA autenticada completa con usuario real en Revisiones/Admin.
