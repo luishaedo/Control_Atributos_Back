@@ -4,7 +4,7 @@
 
 La API de Cuentas ahora rechaza con `400` un nombre de usuario vacío, o un nombre/código de sucursal vacío, cuando esos campos aparecen en una actualización. La comprobación ocurre antes de iniciar la transacción: no se guarda ni audita ese intento. El frontend ya rechaza nombres vacíos, pero esta regla también protege llamadas directas a la API. Archivos: `src/controllers/usuarios.controller.js`, `test/accounts.test.js`, `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
 
-Validación local: `npm.cmd test` 92 PASS/8 SKIP; la prueba nueva confirma tres rechazos `400` y cero transacciones. Las 8 integraciones omitidas requieren PostgreSQL aislado, que no se activó en esta corrida. Sin cambio de esquema, migraciones, DB remota, staging ni producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge.
+Validación local: `npm.cmd test` 92 PASS/8 SKIP; la prueba nueva confirma tres rechazos `400` y cero transacciones. Las 8 integraciones omitidas requieren PostgreSQL aislado, que no se activó en esta corrida. Commit `ff34e0f` publicado en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32); CI PASS. Sin cambio de esquema, migraciones, DB remota, staging ni producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge.
 
 ## 03/10/2026 — ACCOUNTS-06, edición de nombres en el panel
 
