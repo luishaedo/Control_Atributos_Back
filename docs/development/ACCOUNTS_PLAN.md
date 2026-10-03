@@ -11,6 +11,7 @@ Fecha: 03/10/2026. Extensión de R2.1 y D-B04. El backend ya expone CRUD parcial
 | ACCOUNTS-03 | Cambio de contraseña propia con clave actual y restablecimiento por ADMIN si se olvidó (D-B07). Rotación obligatoria al primer ingreso (D-B08). | Cambio propio revoca sesiones y audita sin secretos; administrador puede restablecer y exige cambio posterior. D-B09 excluye el límite de intentos de esta entrega. |
 | ACCOUNTS-04 | Validación operativa: pruebas en staging con cuentas ficticias y roles, cookies entre frontend/backend, sesión expirada, desactivación y recuperación; guía para siete sucursales. | Evidencia de staging y aprobación operativa antes de producción. |
 | ACCOUNTS-05 | Confirmación de contraseña inicial y restablecida en el panel ADMIN. | Una discrepancia impide el envío; la confirmación se limpia y no viaja a la API; pruebas de ambos flujos. |
+| ACCOUNTS-06 | Edición de nombres de sucursal y usuario mediante formularios dentro del panel. | Sin `window.prompt`; cancelar no escribe; valores vacíos se rechazan y nombres válidos se recortan antes de enviar; pruebas de interfaz. |
 
 ## Decisiones de producto pendientes
 
@@ -32,5 +33,7 @@ ACCOUNTS-02 completada localmente y validada en PostgreSQL 16 aislado el 03/10/2
 Avance ACCOUNTS-03 (03/10/2026): cambio propio y rotación obligatoria de clave inicial/restablecida implementados y validados con PostgreSQL aislado; restablecimiento por ADMIN disponible localmente desde ACCOUNTS-01. D-B09 quita el límite de intentos del alcance. ACCOUNTS-04 está en ensayo local; staging y aprobación operativa pendientes. No desplegado.
 
 ACCOUNTS-05 (03/10/2026): confirmación local de contraseñas iniciales y restablecidas implementada y cubierta por tests de interfaz. No cambia la API ni exige migraciones. La validación de ACCOUNTS-04 en staging sigue pendiente de la rotación de credencial aislada.
+
+ACCOUNTS-06 (03/10/2026): edición de nombres con formularios locales, cancelación y validación de espacios en blanco implementadas y cubiertas por tests. No cambia la API ni exige migraciones. ACCOUNTS-04 en staging sigue pendiente.
 
 No ejecutar migraciones, seed, reset ni cambios en bases remotas para estas entregas locales.

@@ -1,5 +1,11 @@
 # Historial de entregas
 
+## 03/10/2026 — ACCOUNTS-06, edición de nombres en el panel
+
+La edición del nombre de sucursales y usuarios ahora usa formularios dentro de Cuentas, en lugar de `window.prompt`. Permiten revisar el valor, cancelar sin petición y rechazar nombres compuestos solo por espacios; el valor válido se recorta antes de enviarse. Si la API rechaza el cambio, el formulario permanece abierto para corregirlo. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
+
+Validación local: `npm.cmd test -- --run` 24/24 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas, build con `VITE_API_URL=http://localhost:3000` PASS. Sin cambio de API ni esquema, DB remota, migraciones, staging o producción. ACCOUNTS-04 sigue pendiente de validación en staging antes del merge de los PRs de Cuentas.
+
 ## 03/10/2026 — ACCOUNTS-05, confirmación de claves del administrador
 
 El panel ADMIN exige repetir la contraseña al crear una cuenta y al restablecerla. Una discrepancia muestra error sin enviar la petición; el campo de confirmación no se incluye en el payload y se limpia tras guardar o cancelar el restablecimiento. No cambia el contrato del backend ni la regla aprobada de cambio obligatorio en el primer ingreso. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{ROADMAP,ACCOUNTS_PLAN,STATUS,CHANGELOG}.md`.
