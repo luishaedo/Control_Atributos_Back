@@ -132,13 +132,51 @@ test('ACCOUNTS-07 rejects empty account and branch fields before writing', async
 test('ACCOUNTS-02 does not create an operator for an inactive branch', async () => {
   let created = false
   const prisma = {
-    sucursal: { findUnique: async () => ({ activa: false }) },
-    usuario: { create: async () => { created = true } },
+    $transaction: async (callback, options) => {
+      assert.equal(options.isolationLevel, 'Serializable')
+      return callback({
+        sucursal: { findUnique: async () => ({ activa: false }) },
+        usuario: { create: async () => { created = true } },
+      })
+    },
   }
   const res = response()
   await UsuariosController(prisma).createUsuario({ body: { username: 'operador', nombre: 'Operador', rol: 'OPERADOR', sucursalId: 's1', password: 'claveNueva123' } }, res)
   assert.equal(res.statusCode, 409)
   assert.equal(created, false)
+})
+
+test('ACCOUNTS-08 checks the branch inside the user creation transaction', async () => {
+  const events = []
+  const prisma = {
+    sucursal: { findUnique: async () => { throw new Error('outside transaction') } },
+    $transaction: async (callback, options) => {
+      assert.equal(options.isolationLevel, 'Serializable')
+      return callback({
+        sucursal: { findUnique: async () => { events.push('branch checked'); return { activa: true } } },
+        usuario: { create: async ({ data }) => { events.push('user created'); return { id: 'u2', ...data, activo: true, sucursal: null } } },
+        cuentaAudit: { create: async () => { events.push('audit recorded') } },
+      })
+    },
+  }
+  const res = response()
+  await UsuariosController(prisma).createUsuario(request({ username: 'nuevo', nombre: 'Nuevo', rol: 'OPERADOR', sucursalId: 's1', password: 'claveNueva123' }), res)
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(events, ['branch checked', 'user created', 'audit recorded'])
+})
+
+test('ACCOUNTS-08 reports concurrent branch changes without retrying account writes', async () => {
+  let calls = 0
+  const prisma = { $transaction: async () => { calls++; throw Object.assign(new Error('conflict'), { code: 'P2034' }) } }
+  for (const [action, body] of [
+    ['createUsuario', { username: 'nuevo', nombre: 'Nuevo', rol: 'OPERADOR', sucursalId: 's1', password: 'claveNueva123' }],
+    ['updateSucursal', { activa: false }],
+  ]) {
+    const res = response()
+    await UsuariosController(prisma)[action](request(body, 's1'), res)
+    assert.equal(res.statusCode, 409)
+  }
+  assert.equal(calls, 2)
 })
 
 test('ACCOUNTS-02 reports serializable conflict without automatic retry', async () => {
@@ -152,11 +190,13 @@ test('ACCOUNTS-02 reports serializable conflict without automatic retry', async 
 
 test('ACCOUNTS-02 disabling a branch revokes its sessions', async () => {
   const events = []
-  const prisma = { $transaction: async (callback) => callback({
+  const prisma = { $transaction: async (callback, options) => {
+    assert.equal(options.isolationLevel, 'Serializable')
+    return callback({
     sucursal: { findUnique: async () => ({ codigo: 'CENTRO', nombre: 'Centro', activa: true }), update: async () => { events.push('branch disabled'); return { id: 's1', codigo: 'CENTRO', nombre: 'Centro', activa: false } } },
     sesion: { updateMany: async ({ where }) => { assert.equal(where.usuario.is.sucursalId, 's1'); events.push('sessions revoked') } },
     cuentaAudit: { create: async ({ data }) => { assert.deepEqual(data.cambios.activa, { anterior: true, nuevo: false }); events.push('audit recorded') } },
-  }) }
+  }) } }
   const res = response()
   await UsuariosController(prisma).updateSucursal(request({ activa: false }, 's1'), res)
   assert.equal(res.statusCode, 200)

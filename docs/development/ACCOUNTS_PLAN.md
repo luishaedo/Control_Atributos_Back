@@ -13,6 +13,7 @@ Fecha: 03/10/2026. Extensión de R2.1 y D-B04. El backend ya expone CRUD parcial
 | ACCOUNTS-05 | Confirmación de contraseña inicial y restablecida en el panel ADMIN. | Una discrepancia impide el envío; la confirmación se limpia y no viaja a la API; pruebas de ambos flujos. |
 | ACCOUNTS-06 | Edición de nombres de sucursal y usuario mediante formularios dentro del panel. | Sin `window.prompt`; cancelar no escribe; valores vacíos se rechazan y nombres válidos se recortan antes de enviar; pruebas de interfaz. |
 | ACCOUNTS-07 | Validación del servidor al actualizar nombres y código de sucursal. | Un valor presente pero vacío tras recortar espacios devuelve `400` antes de abrir una transacción; no se escribe ni se audita. |
+| ACCOUNTS-08 | Coordinar alta de operador y desactivación de sucursal bajo concurrencia. | Comprobación de sucursal activa dentro de la transacción Serializable del alta; desactivación Serializable; `P2034` devuelve `409` sin reintento; prueba de carrera en PostgreSQL aislado y acceso denegado al operador si la sucursal queda inactiva. |
 
 ## Decisiones de producto pendientes
 
@@ -38,5 +39,7 @@ ACCOUNTS-05 (03/10/2026): confirmación local de contraseñas iniciales y restab
 ACCOUNTS-06 (03/10/2026): edición de nombres con formularios locales, cancelación y validación de espacios en blanco implementadas y cubiertas por tests. No cambia la API ni exige migraciones. ACCOUNTS-04 en staging sigue pendiente.
 
 ACCOUNTS-07 (03/10/2026): validación de campos vacíos al actualizar usuario o sucursal implementada en la API y cubierta por pruebas con doble en memoria. No cambia el esquema ni requiere migraciones. ACCOUNTS-04 en staging sigue pendiente.
+
+ACCOUNTS-08 (03/10/2026): alta de operador y desactivación de sucursal coordinadas con transacciones Serializable. El alta verifica el estado de la sucursal dentro de su transacción; los conflictos devuelven `409` sin reintento. La carrera y el bloqueo de ingreso con sucursal inactiva pasaron en PostgreSQL local aislado. Según el orden de confirmación, un operador puede quedar creado antes de una desactivación posterior; la autenticación consulta el estado actual y le impide ingresar. No cambia el esquema ni requiere migraciones nuevas. ACCOUNTS-04 en staging sigue pendiente.
 
 No ejecutar migraciones, seed, reset ni cambios en bases remotas para estas entregas locales.

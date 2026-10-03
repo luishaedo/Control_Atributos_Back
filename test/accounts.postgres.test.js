@@ -69,6 +69,64 @@ test('ACCOUNTS-02 PostgreSQL aislado: dos administradores no pueden degradarse a
   assert.equal(await db.cuentaAudit.count({ where: { entidad: 'USUARIO', entidadId: { in: ids } } }), 1)
 })
 
+test('ACCOUNTS-08 PostgreSQL aislado: desactivar una sucursal durante el alta bloquea el ingreso', { skip: !url }, async (t) => {
+  const parsed = new URL(url)
+  assert.equal(parsed.hostname, '127.0.0.1')
+  assert.equal(parsed.port, '55440')
+  assert.equal(parsed.pathname, '/accounts_isolated')
+  assert.equal(parsed.username, 'accountstest')
+  const db = new PrismaClient({ datasources: { db: { url } } })
+  const unique = randomUUID().replaceAll('-', '').slice(0, 14)
+  const branch = await db.sucursal.create({ data: { codigo: `T${unique.slice(0, 8)}`, nombre: 'Sucursal concurrente' } })
+  const username = `operator${unique}`
+  t.after(async () => {
+    const user = await db.usuario.findUnique({ where: { username } })
+    await db.cuentaAudit.deleteMany({ where: { entidad: 'SUCURSAL', entidadId: branch.id } })
+    if (user) {
+      await db.cuentaAudit.deleteMany({ where: { entidad: 'USUARIO', entidadId: user.id } })
+      await db.sesion.deleteMany({ where: { usuarioId: user.id } })
+      await db.usuario.delete({ where: { id: user.id } })
+    }
+    await db.sucursal.delete({ where: { id: branch.id } })
+    await db.$disconnect()
+  })
+  let branchRead
+  const read = new Promise((resolve) => { branchRead = resolve })
+  let proceed
+  const gate = new Promise((resolve) => { proceed = resolve })
+  const gated = {
+    $transaction: (callback, options) => db.$transaction((tx) => callback(new Proxy(tx, { get(target, key) {
+      if (key !== 'sucursal') return target[key]
+      return new Proxy(target.sucursal, { get(delegate, method) {
+        if (method !== 'findUnique') return delegate[method]
+        return async (args) => { const result = await delegate.findUnique(args); branchRead(); await gate; return result }
+      } })
+    } })), { ...options, timeout: 10000 }),
+  }
+  const createResult = response()
+  const creation = UsuariosController(gated).createUsuario({
+    body: { username, nombre: 'Operador', rol: 'OPERADOR', sucursalId: branch.id, password: 'claveNueva123' },
+    auth: { user: { id: 'test-admin', username: 'test-admin' } },
+  }, createResult)
+  await read
+  const disableResult = response()
+  try {
+    await UsuariosController(db).updateSucursal({
+      params: { id: branch.id }, body: { activa: false },
+      auth: { user: { id: 'test-admin', username: 'test-admin' } },
+    }, disableResult)
+  } finally {
+    proceed()
+  }
+  await creation
+  assert.equal(disableResult.statusCode, 200)
+  assert.equal((await db.sucursal.findUnique({ where: { id: branch.id } })).activa, false)
+  assert.ok([200, 409].includes(createResult.statusCode))
+  if (createResult.statusCode === 200) {
+    assert.equal((await IdentityService(db).login({ username, password: 'claveNueva123' })).code, 'BRANCH_DISABLED')
+  }
+})
+
 test('ACCOUNTS-02 PostgreSQL aislado: auditoría y revocación son atómicas y no guardan claves', { skip: !url }, async (t) => {
   const parsed = new URL(url)
   assert.equal(parsed.hostname, '127.0.0.1')

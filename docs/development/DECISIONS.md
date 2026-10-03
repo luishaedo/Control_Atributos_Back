@@ -2,6 +2,8 @@
 
 ## Decisiones técnicas de esta entrega
 
+- D-T-ACCOUNTS-06 (03/10/2026): verificar la sucursal activa dentro de la misma transacción Serializable que crea al operador y ejecutar también la desactivación en Serializable. Informar `P2034` como `409` sin reintento automático. Una creación que se confirma antes de una desactivación puede conservar el registro del operador; la autenticación bloquea el ingreso mientras la sucursal esté inactiva. No se promete que una sucursal inactiva no tenga operadores asignados.
+
 - D-T-ACCOUNTS-05 (03/10/2026): `Usuario.mustChangePassword` comienza en `false` para preservar cuentas existentes. La creación o el restablecimiento por ADMIN lo fija en `true`. En rutas autenticadas, la sesión marcada solo permite consultar la sesión, cerrar sesión, verificar conectividad y cambiar la contraseña propia; al hacerlo se limpia la marca, se revocan todas sus sesiones y se exige un nuevo ingreso. La API aplica el bloqueo aunque se omita el modal del cliente; las lecturas públicas conservan su contrato actual.
 
 - D-T-ACCOUNTS-04 (03/10/2026): el cambio de contraseña propia requiere sesión individual y clave actual; la nueva clave tiene al menos ocho caracteres y debe ser distinta. Hash, revocación de todas las sesiones y evento de auditoría se confirman en una transacción Serializable; se borra la cookie tras éxito. El token bootstrap sin sesión individual no puede usar esta ruta. Un conflicto concurrente se informa como 409 sin reintento automático.

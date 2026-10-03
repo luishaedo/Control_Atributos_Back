@@ -65,19 +65,24 @@ export function UsuariosController(prisma) {
       }
       if (!id || !Object.keys(data).length) return sendAdminError(res, 400, 'id y cambios requeridos')
       if (data.codigo === '' || data.nombre === '') return sendAdminError(res, 400, 'codigo y nombre no pueden estar vacíos')
-      const item = await prisma.$transaction(async (tx) => {
-        const previous = await tx.sucursal.findUnique({ where: { id }, select: { codigo: true, nombre: true, activa: true } })
-        if (!previous) throw Object.assign(new Error('Sucursal no encontrada'), { code: 'P2025' })
-        const updated = await tx.sucursal.update({ where: { id }, data })
-        if (previous?.activa && !updated.activa) {
-          await tx.sesion.updateMany({
-            where: { usuario: { is: { sucursalId: id } }, revokedAt: null },
-            data: { revokedAt: new Date() },
-          })
-        }
-        await recordAudit(tx, req, 'SUCURSAL', id, 'ACTUALIZAR', changes(previous, updated, ['codigo', 'nombre', 'activa']))
-        return updated
-      })
+      let item
+      try {
+        item = await prisma.$transaction(async (tx) => {
+          const previous = await tx.sucursal.findUnique({ where: { id }, select: { codigo: true, nombre: true, activa: true } })
+          if (!previous) throw Object.assign(new Error('Sucursal no encontrada'), { code: 'P2025' })
+          const updated = await tx.sucursal.update({ where: { id }, data })
+          if (previous.activa && !updated.activa) {
+            await tx.sesion.updateMany({
+              where: { usuario: { is: { sucursalId: id } }, revokedAt: null },
+              data: { revokedAt: new Date() },
+            })
+          }
+          await recordAudit(tx, req, 'SUCURSAL', id, 'ACTUALIZAR', changes(previous, updated, ['codigo', 'nombre', 'activa']))
+          return updated
+        }, { isolationLevel: 'Serializable' })
+      } catch (error) {
+        return handleAccountConflict(error, res)
+      }
       res.json({ ok: true, item })
     },
 
@@ -109,19 +114,24 @@ export function UsuariosController(prisma) {
       if (rol === 'OPERADOR' && !sucursalId) {
         return sendAdminError(res, 400, 'sucursalId requerido para OPERADOR')
       }
-      if (rol === 'OPERADOR') {
-        const branch = await prisma.sucursal.findUnique({ where: { id: sucursalId }, select: { activa: true } })
-        if (!branch?.activa) return sendAdminError(res, 409, 'El operador requiere una sucursal activa')
-      }
       const passwordHash = await hashPassword(password)
-      const user = await prisma.$transaction(async (tx) => {
-        const created = await tx.usuario.create({
-          data: { username, nombre, rol, sucursalId, passwordHash, mustChangePassword: true },
-          include: { sucursal: true },
-        })
-        await recordAudit(tx, req, 'USUARIO', created.id, 'CREAR', { username, nombre, rol, sucursalId, activo: true, mustChangePassword: true })
-        return created
-      })
+      let user
+      try {
+        user = await prisma.$transaction(async (tx) => {
+          if (rol === 'OPERADOR') {
+            const branch = await tx.sucursal.findUnique({ where: { id: sucursalId }, select: { activa: true } })
+            if (!branch?.activa) throw accountRule('El operador requiere una sucursal activa')
+          }
+          const created = await tx.usuario.create({
+            data: { username, nombre, rol, sucursalId, passwordHash, mustChangePassword: true },
+            include: { sucursal: true },
+          })
+          await recordAudit(tx, req, 'USUARIO', created.id, 'CREAR', { username, nombre, rol, sucursalId, activo: true, mustChangePassword: true })
+          return created
+        }, { isolationLevel: 'Serializable' })
+      } catch (error) {
+        return handleAccountConflict(error, res)
+      }
       res.json({ ok: true, item: publicUser(user) })
     },
 
