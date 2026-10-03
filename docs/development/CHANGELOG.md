@@ -4,7 +4,7 @@
 
 Mientras el usuario rota la credencial aislada de staging, se revisó localmente el panel de Cuentas. Desactivar un usuario o una sucursal ahora solicita confirmación y avisa que se cerrarán las sesiones afectadas; cancelar no envía la mutación. Reactivar mantiene la acción directa. Archivos: frontend `src/pages/admin/modules/Accounts/{AccountsPanel.jsx,AccountsPanel.test.jsx}`; backend `docs/development/{STATUS,CHANGELOG}.md`.
 
-Validación: frontend `npm.cmd test -- --run` 18/18 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas, build con `VITE_API_URL=http://localhost:3000` PASS; `git diff --check` sin errores. La primera ejecución de Vitest/Vite en sandbox falló por acceso denegado al directorio raíz; ambas verificaciones pasaron al repetirlas con permiso de ejecución ampliado. Sin DB remota, migraciones, staging ni producción. Próximo: publicar los commits en los PRs existentes y validar ACCOUNTS-04 en staging tras la rotación.
+Validación: frontend `npm.cmd test -- --run` 18/18 PASS, `npm.cmd run lint` 0 errores/38 advertencias previas, build con `VITE_API_URL=http://localhost:3000` PASS; `git diff --check` sin errores. La primera ejecución de Vitest/Vite en sandbox falló por acceso denegado al directorio raíz; ambas verificaciones pasaron al repetirlas con permiso de ejecución ampliado. Frontend commit `c4aa3a2` publicado en [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54); documentación backend `e61b8a6` publicada en [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32). CI de estos commits todavía sin confirmar. Sin DB remota, migraciones, staging ni producción. Próximo: validar ACCOUNTS-04 en staging tras la rotación.
 
 ## 03/10/2026 — ACCOUNTS-04, ramas publicadas y PRs borrador
 
