@@ -1,12 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { ImportService } from '../src/services/import.service.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const file = name => readFile(resolve(root, name))
+const hasWorkspaceFiles = ['categorias2.csv', 'tipos.csv', 'clasificacion.csv', 'Maestro_ligth.csv', 'Maestro.csv']
+  .every(name => existsSync(resolve(root, name)))
 
 function database({ failAt = Infinity } = {}) {
   let state = Object.fromEntries(['DicCategoria', 'DicTipo', 'DicClasif', 'Maestro'].map(name => [name, new Map()]))
@@ -38,7 +41,7 @@ function database({ failAt = Infinity } = {}) {
   return { service: ImportService(prisma), rows: name => state[name], countStatements: () => statements }
 }
 
-test('los CSV entregados cargan diccionarios y ambos maestros en lotes acotados', async () => {
+test('los CSV entregados cargan diccionarios y ambos maestros en lotes acotados', { skip: !hasWorkspaceFiles }, async () => {
   const db = database()
   const dictionaries = await db.service.importarDiccionariosDesdeBuffers({
     categoriasBuf: await file('categorias2.csv'),
@@ -63,7 +66,7 @@ test('los CSV entregados cargan diccionarios y ambos maestros en lotes acotados'
   assert.equal(db.rows('Maestro').size, 7586)
 })
 
-test('si falla un lote, la transacción revierte también los lotes anteriores', async () => {
+test('si falla un lote, la transacción revierte también los lotes anteriores', { skip: !hasWorkspaceFiles }, async () => {
   const db = database({ failAt: 5 })
   await db.service.importarDiccionariosDesdeBuffers({
     categoriasBuf: await file('categorias2.csv'),
@@ -72,4 +75,20 @@ test('si falla un lote, la transacción revierte también los lotes anteriores',
   })
   await assert.rejects(db.service.importarMaestroDesdeBuffer(await file('Maestro.csv')), /simulated database failure/)
   assert.equal(db.rows('Maestro').size, 0)
+})
+
+test('CI: un maestro grande se divide en lotes de 500 y conserva el upsert', async () => {
+  const db = database()
+  const dictionary = Buffer.from('cod,nombre\n01,Prueba\n')
+  await db.service.importarDiccionariosDesdeBuffers({
+    categoriasBuf: dictionary, tiposBuf: dictionary, clasifBuf: dictionary,
+  })
+  const rows = Array.from({ length: 1201 }, (_, index) => `SKU${index + 1},Artículo ${index + 1},01,01,01`)
+  const csv = Buffer.from(`sku,descripcion,categoria_cod,tipo_cod,clasif_cod\n${rows.join('\n')}\n`)
+  const imported = await db.service.importarMaestroDesdeBuffer(csv)
+  assert.equal(imported.count, 1201)
+  assert.equal(db.rows('Maestro').size, 1201)
+  assert.equal(db.countStatements(), 6) // three dictionaries and three master batches
+  await db.service.importarMaestroDesdeBuffer(csv)
+  assert.equal(db.rows('Maestro').size, 1201)
 })
