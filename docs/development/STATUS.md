@@ -1,11 +1,12 @@
 # Estado de trabajo compartido
 
-Actualizado: 03/10/2026. Coordinador de esta entrega: Codex, chat actual de recuperación de importaciones.
+Actualizado: 03/10/2026. Coordinador de UX-UI-02: Codex, chat actual de revisión UX/UI.
 
 ## Trabajo activo 03/10/2026
 
 | Tarea | Estado | Responsable | Alcance |
 |---|---|---|---|
+| UX-UI-02 | PUBLICADO_PRODUCCION; pendiente QA autenticada completa | Codex, chat actual de revisión UX/UI; sin agentes delegados | Frontend `index.html`, `src/main.jsx`, `src/styles.css`, componentes de navegación/escaneo/campañas/login/tablas, vistas Home/Catálogo/Revisiones/Admin e importaciones/exportaciones. Base visual, acciones responsive, tablas alineadas, estados de error/vacío, confirmación de cierre. PR frontend #53 mergeado a `main` con squash `985732c`; Vercel sirve `index-CTQBiy8p.js` y `index-DxRY2PGW.css` en `https://stockeador-client-1nll.vercel.app/`. Lint 0 errores/38 warnings heredados; tests 11/11 PASS; build PASS; verificación visual/DOM local a 360 y 390 px sin desborde en `/`, `/catalogo`, `/admin`, `/auditoria`. Sin sesión de prueba para revisar flujos autenticados completos. Se evitó `docs/PRODUCT_BRIEF_PROTOTIPO.md`, reservado por UX-PROTOTIPO-01. |
 | IMPORT-BULK-RECOVERY | VALIDADO_PRODUCCION para importación de archivos | Codex, chat actual; sin agentes delegados | Backend PR #30, merge `975cac3`; Render deploy `dep-db0e7chsrm7s73f6vvd0` Live (03/10/2026). `npm test`: 77 PASS/4 SKIP local; CI #13 PASS; PostgreSQL 16 aislado: archivos reales y reimportación PASS. Carga autenticada en producción: diccionarios 50/28/16, maestro liviano 8/8, maestro completo 7.586 importados y 7 omitidos por formato SKU/códigos vacíos. GET posterior confirmó 50/28/16 y 7.586 artículos; smoke remoto 7/7 PASS. Sin borrados ni seed en producción. |
 
 Las 7 filas omitidas del maestro completo requieren decisión/corrección del origen antes de reimportar: 1425, 1510, 3657 y 3715 tienen SKU fuera del contrato D-B01; 3687, 4805 y 5445 carecen de códigos. El panel permite descargarlas y corregirlas individualmente. No asignar SKU o códigos por inferencia. No se probó en producción una falla forzada de DB; el rollback se verificó con dobles y la importación completa con PostgreSQL aislado.
