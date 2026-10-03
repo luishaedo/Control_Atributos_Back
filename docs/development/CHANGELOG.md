@@ -1,5 +1,11 @@
 # Historial de entregas
 
+## 02/10/2026 — Plantillas y recuperación de filas omitidas en importaciones
+
+Se añadieron cuatro plantillas CSV con encabezados canónicos para categorías, tipos, clasificaciones y maestro. Backend ahora procesa cada fila por separado, persiste en una transacción las válidas y responde con número de fila, datos originales, campo y motivo de cada omisión; esto incluye códigos inexistentes en diccionarios y duplicados normalizados, conservando la primera aparición. Frontend muestra un cuadro separado por archivo, permite corregir y cargar una fila individualmente, y descarga las omitidas como CSV compatible con reimportación. Encabezados no reconocibles o CSV mal formado siguen generando error de archivo.
+
+Archivos principales: `Control_Atributos_Back/src/utils/csvInput.js`, servicios/controladores de importación, tests backend, `Control_Atributos_Front/src/pages/admin/modules/Imports/*`, cuatro CSV en `public/templates/` y test de plantillas. Decisión D-B05 actualizada por solicitud del usuario. Backend `npm test`: 77 pruebas, 74 PASS, 3 SKIP. Frontend `npm test`: 11/11 PASS; lint 0 errores/41 advertencias heredadas; build OK y cuatro plantillas presentes en `dist/templates`. Estado: implementación local; no DB real, staging, commit, push ni deploy. Próximo paso: revisión del usuario y publicación coordinada backend/frontend para habilitar descargas en el sitio.
+
 ## 02/10/2026 — R6.1 verificación operativa parcial
 
 Se verificaron GitHub, Actions, Render, Vercel y la aplicación publicada. Backend `b24c23b` está en `main`, cuyo head remoto observado ya era `5a228a1`; frontend `ce8e812` es head de `main`. Frontend CI #2 está verde. Backend CI #4/#5 está rojo en `prisma validate` antes de tests/audit; con `DATABASE_URL` vacía se reproduce P1012 localmente.

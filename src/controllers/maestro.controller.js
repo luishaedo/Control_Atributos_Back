@@ -95,7 +95,7 @@ export function MaestroController(prisma) {
       if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items vacío' })
       let result
       try {
-        result = await svc.importMaestroItems(items)
+        result = await svc.importMaestroItems(items, { allowPartial: true })
       } catch (error) {
         return res.status(error.status || 500).json({
           error: error.message || 'Error importando maestro',
@@ -104,14 +104,17 @@ export function MaestroController(prisma) {
           invalidItems: error.details || [],
         })
       }
-      const { count, skipped = [], warnings = [] } = result
-      const skippedMessage = skipped.length ? 'Artículos omitidos por datos vacíos' : null
+      const { count, skipped = [], omittedRows = [], warnings = [] } = result
+      const allOmitted = omittedRows.length ? omittedRows : skipped
+      const skippedMessage = allOmitted.length ? 'Algunas filas se omitieron; revisá el detalle para corregirlas.' : null
       res.json({
         ok: true,
         count,
-        skippedCount: skipped.length,
+        skippedCount: allOmitted.length,
+        omittedCount: allOmitted.length,
         skippedMessage,
-        skipped,
+        skipped: allOmitted,
+        omittedRows: allOmitted,
         warningCount: result.warningCount ?? warnings.length,
         warnings,
       })

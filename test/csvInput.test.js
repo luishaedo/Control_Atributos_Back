@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseDicCSV, parseMaestroCSV } from '../src/utils/csvInput.js'
+import { parseDicCSV, parseMaestroCSV, parseDicCSVReport, parseMaestroCSVReport } from '../src/utils/csvInput.js'
 
 test('R1.1 CSV informa sufijo de SKU y guarda solo la base', () => {
   const [item] = parseMaestroCSV(Buffer.from(
@@ -35,4 +35,38 @@ test('R3.1 CSV acepta encabezados canónicos exportables para round-trip', () =>
     tipo_cod: '02',
     clasif_cod: '03',
   })
+})
+
+test('Importación CSV conserva filas válidas e informa las omitidas con fila y contenido', () => {
+  const report = parseDicCSVReport(Buffer.from('cod,nombre\n1,Categoría\nABC,Inválido\n2,\n'))
+  assert.equal(report.items.length, 1)
+  assert.equal(report.items[0].cod, '01')
+  assert.deepEqual(report.omittedRows.map(row => [row.row, row.field, row.reason]), [
+    [3, 'cod', 'invalid_code'],
+    [4, 'nombre', 'missing_name'],
+  ])
+  assert.deepEqual(report.omittedRows[0].raw, { cod: 'ABC', nombre: 'Inválido' })
+})
+
+test('CSV de maestro identifica SKU/código inválidos y duplicados sin descartar filas válidas', () => {
+  const report = parseMaestroCSVReport(Buffer.from(
+    'sku,descripcion,categoria_cod,tipo_cod,clasif_cod\nABC1,Ok,1,2,3\nABC2,Error,XX,2,3\nabc1,Duplicado,1,2,3\n'))
+  assert.equal(report.items.length, 1)
+  assert.equal(report.items[0].sourceRow, 2)
+  assert.deepEqual(report.omittedRows.map(row => [row.row, row.field, row.reason]), [
+    [3, 'categoria_cod', 'invalid_code'],
+    [4, 'sku', 'duplicate_sku_in_file'],
+  ])
+})
+
+test('Plantillas con encabezados canónicos vacías son parseables', () => {
+  assert.deepEqual(parseDicCSVReport(Buffer.from('cod,nombre\n')).items, [])
+  assert.deepEqual(parseMaestroCSVReport(Buffer.from('sku,descripcion,categoria_cod,tipo_cod,clasif_cod\n')).items, [])
+})
+
+test('CSV descargado de omitidas conserva formato reimportable aunque incluya columnas de motivo', () => {
+  const report = parseDicCSVReport(Buffer.from('cod,nombre,_fila_origen,_campo,_motivo_omision\n02,Corregida,3,cod,Antes era inválida\n'))
+  assert.equal(report.items[0].cod, '02')
+  assert.equal(report.items[0].nombre, 'Corregida')
+  assert.equal(report.omittedRows.length, 0)
 })

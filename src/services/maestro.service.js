@@ -57,32 +57,42 @@ export function MaestroService(prisma) {
     }
   }
 
-  const validateMaestroImport = async (items = []) => {
-    const invalidItems = []
+  const validateMaestroImport = async (items = [], { allowPartial = false } = {}) => {
+    const omittedRows = []
     const warnings = []
     const normalized = []
     const seen = new Set()
     for (const [index, raw] of items.entries()) {
       const result = normalizeRequiredItem(raw, index)
       if (result.invalid) {
-        invalidItems.push(result.invalid)
+        omittedRows.push({
+          row: raw?.sourceRow ?? index + 1,
+          field: result.invalid.field,
+          reason: result.invalid.reason,
+          message: result.invalid.reason === 'invalid_sku' ? 'El SKU está vacío o tiene caracteres inválidos.' : 'Falta un código válido de categoría, tipo o clasificación.',
+          value: raw?.[result.invalid.field] ?? null,
+          raw: raw?.rawRow ?? raw,
+        })
         continue
       }
       if (seen.has(result.item.sku)) {
-        invalidItems.push({
-          row: index + 1,
+        omittedRows.push({
+          row: raw?.sourceRow ?? index + 1,
           sku: result.item.sku,
           field: 'sku',
           reason: 'duplicate_sku_in_batch',
+          message: `El SKU ${result.item.sku} ya aparece en una fila anterior.`,
+          value: raw?.rawRow?.sku ?? raw?.sku ?? null,
+          raw: raw?.rawRow ?? raw,
         })
         continue
       }
       seen.add(result.item.sku)
-      normalized.push(result.item)
+      normalized.push({ ...result.item, sourceRow: raw?.sourceRow ?? index + 1, rawRow: raw?.rawRow ?? raw })
       if (result.warning) warnings.push(result.warning)
     }
-    if (invalidItems.length) {
-      throw invalidImport('items inválidos; no se importó ningún registro', invalidItems)
+    if (!allowPartial && omittedRows.length) {
+      throw invalidImport('items inválidos; no se importó ningún registro', omittedRows)
     }
 
     const unique = field => [...new Set(normalized.map(item => item[field]))]
@@ -96,17 +106,30 @@ export function MaestroService(prisma) {
       tipo_cod: new Set(tipos.map(item => item.cod)),
       clasif_cod: new Set(clasif.map(item => item.cod)),
     }
-    const domainErrors = normalized.flatMap((item, index) => Object.entries(domains)
-      .filter(([field, domain]) => !domain.has(item[field]))
-      .map(([field]) => ({ row: index + 1, sku: item.sku, field, value: item[field], reason: 'invalid_dictionary_code' })))
-    if (domainErrors.length) {
-      throw Object.assign(new Error(
-        `El maestro contiene ${domainErrors.length} código(s) fuera de los diccionarios; no se importó ningún registro`), {
-        status: 400, code: 'INVALID_DICTIONARY', details: domainErrors,
+    const invalidBySku = new Map()
+    for (const item of normalized) {
+      const invalidFields = Object.entries(domains).filter(([field, domain]) => !domain.has(item[field]))
+      if (!invalidFields.length) continue
+      invalidBySku.set(item.sku, true)
+      const labels = { categoria_cod: 'categoría', tipo_cod: 'tipo', clasif_cod: 'clasificación' }
+      omittedRows.push({
+        row: item.sourceRow,
+        sku: item.sku,
+        field: invalidFields.map(([field]) => field).join(', '),
+        value: invalidFields.map(([field]) => item[field]).join(', '),
+        reason: 'invalid_dictionary_code',
+        message: invalidFields.map(([field]) => `El código ${item[field]} no existe en el diccionario de ${labels[field]}.`).join(' '),
+        raw: item.rawRow,
       })
     }
 
-    return { items: normalized, warnings }
+    if (!allowPartial && omittedRows.length) {
+      throw Object.assign(new Error(`El maestro tiene ${omittedRows.length} fila(s) inválida(s); no se importó ningún registro`), {
+        status: 400, code: 'INVALID_DICTIONARY', details: omittedRows,
+      })
+    }
+    const validItems = normalized.filter(item => !invalidBySku.has(item.sku)).map(({ sourceRow, rawRow, ...item }) => item)
+    return { items: validItems, warnings, omittedRows }
   }
 
   return {
@@ -137,8 +160,8 @@ export function MaestroService(prisma) {
       return { categorias: normalizedCategorias.length, tipos: normalizedTipos.length, clasif: normalizedClasif.length }
     },
 
-    async importMaestroItems(items = []) {
-      const { items: normalized, warnings } = await validateMaestroImport(items)
+    async importMaestroItems(items = [], options = {}) {
+      const { items: normalized, warnings, omittedRows } = await validateMaestroImport(items, options)
       await runInTransaction(async tx => {
         for (const item of normalized) {
           await tx.maestro.upsert({
@@ -153,7 +176,7 @@ export function MaestroService(prisma) {
           })
         }
       })
-      return { count: normalized.length, skipped: [], warningCount: warnings.length, warnings }
+      return { count: normalized.length, skipped: omittedRows, omittedRows, warningCount: warnings.length, warnings }
     },
 
     async upsertMaestro(items = []) {

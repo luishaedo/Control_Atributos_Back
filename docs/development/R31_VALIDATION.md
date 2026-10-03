@@ -37,3 +37,11 @@ Nuevas regresiones R3.1:
 ## Límites
 
 D-B05 resuelve el contrato de importación y deja explícito que las bajas no se infieren por ausencia. El formato final de exportación al receptor queda para R3.2 como paquete de cierre repetible. No se ejecutó PostgreSQL aislado ni staging en esta continuación.
+
+## Ajuste de importación parcial — 02/10/2026
+
+Por pedido del usuario, la importación de archivos ahora acepta encabezados canónicos mediante cuatro plantillas CSV del frontend: categorías, tipos, clasificaciones y maestro. Una fila inválida ya no cancela las demás: se cargan las válidas en una transacción y se devuelve el detalle de cada omitida (fila, valores originales, campo y motivo). En duplicados normalizados se conserva la primera fila. Los códigos del maestro que no existen en los diccionarios también se reportan para corregirlos.
+
+La pantalla administrativa muestra un cuadro por archivo, permite corregir y cargar una fila manualmente por las rutas JSON administrativas existentes, y descargar las omitidas como CSV corregible/reimportable. Los archivos mal formados o con encabezados que no permiten identificar campos siguen rechazándose completos porque no se pueden interpretar con seguridad.
+
+Validación local posterior: backend `npm test` 77 pruebas, 74 PASS y 3 SKIP; frontend `npm test` 11/11 PASS, `npm run lint` 0 errores/41 advertencias heredadas, `npm run build` OK (390 módulos). El build incluye los cuatro archivos en `dist/templates`. Sin base de datos real, staging, commit, push o deploy.
