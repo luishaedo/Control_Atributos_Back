@@ -1,5 +1,17 @@
 # Historial de entregas
 
+## 03/10/2026 — ACCOUNTS-04, ramas publicadas y PRs borrador
+
+Con autorización explícita del usuario se publicaron las ramas `feat/accounts-administration`: backend `8e9996e6760dba9b2f78cb9f634cdd1ce85a3017`, [PR #32](https://github.com/luishaedo/Control_Atributos_Back/pull/32); frontend `db24acf8d70929d1e06b0c9f8f0f56e7434b9f52`, [PR #54](https://github.com/luishaedo/Control_Atributos_Front/pull/54). Ambos PRs quedan en borrador; CI backend y frontend PASS. `main` y producción permanecen intactos.
+
+Antes del deploy de staging se solicitó al usuario rotar la credencial de la base Neon aislada y actualizar `DATABASE_URL` en Render sin compartir secretos, de acuerdo con la guía `computer-use` para cambios de credenciales en UI. El servicio Render sigue en la rama/commit anterior. Sin migraciones remotas, deploy ni pruebas de navegador desplegado. Próximo: verificar la rotación y destino, desplegar sólo staging y ejecutar ACCOUNTS-04.
+
+## 03/10/2026 — ACCOUNTS-04, revisión preparada para staging
+
+Se crearon ramas locales `feat/accounts-administration` y commits backend `8e9996e6760dba9b2f78cb9f634cdd1ce85a3017` y frontend `db24acf8d70929d1e06b0c9f8f0f56e7434b9f52`. Verificación previa: Prisma válido; backend `npm test` 91 PASS/8 SKIP sin base aislada en esta corrida (ensayo previo 95 PASS/4 SKIP con PostgreSQL); frontend lint 0 errores/38 advertencias existentes, tests 17/17 PASS, build PASS. Se comprobó en Render que el staging sigue en `r13-atributos-staging`/`594ce7a`, con despliegue manual y `npm run start` que ejecuta migraciones. La base configurada es la aislada `r02_prisma_validation`.
+
+La revisión automática rechazó dos intentos de publicar la rama backend en GitHub público y exigió autorización explícita para ese destino; se solicitó. No se intentó otro canal de publicación. Durante la verificación de destino, la interfaz de Render expuso accidentalmente la credencial de staging en la salida de la herramienta; no se guardó en archivos ni se conectó con ella. Se recomienda rotarla antes de desplegar. Sin push, PR, migraciones remotas, deploy ni cambios productivos. `ACCOUNTS04_VALIDATION.md` registra el detalle y los pasos pendientes.
+
 ## 03/10/2026 — ACCOUNTS-04, ensayo operativo local previo a staging
 
 Por D-B09 el usuario indicó avanzar sin límite de intentos; ACCOUNTS-03 se considera completo localmente con ese alcance. Se agregó a `test/accounts.postgres.test.js` un circuito HTTP real con PostgreSQL aislado: creación de sucursal y operador, cookie y CORS, cambio obligatorio y restablecimiento, rechazo de contraseña vieja, roles y permisos, revocación por estado/sucursal, reactivación, expiración, último ADMIN y auditoría sin claves. `docs/development/ACCOUNTS04_VALIDATION.md` contiene resultados y guía para validar en staging y preparar siete sucursales. Se actualizaron `ACCOUNTS_PLAN.md`, `DECISIONS.md` y `STATUS.md`.
